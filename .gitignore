@@ -1,0 +1,13 @@
+/.tmp/
+/_analysis_render/
+/*.md
+/*.docx
+/*.pdf
+/lecture-handout-generator/node_modules/
+/lecture-handout-generator/.next/
+/lecture-handout-generator/*.tsbuildinfo
+/lecture-handout-generator/.env
+/lecture-handout-generator/.env.local
+/lecture-handout-generator/storage/
+/lecture-handout-generator/generated/
+*.log
