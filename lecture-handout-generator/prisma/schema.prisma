@@ -1,0 +1,241 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum ProjectStatus {
+  DRAFT
+  PARSING
+  TEXT_REVIEW
+  PINYIN_REVIEW
+  LAYOUT_GENERATING
+  LAYOUT_REVIEW
+  COMPLETED
+  FAILED
+}
+
+enum LessonStatus {
+  DRAFT
+  TEXT_REVIEW
+  APPROVED
+}
+
+enum OutputKind {
+  LESSON_STUDENT
+  COMBINED_STUDENT
+  COMBINED_ANSWERS
+  PARENT_MANUAL
+  LESSON_ANSWERS
+  WECHAT_FLIPBOOK
+}
+
+enum AiProviderKind {
+  OPENAI
+  OPENAI_COMPATIBLE
+  INTERNAL
+}
+
+enum AssetKind {
+  PORTRAIT
+  EXPRESSION
+}
+
+enum BackgroundRole {
+  SIMPLE
+  COVER
+  PARENT_MANUAL
+  LESSON_HOME
+  CONVERSATION
+  READING
+  PRACTICE
+  LITTLE_TEACHER
+}
+
+enum SourceFileKind {
+  PDF
+  QUESTION_IMAGE
+  COVER_IMAGE
+  BACKGROUND_IMAGE
+}
+
+model User {
+  id             String    @id @default(cuid())
+  employeeNumber String    @unique
+  name           String
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  lastLoginAt    DateTime?
+  projects       Project[]
+}
+
+model Project {
+  id               String          @id @default(cuid())
+  name             String
+  grade            String
+  teachingYear     Int
+  teachingYearConfirmedAt DateTime?
+  season           String?
+  status           ProjectStatus   @default(DRAFT)
+  pinned           Boolean         @default(false)
+  lessonCount      Int             @default(1)
+  selectedProviderId String?
+  teacherId        String?
+  backgroundPackId String?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  ownerId          String
+  owner            User            @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  teacher          Teacher?        @relation(fields: [teacherId], references: [id], onDelete: SetNull)
+  backgroundPack   BackgroundPack? @relation(fields: [backgroundPackId], references: [id], onDelete: SetNull)
+  lessons          Lesson[]
+  outputs          ProjectOutput[]
+  sourceFiles      SourceFile[]
+  generatedFiles   GeneratedFile[]
+  curriculumReferences CurriculumReference[]
+
+  @@index([ownerId, pinned, updatedAt])
+}
+
+model CurriculumReference {
+  id           String   @id @default(cuid())
+  projectId    String
+  lessonNumber Int?
+  category     String
+  claim        String
+  sourceTitle  String
+  sourceUrl    String
+  publishedAt  DateTime?
+  retrievedAt  DateTime @default(now())
+  aiRationale  String?
+  confirmedAt  DateTime?
+  project      Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId, lessonNumber])
+}
+
+model Lesson {
+  id                   String       @id @default(cuid())
+  projectId            String
+  lessonNumber         Int
+  title                String
+  subtitle             String?
+  technique            String?
+  status               LessonStatus @default(DRAFT)
+  structuredContent    Json?
+  readingExcerpt       String?
+  readingExcerptSource Json?
+  pinyinReview         Json?
+  textApprovedAt       DateTime?
+  pinyinApprovedAt     DateTime?
+  layoutApprovedAt     DateTime?
+  createdAt            DateTime     @default(now())
+  updatedAt            DateTime     @updatedAt
+  project              Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, lessonNumber])
+}
+
+model ProjectOutput {
+  id        String     @id @default(cuid())
+  projectId String
+  kind      OutputKind
+  enabled   Boolean    @default(true)
+  project   Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, kind])
+}
+
+model AiProviderConfig {
+  id               String         @id @default(cuid())
+  displayName      String
+  kind             AiProviderKind
+  baseUrl          String
+  model            String
+  encryptedApiKey  String
+  extraHeaders     Json?
+  supportsVision   Boolean        @default(false)
+  supportsSearch   Boolean        @default(false)
+  supportsJson     Boolean        @default(true)
+  enabled          Boolean        @default(true)
+  isDefault        Boolean        @default(false)
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+}
+
+model Teacher {
+  id            String         @id @default(cuid())
+  formalName    String
+  nickname      String
+  grade         String?
+  introduction  String
+  enabled       Boolean        @default(true)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  assets        TeacherAsset[]
+  projects      Project[]
+
+  @@unique([formalName, nickname])
+}
+
+model TeacherAsset {
+  id        String    @id @default(cuid())
+  teacherId String
+  kind      AssetKind
+  label     String?
+  objectKey String
+  width     Int?
+  height    Int?
+  sortOrder Int       @default(0)
+  createdAt DateTime  @default(now())
+  teacher   Teacher   @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+}
+
+model BackgroundPack {
+  id        String            @id @default(cuid())
+  name      String
+  mode      String
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+  assets    BackgroundAsset[]
+  projects  Project[]
+}
+
+model BackgroundAsset {
+  id               String         @id @default(cuid())
+  backgroundPackId String
+  role             BackgroundRole
+  objectKey        String
+  backgroundPack   BackgroundPack @relation(fields: [backgroundPackId], references: [id], onDelete: Cascade)
+
+  @@unique([backgroundPackId, role])
+}
+
+model SourceFile {
+  id          String         @id @default(cuid())
+  projectId   String
+  kind        SourceFileKind
+  originalName String
+  objectKey   String
+  mimeType    String
+  size        Int
+  checksum    String?
+  lessonNumber Int?
+  createdAt   DateTime       @default(now())
+  project     Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
+
+model GeneratedFile {
+  id          String     @id @default(cuid())
+  projectId   String
+  kind        OutputKind
+  fileName    String
+  objectKey   String
+  version     Int        @default(1)
+  pageCount   Int?
+  createdAt   DateTime   @default(now())
+  project     Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}

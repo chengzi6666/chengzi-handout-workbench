@@ -5,24 +5,52 @@ import { BookOpenCheck, ChevronDown, FileUp, LogOut, Search, Settings2, Sparkles
 import { ProjectSidebar } from "./project-sidebar";
 import { OUTPUT_OPTIONS, type HandoutProject, type OutputKind } from "@/lib/domain";
 
-const seedProjects: HandoutProject[] = [
-  { id: "p1", name: "0升1秋季五讲", grade: "0升1", lessonCount: 5, status: "text_review", pinned: true, updatedAt: "刚刚" },
-  { id: "p2", name: "2升3秋季改课", grade: "2升3", lessonCount: 4, status: "draft", pinned: false, updatedAt: "昨天" },
-  { id: "p3", name: "4升5《骑鹅旅行记》", grade: "4升5", lessonCount: 1, status: "layout_review", pinned: false, updatedAt: "8月18日" }
-];
+interface WorkspaceShellProps {
+  initialProjects: HandoutProject[];
+  user: { employeeNumber: string; name: string };
+}
 
-export function WorkspaceShell() {
-  const [projects, setProjects] = useState(seedProjects);
-  const [selectedId, setSelectedId] = useState(seedProjects[0].id);
+export function WorkspaceShell({ initialProjects, user }: WorkspaceShellProps) {
+  const [projects, setProjects] = useState(initialProjects);
+  const [selectedId, setSelectedId] = useState(initialProjects[0]?.id ?? "");
   const [outputs, setOutputs] = useState<OutputKind[]>(["lesson_student", "combined_student"]);
   const selected = useMemo(() => projects.find((project) => project.id === selectedId) ?? projects[0], [projects, selectedId]);
 
-  function togglePinned(id: string) {
+  async function togglePinned(id: string) {
+    const project = projects.find((item) => item.id === id);
+    if (!project) return;
     setProjects((items) => items.map((item) => item.id === id ? { ...item, pinned: !item.pinned } : item));
+    const response = await fetch(`/api/projects/${id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ pinned: !project.pinned }) });
+    if (!response.ok) setProjects((items) => items.map((item) => item.id === id ? project : item));
   }
 
-  function renameProject(id: string, name: string) {
+  async function renameProject(id: string, name: string) {
+    const previous = projects.find((item) => item.id === id);
     setProjects((items) => items.map((item) => item.id === id ? { ...item, name } : item));
+    const response = await fetch(`/api/projects/${id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ name }) });
+    if (!response.ok && previous) setProjects((items) => items.map((item) => item.id === id ? previous : item));
+  }
+
+  async function createProject() {
+    const name = window.prompt("请输入项目名称", `${new Date().getFullYear()}年秋季五讲`);
+    if (!name?.trim()) return;
+    const grade = window.prompt("请输入年级，例如：1升2", "1升2");
+    if (!grade?.trim()) return;
+    const response = await fetch("/api/projects", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ name: name.trim(), grade: grade.trim(), teachingYear: new Date().getFullYear(), season: "秋季", lessonCount: 5 })
+    });
+    if (!response.ok) return;
+    const { project } = await response.json();
+    const next: HandoutProject = { id: project.id, name: project.name, grade: project.grade, lessonCount: project.lessonCount, status: "draft", pinned: project.pinned, updatedAt: "刚刚" };
+    setProjects((items) => [next, ...items]);
+    setSelectedId(next.id);
+  }
+
+  async function logout() {
+    await fetch("/api/auth/logout", { method: "POST" });
+    window.location.href = "/login";
   }
 
   function toggleOutput(id: OutputKind) {
@@ -37,18 +65,19 @@ export function WorkspaceShell() {
         onSelect={setSelectedId}
         onTogglePinned={togglePinned}
         onRename={renameProject}
+        onCreate={createProject}
       />
 
       <section className="workspace">
         <header className="topbar">
           <div>
             <p className="eyebrow">讲义项目</p>
-            <h1>{selected.name}</h1>
+            <h1>{selected?.name ?? "新建讲义项目"}</h1>
           </div>
           <div className="topbar-actions">
             <button className="model-picker"><Sparkles size={16} /> 公司内部模型 <ChevronDown size={15} /></button>
             <button className="icon-button" aria-label="搜索"><Search size={18} /></button>
-            <button className="profile-button"><span>10248</span><strong>马老师</strong><ChevronDown size={14} /></button>
+            <button className="profile-button" onClick={logout} title="退出登录"><span>{user.employeeNumber}</span><strong>{user.name}</strong><LogOut size={14} /></button>
           </div>
         </header>
 
@@ -111,4 +140,3 @@ export function WorkspaceShell() {
     </main>
   );
 }
-

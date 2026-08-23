@@ -10,9 +10,10 @@ interface ProjectSidebarProps {
   onSelect(id: string): void;
   onTogglePinned(id: string): void;
   onRename(id: string, name: string): void;
+  onCreate(): void;
 }
 
-export function ProjectSidebar({ projects, selectedId, onSelect, onTogglePinned, onRename }: ProjectSidebarProps) {
+export function ProjectSidebar({ projects, selectedId, onSelect, onTogglePinned, onRename, onCreate }: ProjectSidebarProps) {
   const [query, setQuery] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const filtered = useMemo(() => projects
@@ -22,7 +23,7 @@ export function ProjectSidebar({ projects, selectedId, onSelect, onTogglePinned,
   return (
     <aside className="sidebar">
       <div className="brand"><div className="brand-mark">橙</div><div><strong>橙子讲义工坊</strong><span>教研工作台</span></div><button aria-label="收起侧边栏"><PanelLeftClose size={18} /></button></div>
-      <button className="new-project"><Plus size={18} /> 新建讲义项目</button>
+      <button className="new-project" onClick={onCreate}><Plus size={18} /> 新建讲义项目</button>
       <label className="sidebar-search"><Search size={16} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索项目" /></label>
       <div className="sidebar-section-title"><span>项目</span><SlidersHorizontal size={14} /></div>
       <nav className="project-list">
@@ -43,8 +44,7 @@ export function ProjectSidebar({ projects, selectedId, onSelect, onTogglePinned,
           </div>
         ))}
       </nav>
-      <div className="sidebar-footer"><button><Settings size={17} /> 系统设置</button><button><SlidersHorizontal size={17} /> AI模型与接口</button></div>
+      <div className="sidebar-footer"><button><Settings size={17} /> 系统设置</button><button onClick={() => { window.location.href = "/settings/models"; }}><SlidersHorizontal size={17} /> AI模型与接口</button></div>
     </aside>
   );
 }
-
