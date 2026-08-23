@@ -55,7 +55,7 @@ export function ReviewWorkspace({ project, initialLessons }: { project: { id: st
           <div className="review-toolbar"><div><h2>第{selected.lessonNumber}讲文字内容</h2><p>所有字段均可修改；阅读文段只能纠正PDF识别错误，不能压缩改写。</p></div><label className="secondary-button question-upload">人工替代题图<input type="file" accept="image/*" onChange={(event) => void uploadQuestionImage(event.target.files)} /></label><button className="secondary-button" onClick={confirmEvidence}><FileCheck2 size={16} /> 确认原文与来源</button></div>
           <textarea className="json-editor" value={draft} onChange={(event) => setDraft(event.target.value)} spellCheck={false} />
           <div className="review-actions"><span>{message}</span>{selected.textApproved && <><a className="secondary-button" href={`/api/projects/${project.id}/export?kind=lesson_student&lesson=${selected.lessonNumber}`}><Download size={16} /> 学生版</a><a className="secondary-button" href={`/api/projects/${project.id}/export?kind=lesson_answers&lesson=${selected.lessonNumber}`}><Download size={16} /> 独立答案</a></>}<button className="secondary-button" onClick={() => void save(false)}><Save size={16} /> 保存修改</button><button className="primary-button" onClick={() => void save(true)} disabled={selected.textApproved}><CheckCircle2 size={16} /> {selected.textApproved ? "已审核" : "通过本讲文字审核"}</button></div>
-        </> : <div className="empty-state">PDF解析后，请在工作台生成文字初稿。</div>}
+        </> : <div className="empty-state">系统正在根据已解析的主讲文件自动生成文字初稿；完成后会自动进入此页。</div>}
       </section>
     </div>
   </main>;

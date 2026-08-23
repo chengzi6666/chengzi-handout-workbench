@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { BookOpenCheck, CheckCircle2, ChevronDown, FileText, FileUp, Loader2, LogOut, Search, Settings2, Sparkles } from "lucide-react";
 import { ProjectSidebar } from "./project-sidebar";
@@ -24,6 +24,7 @@ export function WorkspaceShell({ initialProjects, user }: WorkspaceShellProps) {
   const [generationSettingsOpen, setGenerationSettingsOpen] = useState(false);
   const [settingsYear, setSettingsYear] = useState("");
   const [settingsMessage, setSettingsMessage] = useState("");
+  const autoGenerationStartedFor = useRef<string | null>(null);
   const [processMessage, setProcessMessage] = useState("");
   const [parseProgress, setParseProgress] = useState<{ percent: number; label: string } | null>(null);
   const selected = useMemo(() => projects.find((project) => project.id === selectedId) ?? projects[0], [projects, selectedId]);
@@ -36,6 +37,7 @@ export function WorkspaceShell({ initialProjects, user }: WorkspaceShellProps) {
     setProcessing(false);
     setParseProgress(null);
     setProcessMessage("");
+    autoGenerationStartedFor.current = null;
     const project = projects.find((item) => item.id === selectedId);
     if (project) setOutputs(project.outputKinds);
     fetch(`/api/projects/${selectedId}/files`, { signal: controller.signal }).then(async (response) => {
@@ -73,7 +75,11 @@ export function WorkspaceShell({ initialProjects, user }: WorkspaceShellProps) {
       } else if (jobs.length > 0 && jobs.every((job) => job.status === "SUCCEEDED")) {
         setProcessing(false);
         setParseProgress({ percent: 100, label: "解析完成" });
-        setProcessMessage("PDF解析完成，已进入文字审核阶段");
+        if (autoGenerationStartedFor.current !== selectedId) {
+          autoGenerationStartedFor.current = selectedId;
+          setProcessMessage("PDF解析完成，正在自动生成文字初稿…");
+          void generateContent(true);
+        }
       } else {
         const active = jobs.find((job) => job.status === "RUNNING" && job.result?.percent !== undefined);
         const completed = jobs.filter((job) => job.status === "SUCCEEDED").length;
@@ -228,7 +234,7 @@ export function WorkspaceShell({ initialProjects, user }: WorkspaceShellProps) {
     setProcessMessage(`已创建 ${payload.jobCount} 个解析任务`);
   }
 
-  async function generateContent() {
+  async function generateContent(navigateToReview = false) {
     if (!selected) return;
     setGenerating(true);
     setProcessMessage("正在调用模型生成讲义初稿；多讲课程可能需要几分钟…");
@@ -236,7 +242,8 @@ export function WorkspaceShell({ initialProjects, user }: WorkspaceShellProps) {
     const payload = await response.json();
     setGenerating(false);
     if (!response.ok) { setProcessMessage(payload.error ?? "生成失败"); return; }
-    setProcessMessage(`已生成 ${payload.lessonIds.length} 讲文字初稿，请进入文字审核`);
+    setProcessMessage(`已生成 ${payload.lessonIds.length} 讲文字初稿，正在进入文字审核…`);
+    if (navigateToReview) window.location.href = `/projects/${selected.id}/review`;
   }
 
   return (
@@ -305,30 +312,17 @@ export function WorkspaceShell({ initialProjects, user }: WorkspaceShellProps) {
           <section className="panel workflow-panel">
             <div className="panel-title"><span>03</span><div><h3>生成与双重审核</h3><p>所有步骤均可保存并稍后继续</p></div></div>
             <div className="workflow-steps">
-              {[
-                ["解析PDF", "提取无拼音文字"],
-                ["文字审核", "核对原文与答案"],
-                ["设计排版", "微软雅黑与背景"],
-                ["版式审核", "拖动、缩放、换表情"],
-                ["生成Word", "可编辑DOCX"]
-              ].map(([title, detail], index) => (
-                <div className="workflow-step" key={title}><b>{index + 1}</b><strong>{title}</strong><span>{detail}</span></div>
-              ))}
+              <button className="workflow-step" onClick={() => void startParsing()} disabled={processing || outputs.length === 0 || sourceFiles.length === 0}><b>1</b><strong>{processing ? "正在解析" : "解析主讲文件"}</strong><span>{sourceFiles.length === 0 ? "请先上传 PDF 或 DOCX" : "点击开始，完成后自动生成初稿"}</span></button>
+              {selected ? <Link className={`workflow-step ${generating ? "disabled" : ""}`} aria-disabled={generating} href={`/projects/${selected.id}/review`} onClick={(event) => { if (generating) event.preventDefault(); }}><b>2</b><strong>{generating ? "正在生成初稿" : "文字审核"}</strong><span>核对原文与答案</span></Link> : <span className="workflow-step disabled"><b>2</b><strong>文字审核</strong><span>解析后自动进入</span></span>}
+              {selected ? <Link className="workflow-step" href={`/projects/${selected.id}/layout`}><b>3</b><strong>设计排版</strong><span>微软雅黑与背景</span></Link> : <span className="workflow-step disabled"><b>3</b><strong>设计排版</strong><span>文字审核后进行</span></span>}
+              {selected ? <Link className="workflow-step" href={`/projects/${selected.id}/layout`}><b>4</b><strong>版式审核</strong><span>拖动、缩放、换表情</span></Link> : <span className="workflow-step disabled"><b>4</b><strong>版式审核</strong><span>确认版式效果</span></span>}
+              {selected ? <Link className="workflow-step" href={`/projects/${selected.id}/layout`}><b>5</b><strong>生成 Word</strong><span>下载可编辑 DOCX</span></Link> : <span className="workflow-step disabled"><b>5</b><strong>生成 Word</strong><span>完成后下载 DOCX</span></span>}
             </div>
             <div className="action-row">
               <button className="secondary-button" onClick={openGenerationSettings}><Settings2 size={16} /> 生成设置</button>
-              {selected && <Link className="secondary-button" href={`/projects/${selected.id}/review`}>文字审核</Link>}
-              {selected?.grade.replace(/\s/g, "") === "1升2" && <Link className="secondary-button" href={`/projects/${selected.id}/pinyin`}>拼音审核</Link>}
-              {selected && <Link className="secondary-button" href={`/projects/${selected.id}/layout`}>版式与导出</Link>}
-              <button className="secondary-button" onClick={() => void generateContent()} disabled={processing || generating || sourceFiles.length === 0}>
-                {generating ? <Loader2 className="spin" size={16} /> : <FileText size={16} />} 生成文字初稿
-              </button>
               <button className={`year-confirm ${selected?.teachingYearConfirmed ? "confirmed" : ""}`} onClick={() => void changeTeachingYear()} title="点击修改教材年份">
                 {selected?.teachingYearConfirmed ? <CheckCircle2 size={15} /> : null}
                 {selected ? `${selected.teachingYear}年口径${selected.teachingYearConfirmed ? "已确认" : "待确认"}` : ""} <small>修改</small>
-              </button>
-              <button className="primary-button" onClick={() => void startParsing()} disabled={processing || outputs.length === 0 || sourceFiles.length === 0}>
-                {processing ? <Loader2 className="spin" size={17} /> : <Sparkles size={17} />} {processing ? "解析中" : "开始解析"}
               </button>
             </div>
             {processMessage && <p className="process-message">{processMessage}</p>}
