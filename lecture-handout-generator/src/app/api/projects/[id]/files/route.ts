@@ -32,12 +32,15 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
   const lessonNumberValue = form.get("lessonNumber");
   const requestedKind = form.get("kind") === "QUESTION_IMAGE" ? "QUESTION_IMAGE" : "PDF";
   if (!(file instanceof File)) return NextResponse.json({ error: "请选择文件" }, { status: 400 });
-  if (file.size <= 0 || file.size > MAX_FILE_BYTES) return NextResponse.json({ error: "PDF大小必须在100MB以内" }, { status: 400 });
+  if (file.size <= 0 || file.size > MAX_FILE_BYTES) return NextResponse.json({ error: "主讲文件大小必须在100MB以内" }, { status: 400 });
   const isPdf = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
-  if (requestedKind === "PDF" && !isPdf) return NextResponse.json({ error: "主讲文件必须是PDF" }, { status: 400 });
+  const isWord = file.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" || file.name.toLowerCase().endsWith(".docx");
+  const sourceKind = requestedKind === "QUESTION_IMAGE" ? "QUESTION_IMAGE" : isWord ? "DOCUMENT" : "PDF";
+  if (requestedKind === "PDF" && !isPdf && !isWord) return NextResponse.json({ error: "主讲文件必须是 PDF 或 DOCX" }, { status: 400 });
   if (requestedKind === "QUESTION_IMAGE" && !file.type.startsWith("image/")) return NextResponse.json({ error: "人工替代题图必须是图片" }, { status: 400 });
   const body = new Uint8Array(await file.arrayBuffer());
-  if (requestedKind === "PDF" && new TextDecoder().decode(body.slice(0, 5)) !== "%PDF-") return NextResponse.json({ error: "文件不是有效PDF" }, { status: 400 });
+  if (sourceKind === "PDF" && new TextDecoder().decode(body.slice(0, 5)) !== "%PDF-") return NextResponse.json({ error: "文件不是有效PDF" }, { status: 400 });
+  if (sourceKind === "DOCUMENT" && !(body[0] === 0x50 && body[1] === 0x4b)) return NextResponse.json({ error: "文件不是有效DOCX，请先将旧版 .doc 转存为 .docx" }, { status: 400 });
   const checksum = createHash("sha256").update(body).digest("hex");
   const duplicate = await db.sourceFile.findFirst({ where: { projectId: id, checksum } });
   if (duplicate) return NextResponse.json({ file: duplicate, duplicate: true });
@@ -45,7 +48,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
   await objectStore().put({ key, body, contentType: file.type || "application/octet-stream" });
   const lessonNumber = typeof lessonNumberValue === "string" && lessonNumberValue ? Number(lessonNumberValue) : null;
   const source = await db.sourceFile.create({
-    data: { projectId: id, kind: requestedKind, originalName: file.name, objectKey: key, mimeType: file.type || "application/octet-stream", size: file.size, checksum, lessonNumber: Number.isInteger(lessonNumber) ? lessonNumber : null }
+    data: { projectId: id, kind: sourceKind, originalName: file.name, objectKey: key, mimeType: file.type || "application/octet-stream", size: file.size, checksum, lessonNumber: Number.isInteger(lessonNumber) ? lessonNumber : null }
   });
   return NextResponse.json({ file: source, duplicate: false }, { status: 201 });
 }

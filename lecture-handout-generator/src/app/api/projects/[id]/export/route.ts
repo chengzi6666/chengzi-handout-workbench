@@ -5,6 +5,7 @@ import { assertReadyForLayout, lessonContentSchema } from "@/lib/handout/content
 import { generateHandoutDocx } from "@/lib/docx/generate";
 import { validatePinyinReview, type PinyinUnit } from "@/lib/handout/pinyin";
 import { objectStore } from "@/lib/storage/object-store";
+import { getOrCreateSourcePageImage } from "@/lib/pdf/source-page-image";
 
 const allowed = new Set(["combined_student", "combined_answers", "parent_manual", "lesson_student", "lesson_answers"]);
 
@@ -40,7 +41,10 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
   const pageIds = lessons.flatMap(({ content }) => content.practice.map((item) => item.imageSourcePageId).filter((value): value is string => Boolean(value)));
   const sourcePages = pageIds.length ? await db.sourcePage.findMany({ where: { id: { in: pageIds }, sourceFile: { projectId: project.id } } }) : [];
   const practiceImages: Record<string, { data: Buffer; type: "png" | "jpg" | "gif" | "bmp" }> = {};
-  for (const page of sourcePages) if (page.imageObjectKey) practiceImages[page.id] = { data: Buffer.from(await objectStore().get(page.imageObjectKey)), type: "png" };
+  for (const page of sourcePages) {
+    const image = await getOrCreateSourcePageImage(page.id);
+    if (image) practiceImages[page.id] = { data: Buffer.from(image.data), type: image.type };
+  }
   const manualImageIds = lessons.flatMap(({ content }) => content.practice.map((item) => item.imageSourceFileId).filter((value): value is string => Boolean(value)));
   const manualImages = manualImageIds.length ? await db.sourceFile.findMany({ where: { id: { in: manualImageIds }, projectId: project.id, kind: "QUESTION_IMAGE" } }) : [];
   for (const image of manualImages) practiceImages[image.id] = { data: Buffer.from(await objectStore().get(image.objectKey)), type: typeOf(image.objectKey) };

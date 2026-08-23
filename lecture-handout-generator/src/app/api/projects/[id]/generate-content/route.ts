@@ -18,11 +18,11 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
   const { id } = await context.params;
   const project = await db.project.findFirst({
     where: { id, ownerId: session.userId },
-    include: { sourceFiles: { where: { kind: "PDF" }, orderBy: { createdAt: "asc" }, include: { pages: { orderBy: { pageNumber: "asc" } } } } }
+    include: { sourceFiles: { where: { kind: { in: ["PDF", "DOCUMENT"] } }, orderBy: { createdAt: "asc" }, include: { pages: { orderBy: { pageNumber: "asc" } } } } }
   });
   if (!project) return NextResponse.json({ error: "项目不存在" }, { status: 404 });
   if (!project.teachingYearConfirmedAt) return NextResponse.json({ error: "请先确认教学年份" }, { status: 409 });
-  if (project.sourceFiles.length === 0 || project.sourceFiles.some((file) => file.pages.length === 0)) return NextResponse.json({ error: "请先完成全部PDF解析" }, { status: 409 });
+  if (project.sourceFiles.length === 0 || project.sourceFiles.some((file) => file.pages.length === 0)) return NextResponse.json({ error: "请先完成全部主讲文件解析" }, { status: 409 });
   try {
     const provider = await getConfiguredProvider(project.selectedProviderId);
     const lessons = [];

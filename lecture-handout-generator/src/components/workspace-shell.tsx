@@ -156,7 +156,7 @@ export function WorkspaceShell({ initialProjects, user }: WorkspaceShellProps) {
       uploaded += 1;
       setSourceFiles((items) => items.some((item) => item.id === payload.file.id) ? items : [payload.file, ...items]);
     }
-    if (uploaded > 0) setUploadMessage(`已成功保存 ${uploaded} 个主讲PDF`);
+    if (uploaded > 0) setUploadMessage(`已成功保存 ${uploaded} 个主讲文件`);
     setUploading(false);
   }
 
@@ -248,12 +248,12 @@ export function WorkspaceShell({ initialProjects, user }: WorkspaceShellProps) {
 
           <div className="content-grid">
             <section className="panel upload-panel">
-              <div className="panel-title"><span>01</span><div><h3>上传主讲PDF</h3><p>支持一次上传一讲或多讲</p></div></div>
+              <div className="panel-title"><span>01</span><div><h3>上传主讲文件</h3><p>支持 PDF 或 DOCX，一次可上传多讲</p></div></div>
               <label className="dropzone">
                 {uploading ? <Loader2 className="spin" size={30} /> : <FileUp size={30} />}
-                <strong>{uploading ? "正在安全上传…" : "点击选择或拖入PDF"}</strong>
-                <span>系统将识别讲次、阅读文段、课堂方法和练习题</span>
-                <input type="file" accept="application/pdf" multiple onChange={(event) => void uploadPdfs(event.target.files)} disabled={uploading || !selectedId} />
+                <strong>{uploading ? "正在安全上传…" : "点击选择或拖入 PDF / DOCX"}</strong>
+                <span>DOCX 优先快速提取文字；PDF 会按需保留原始页面图片</span>
+                <input type="file" accept="application/pdf,.pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.docx" multiple onChange={(event) => void uploadPdfs(event.target.files)} disabled={uploading || !selectedId} />
               </label>
               {sourceFiles.length > 0 && <div className="uploaded-files">{sourceFiles.map((file) => <div key={file.id}><FileText size={14} /><span>{file.originalName}</span><small>{(file.size / 1024 / 1024).toFixed(1)} MB</small><CheckCircle2 size={14} /></div>)}</div>}
               {uploadMessage && <p className="upload-message">{uploadMessage}</p>}

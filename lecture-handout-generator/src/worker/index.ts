@@ -1,7 +1,8 @@
 import { Prisma, type ProcessingJob } from "@prisma/client";
 import { db } from "@/lib/db";
 import { objectStore } from "@/lib/storage/object-store";
-import { extractPdfPages } from "@/lib/pdf/extract";
+import { extractPdfTextPages } from "@/lib/pdf/extract";
+import { extractWordText } from "@/lib/word/extract";
 
 let stopping = false;
 process.on("SIGINT", () => { stopping = true; });
@@ -29,38 +30,36 @@ async function claimJob() {
   return null;
 }
 
-async function parsePdf(job: ProcessingJob) {
+async function parseSourceDocument(job: ProcessingJob) {
   const payload = job.payload as { sourceFileId?: string };
   if (!payload.sourceFileId) throw new Error("PDF解析任务缺少sourceFileId");
   const source = await db.sourceFile.findUnique({ where: { id: payload.sourceFileId } });
   if (!source || source.projectId !== job.projectId) throw new Error("PDF源文件不存在");
   const pdf = await objectStore().get(source.objectKey);
-  const pages = await extractPdfPages(pdf, async ({ pageNumber, totalPages }) => {
-    const percent = Math.max(1, Math.round((pageNumber / totalPages) * 90));
+  if (source.kind === "DOCUMENT") {
+    const text = await extractWordText(pdf);
+    await db.$transaction(async (transaction) => {
+      await transaction.sourcePage.deleteMany({ where: { sourceFileId: source.id } });
+      await transaction.sourcePage.create({ data: { sourceFileId: source.id, pageNumber: 1, extractedText: text } });
+    });
+    return { sourceFileId: source.id, pageCount: 1, type: "DOCUMENT" };
+  }
+  if (source.kind !== "PDF") throw new Error("只支持解析 PDF 或 DOCX 主讲文件");
+  const pages = await extractPdfTextPages(pdf, async ({ pageNumber, totalPages }) => {
+    const percent = Math.max(1, Math.round((pageNumber / totalPages) * 95));
     await db.processingJob.update({
       where: { id: job.id },
       data: { result: { stage: "extracting", pageNumber, totalPages, percent } as Prisma.InputJsonValue }
     });
   });
-  const storedPages: Array<(typeof pages)[number] & { imageObjectKey: string }> = [];
-  for (const [index, page] of pages.entries()) {
-    const imageObjectKey = `projects/${job.projectId}/parsed/${source.id}/page-${String(page.pageNumber).padStart(3, "0")}.png`;
-    await objectStore().put({ key: imageObjectKey, body: page.image, contentType: "image/png" });
-    storedPages.push({ ...page, imageObjectKey });
-    const percent = 90 + Math.max(1, Math.round(((index + 1) / pages.length) * 9));
-    await db.processingJob.update({
-      where: { id: job.id },
-      data: { result: { stage: "saving", pageNumber: index + 1, totalPages: pages.length, percent } as Prisma.InputJsonValue }
-    });
-  }
   await db.processingJob.update({
     where: { id: job.id },
     data: { result: { stage: "writing", pageNumber: pages.length, totalPages: pages.length, percent: 99 } as Prisma.InputJsonValue }
   });
   await db.$transaction(async (transaction) => {
     await transaction.sourcePage.deleteMany({ where: { sourceFileId: source.id } });
-    for (const page of storedPages) {
-      await transaction.sourcePage.create({ data: { sourceFileId: source.id, pageNumber: page.pageNumber, extractedText: page.text, imageObjectKey: page.imageObjectKey, width: page.width, height: page.height } });
+    for (const page of pages) {
+      await transaction.sourcePage.create({ data: { sourceFileId: source.id, pageNumber: page.pageNumber, extractedText: page.text } });
     }
   });
   return { sourceFileId: source.id, pageCount: pages.length };
@@ -68,7 +67,7 @@ async function parsePdf(job: ProcessingJob) {
 
 async function runJob(job: ProcessingJob) {
   switch (job.kind) {
-    case "PDF_PARSE": return parsePdf(job);
+    case "PDF_PARSE": return parseSourceDocument(job);
     default: throw new Error(`任务类型 ${job.kind} 尚未实现`);
   }
 }
