@@ -42,10 +42,20 @@ type LessonPreview = {
   littleTeacherSteps: string[];
   oralFramework: string;
 };
-const pageRoles = ["LESSON_HOME", "CONVERSATION", "READING", "PRACTICE", "LITTLE_TEACHER"] as const;
+const pageRoles = [
+  "LESSON_HOME",
+  "CONVERSATION",
+  "READING",
+  "PRACTICE",
+  "LITTLE_TEACHER",
+] as const;
 const pageLabels = ["课程首页", "交流话题", "精读阅读", "真题带练", "小老师"];
 const defaultBackgrounds: Record<(typeof pageRoles)[number], string> = {
-  LESSON_HOME: "/handout-backgrounds/butter-school.png", CONVERSATION: "/handout-backgrounds/blush-school.png", READING: "/handout-backgrounds/mint-school.png", PRACTICE: "/handout-backgrounds/butter-school.png", LITTLE_TEACHER: "/handout-backgrounds/blush-school.png",
+  LESSON_HOME: "/handout-backgrounds/butter-school.png",
+  CONVERSATION: "/handout-backgrounds/blush-school.png",
+  READING: "/handout-backgrounds/mint-school.png",
+  PRACTICE: "/handout-backgrounds/butter-school.png",
+  LITTLE_TEACHER: "/handout-backgrounds/blush-school.png",
 };
 
 export function LayoutWorkspace({
@@ -68,6 +78,7 @@ export function LayoutWorkspace({
   const initial = (project.layoutConfig as { teacherImage?: Position } | null)
     ?.teacherImage ?? { x: 67, y: 57, width: 25, height: 30 };
   const [position, setPosition] = useState<Position>(initial);
+  const [fontSize, setFontSize] = useState((project.layoutConfig as { fontSize?: number } | null)?.fontSize ?? 11);
   const [teacherId, setTeacherId] = useState(
     project.teacherId ??
       teachers.find((teacher) => teacher.grade === project.grade)?.id ??
@@ -90,10 +101,25 @@ export function LayoutWorkspace({
   );
   const currentRole = pageRoles[pageIndex];
   const currentLesson = lessons[0];
-  const defaultTeacherKey = ({ "0升1": "0l1", "1升2": "1l2", "2升3": "2l3", "3升4": "3l4", "4升5": "4l5" } as Record<string, string>)[project.grade] ?? "1l2";
-  const teacherPreviewSrc = activeAsset ? `/api/assets/teacher/${activeAsset.id}` : `/teacher-defaults/${defaultTeacherKey}-expression.png`;
-  const uploadedBackground = backgrounds.find((asset) => asset.role === currentRole) ?? backgrounds.find((asset) => asset.role === "SIMPLE");
-  const previewBackground = uploadedBackground ? `url(/api/assets/background/${uploadedBackground.id})` : `url(${defaultBackgrounds[currentRole]})`;
+  const defaultTeacherKey =
+    (
+      {
+        "0升1": "0l1",
+        "1升2": "1l2",
+        "2升3": "2l3",
+        "3升4": "3l4",
+        "4升5": "4l5",
+      } as Record<string, string>
+    )[project.grade] ?? "1l2";
+  const teacherPreviewSrc = activeAsset
+    ? `/api/assets/teacher/${activeAsset.id}`
+    : `/teacher-defaults/${defaultTeacherKey}-expression.png`;
+  const uploadedBackground =
+    backgrounds.find((asset) => asset.role === currentRole) ??
+    backgrounds.find((asset) => asset.role === "SIMPLE");
+  const previewBackground = uploadedBackground
+    ? `url(/api/assets/background/${uploadedBackground.id})`
+    : `url(${defaultBackgrounds[currentRole]})`;
   async function upload(role: string, files: FileList | null) {
     const file = files?.[0];
     if (!file) return;
@@ -149,7 +175,7 @@ export function LayoutWorkspace({
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           teacherImage: { ...position, assetId: activeAsset?.id },
-          fontFamily: "Microsoft YaHei",
+          fontFamily: "Microsoft YaHei", fontSize,
         }),
       }),
     ]);
@@ -196,7 +222,16 @@ export function LayoutWorkspace({
         <section className="layout-center">
           <div className="layout-toolbar">
             <div className="page-tabs" aria-label="讲义预览页面">
-              {pageLabels.map((label, index) => <button type="button" className={pageIndex === index ? "active" : ""} onClick={() => setPageIndex(index)} key={label}>{index + 1}. {label}</button>)}
+              {pageLabels.map((label, index) => (
+                <button
+                  type="button"
+                  className={pageIndex === index ? "active" : ""}
+                  onClick={() => setPageIndex(index)}
+                  key={label}
+                >
+                  {index + 1}. {label}
+                </button>
+              ))}
             </div>
             <label>
               主讲老师
@@ -211,42 +246,50 @@ export function LayoutWorkspace({
                 ))}
               </select>
             </label>
-            {pageIndex === 3 && <>
             <label>
-              课堂表情
-              <select
-                value={activeAsset?.id ?? ""}
-                onChange={(event) =>
-                  setPosition((value) => ({
-                    ...value,
-                    assetId: event.target.value,
-                  }))
-                }
-              >
-                {expressions.map((asset) => (
-                  <option value={asset.id} key={asset.id}>
-                    {asset.label ?? "表情"}
-                  </option>
-                ))}
+              正文字号
+              <select value={fontSize} onChange={(event) => setFontSize(Number(event.target.value))}>
+                {[10, 11, 12, 13, 14, 15, 16].map((size) => <option key={size} value={size}>{size} 号</option>)}
               </select>
             </label>
-            <label>
-              缩放
-              <input
-                type="range"
-                min="10"
-                max="55"
-                value={position.width}
-                onChange={(event) =>
-                  setPosition((value) => ({
-                    ...value,
-                    width: Number(event.target.value),
-                    height: Number(event.target.value) * 1.2,
-                  }))
-                }
-              />
-            </label>
-            </>}
+            {pageIndex === 3 && (
+              <>
+                <label>
+                  课堂表情
+                  <select
+                    value={activeAsset?.id ?? ""}
+                    onChange={(event) =>
+                      setPosition((value) => ({
+                        ...value,
+                        assetId: event.target.value,
+                      }))
+                    }
+                  >
+                    {expressions.map((asset) => (
+                      <option value={asset.id} key={asset.id}>
+                        {asset.label ?? "表情"}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  缩放
+                  <input
+                    type="range"
+                    min="10"
+                    max="55"
+                    value={position.width}
+                    onChange={(event) =>
+                      setPosition((value) => ({
+                        ...value,
+                        width: Number(event.target.value),
+                        height: Number(event.target.value) * 1.2,
+                      }))
+                    }
+                  />
+                </label>
+              </>
+            )}
           </div>
           <div
             className="page-canvas"
@@ -261,7 +304,84 @@ export function LayoutWorkspace({
             style={{ backgroundImage: previewBackground }}
           >
             <div className="canvas-copy">
-              {!currentLesson ? <><h2>尚无已审核内容</h2><p>完成文字审核后，这里会自动显示真实讲义。</p></> : pageIndex === 0 ? <><h2>第{currentLesson.lessonNumber}讲 {currentLesson.title}</h2><p>{currentLesson.subtitle}</p><h3>今天学什么</h3><ol>{currentLesson.learningGoals.map((item) => <li key={item}>{item}</li>)}</ol><h3>核心方法</h3><p>{currentLesson.technique}</p></> : pageIndex === 1 ? <><h2>下课后，建议家长可以和孩子交流的话题</h2>{currentLesson.conversationTopics.map((item, index) => <section key={item.question}><h3>{index + 1}. {item.question}</h3><p><b>参考：</b>{item.referenceAnswer}</p></section>)}</> : pageIndex === 2 ? <><h2>阅读文段</h2><p className="reading-preview">{currentLesson.readingExcerpt.text}</p><h3>精读思考</h3><ol>{currentLesson.closeReadingQuestions.map((item) => <li key={item}>{item}</li>)}</ol></> : pageIndex === 3 ? <><h2>课堂方法与真题带练</h2><h3>方法小结</h3><p>{currentLesson.methodSummary}</p><h3>练一练</h3>{currentLesson.practice.map((item, index) => <section key={item.prompt}><p><b>{index + 1}. {item.prompt}</b></p><p>参考答案：{item.answer}</p></section>)}</> : <><h2>我是小老师</h2><h3>讲解步骤</h3><ol>{currentLesson.littleTeacherSteps.map((item) => <li key={item}>{item}</li>)}</ol><h3>表达小支架</h3><p>{currentLesson.oralFramework}</p></>}
+              {!currentLesson ? (
+                <>
+                  <h2>尚无已审核内容</h2>
+                  <p>完成文字审核后，这里会自动显示真实讲义。</p>
+                </>
+              ) : pageIndex === 0 ? (
+                <>
+                  <h2>
+                    第{currentLesson.lessonNumber}讲 {currentLesson.title}
+                  </h2>
+                  <p>{currentLesson.subtitle}</p>
+                  <h3>今天学什么</h3>
+                  <ol>
+                    {currentLesson.learningGoals.map((item) => (
+                      <li key={item}>{item}</li>
+                    ))}
+                  </ol>
+                  <h3>核心方法</h3>
+                  <p>{currentLesson.technique}</p>
+                </>
+              ) : pageIndex === 1 ? (
+                <>
+                  <h2>下课后，建议家长可以和孩子交流的话题</h2>
+                  {currentLesson.conversationTopics.map((item, index) => (
+                    <section key={item.question}>
+                      <h3>
+                        {index + 1}. {item.question}
+                      </h3>
+                      <p>
+                        <b>参考：</b>
+                        {item.referenceAnswer}
+                      </p>
+                    </section>
+                  ))}
+                </>
+              ) : pageIndex === 2 ? (
+                <>
+                  <h2>阅读文段</h2>
+                  <p className="reading-preview">
+                    {currentLesson.readingExcerpt.text}
+                  </p>
+                  <h3>精读思考</h3>
+                  <ol>
+                    {currentLesson.closeReadingQuestions.map((item) => (
+                      <li key={item}>{item}</li>
+                    ))}
+                  </ol>
+                </>
+              ) : pageIndex === 3 ? (
+                <>
+                  <h2>课堂方法与真题带练</h2>
+                  <h3>方法小结</h3>
+                  <p>{currentLesson.methodSummary}</p>
+                  <h3>练一练</h3>
+                  {currentLesson.practice.map((item, index) => (
+                    <section key={item.prompt}>
+                      <p>
+                        <b>
+                          {index + 1}. {item.prompt}
+                        </b>
+                      </p>
+                      <p>参考答案：{item.answer}</p>
+                    </section>
+                  ))}
+                </>
+              ) : (
+                <>
+                  <h2>我是小老师</h2>
+                  <h3>讲解步骤</h3>
+                  <ol>
+                    {currentLesson.littleTeacherSteps.map((item) => (
+                      <li key={item}>{item}</li>
+                    ))}
+                  </ol>
+                  <h3>表达小支架</h3>
+                  <p>{currentLesson.oralFramework}</p>
+                </>
+              )}
             </div>
             {pageIndex === 3 ? (
               <img
@@ -305,7 +425,10 @@ export function LayoutWorkspace({
               {label}
             </a>
           ))}
-          <Link className="publish-button" href={`/projects/${project.id}/flipbook-preview`}>
+          <Link
+            className="publish-button"
+            href={`/projects/${project.id}/flipbook-preview`}
+          >
             配置微信翻页书
           </Link>
           <p className="export-note">

@@ -22,6 +22,7 @@ export type HandoutDocumentInput = {
   teacherImage?: ImageAsset;
   teacherPortrait?: ImageAsset;
   teacherPosition?: { x: number; y: number; width: number; height: number };
+  fontSize?: number;
   practiceImages?: Record<string, ImageAsset>;
   includeFrontMatter?: boolean;
   mode: "student" | "answers" | "parent";
@@ -164,10 +165,20 @@ export async function generateHandoutDocx(input: HandoutDocumentInput) {
     sections
   });
   let buffer = Buffer.from(await Packer.toBuffer(document));
+  if (input.fontSize && input.fontSize !== 11) buffer = await replaceBodyFontSize(buffer, input.fontSize) as Buffer;
   if (input.mode === "student" && input.pinyinReviews && Object.keys(input.pinyinReviews).length > 0) {
     buffer = await addNativeRuby(buffer, input.lessons, input.pinyinReviews);
   }
   return buffer;
+}
+
+async function replaceBodyFontSize(buffer: Buffer, fontSize: number) {
+  const zip = await JSZip.loadAsync(buffer);
+  const entry = zip.file("word/document.xml");
+  if (!entry) return buffer;
+  const xml = await entry.async("string");
+  zip.file("word/document.xml", xml.replace(/w:sz w:val="22"/g, `w:sz w:val="${Math.round(fontSize * 2)}"`));
+  return Buffer.from(await zip.generateAsync({ type: "nodebuffer", compression: "DEFLATE" }));
 }
 
 function escapeXml(value: string) {

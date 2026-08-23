@@ -3,7 +3,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { readSession } from "@/lib/auth/session";
 
-const configSchema = z.object({ teacherImage: z.object({ assetId: z.string().optional(), x: z.number().min(0).max(100), y: z.number().min(0).max(100), width: z.number().min(5).max(80), height: z.number().min(5).max(80) }), fontFamily: z.literal("Microsoft YaHei").default("Microsoft YaHei") });
+const configSchema = z.object({ teacherImage: z.object({ assetId: z.string().optional(), x: z.number().min(0).max(100), y: z.number().min(5).max(100), width: z.number().min(5).max(80), height: z.number().min(5).max(80) }), fontFamily: z.literal("Microsoft YaHei").default("Microsoft YaHei"), fontSize: z.number().min(10).max(18).default(11) });
 
 export async function PUT(request: Request, context: { params: Promise<{ id: string }> }) {
   const session = await readSession(); if (!session) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
