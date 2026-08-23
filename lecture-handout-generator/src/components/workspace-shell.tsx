@@ -175,11 +175,12 @@ export function WorkspaceShell({ initialProjects, user }: WorkspaceShellProps) {
         <div className="workspace-scroll">
           <section className="hero-card">
             <div>
-              <span className="step-badge">新建生成任务</span>
+              <span className="step-badge">DOCUMENT INTELLIGENCE · 讲义生产</span>
               <h2>从主讲PDF生成可审核、可编辑的Word讲义</h2>
               <p>先审核文字与阅读文段，再审核版式、背景和主讲表情，最后输出DOCX。</p>
+              <div className="hero-meta"><span>严格保护阅读原文</span><span>两次人工审核</span><span>原生 Word 输出</span></div>
             </div>
-            <div className="hero-illustration"><BookOpenCheck size={54} /></div>
+            <div className="hero-illustration"><BookOpenCheck size={42} /><small>5 STEP<br />WORKFLOW</small></div>
           </section>
 
           <div className="content-grid">
