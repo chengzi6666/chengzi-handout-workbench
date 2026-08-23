@@ -5,6 +5,9 @@ export interface HandoutProject {
   name: string;
   grade: string;
   lessonCount: number;
+  teachingYear: number;
+  teachingYearConfirmed: boolean;
+  outputKinds: OutputKind[];
   status: ProjectStatus;
   pinned: boolean;
   updatedAt: string;
@@ -33,4 +36,3 @@ export const OUTPUT_OPTIONS: Array<{ id: OutputKind; label: string; detail: stri
   { id: "parent_manual", label: "家长使用手册", detail: "按课程信息自动生成" },
   { id: "lesson_answers", label: "独立参考答案", detail: "每讲生成独立答案Word" }
 ];
-

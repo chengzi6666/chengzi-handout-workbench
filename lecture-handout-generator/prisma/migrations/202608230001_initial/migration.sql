@@ -5,6 +5,8 @@ CREATE TYPE "AiProviderKind" AS ENUM ('OPENAI', 'OPENAI_COMPATIBLE', 'INTERNAL')
 CREATE TYPE "AssetKind" AS ENUM ('PORTRAIT', 'EXPRESSION');
 CREATE TYPE "BackgroundRole" AS ENUM ('SIMPLE', 'COVER', 'PARENT_MANUAL', 'LESSON_HOME', 'CONVERSATION', 'READING', 'PRACTICE', 'LITTLE_TEACHER');
 CREATE TYPE "SourceFileKind" AS ENUM ('PDF', 'QUESTION_IMAGE', 'COVER_IMAGE', 'BACKGROUND_IMAGE');
+CREATE TYPE "JobKind" AS ENUM ('PDF_PARSE', 'CURRICULUM_RESEARCH', 'CONTENT_GENERATE', 'LAYOUT_RENDER', 'DOCX_GENERATE', 'FLIPBOOK_PUBLISH');
+CREATE TYPE "JobStatus" AS ENUM ('QUEUED', 'RUNNING', 'SUCCEEDED', 'FAILED');
 
 CREATE TABLE "User" (
   "id" TEXT NOT NULL, "employeeNumber" TEXT NOT NULL, "name" TEXT NOT NULL,
@@ -15,7 +17,7 @@ CREATE TABLE "Project" (
   "id" TEXT NOT NULL, "name" TEXT NOT NULL, "grade" TEXT NOT NULL, "teachingYear" INTEGER NOT NULL,
   "teachingYearConfirmedAt" TIMESTAMP(3), "season" TEXT, "status" "ProjectStatus" NOT NULL DEFAULT 'DRAFT',
   "pinned" BOOLEAN NOT NULL DEFAULT false, "lessonCount" INTEGER NOT NULL DEFAULT 1,
-  "selectedProviderId" TEXT, "teacherId" TEXT, "backgroundPackId" TEXT,
+  "selectedProviderId" TEXT, "teacherId" TEXT, "backgroundPackId" TEXT, "layoutConfig" JSONB,
   "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, "updatedAt" TIMESTAMP(3) NOT NULL,
   "ownerId" TEXT NOT NULL, CONSTRAINT "Project_pkey" PRIMARY KEY ("id")
 );
@@ -71,10 +73,27 @@ CREATE TABLE "SourceFile" (
   "lessonNumber" INTEGER, "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT "SourceFile_pkey" PRIMARY KEY ("id")
 );
+CREATE TABLE "SourcePage" (
+  "id" TEXT NOT NULL, "sourceFileId" TEXT NOT NULL, "pageNumber" INTEGER NOT NULL,
+  "extractedText" TEXT NOT NULL, "imageObjectKey" TEXT, "width" INTEGER, "height" INTEGER,
+  CONSTRAINT "SourcePage_pkey" PRIMARY KEY ("id")
+);
+CREATE TABLE "ProcessingJob" (
+  "id" TEXT NOT NULL, "projectId" TEXT NOT NULL, "kind" "JobKind" NOT NULL,
+  "status" "JobStatus" NOT NULL DEFAULT 'QUEUED', "payload" JSONB NOT NULL, "result" JSONB,
+  "error" TEXT, "attempts" INTEGER NOT NULL DEFAULT 0,
+  "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, "startedAt" TIMESTAMP(3), "finishedAt" TIMESTAMP(3),
+  CONSTRAINT "ProcessingJob_pkey" PRIMARY KEY ("id")
+);
 CREATE TABLE "GeneratedFile" (
   "id" TEXT NOT NULL, "projectId" TEXT NOT NULL, "kind" "OutputKind" NOT NULL, "fileName" TEXT NOT NULL,
   "objectKey" TEXT NOT NULL, "version" INTEGER NOT NULL DEFAULT 1, "pageCount" INTEGER,
   "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, CONSTRAINT "GeneratedFile_pkey" PRIMARY KEY ("id")
+);
+CREATE TABLE "PublishedFlipbook" (
+  "id" TEXT NOT NULL, "projectId" TEXT NOT NULL, "slug" TEXT NOT NULL, "title" TEXT NOT NULL,
+  "description" TEXT NOT NULL, "content" JSONB NOT NULL, "publishedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  "updatedAt" TIMESTAMP(3) NOT NULL, CONSTRAINT "PublishedFlipbook_pkey" PRIMARY KEY ("id")
 );
 
 CREATE UNIQUE INDEX "User_employeeNumber_key" ON "User"("employeeNumber");
@@ -84,6 +103,11 @@ CREATE UNIQUE INDEX "Lesson_projectId_lessonNumber_key" ON "Lesson"("projectId",
 CREATE UNIQUE INDEX "ProjectOutput_projectId_kind_key" ON "ProjectOutput"("projectId", "kind");
 CREATE UNIQUE INDEX "Teacher_formalName_nickname_key" ON "Teacher"("formalName", "nickname");
 CREATE UNIQUE INDEX "BackgroundAsset_backgroundPackId_role_key" ON "BackgroundAsset"("backgroundPackId", "role");
+CREATE UNIQUE INDEX "SourcePage_sourceFileId_pageNumber_key" ON "SourcePage"("sourceFileId", "pageNumber");
+CREATE INDEX "ProcessingJob_status_createdAt_idx" ON "ProcessingJob"("status", "createdAt");
+CREATE INDEX "ProcessingJob_projectId_kind_idx" ON "ProcessingJob"("projectId", "kind");
+CREATE UNIQUE INDEX "PublishedFlipbook_slug_key" ON "PublishedFlipbook"("slug");
+CREATE INDEX "PublishedFlipbook_projectId_updatedAt_idx" ON "PublishedFlipbook"("projectId", "updatedAt");
 
 ALTER TABLE "Project" ADD CONSTRAINT "Project_ownerId_fkey" FOREIGN KEY ("ownerId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 ALTER TABLE "Project" ADD CONSTRAINT "Project_teacherId_fkey" FOREIGN KEY ("teacherId") REFERENCES "Teacher"("id") ON DELETE SET NULL ON UPDATE CASCADE;
@@ -94,4 +118,7 @@ ALTER TABLE "ProjectOutput" ADD CONSTRAINT "ProjectOutput_projectId_fkey" FOREIG
 ALTER TABLE "TeacherAsset" ADD CONSTRAINT "TeacherAsset_teacherId_fkey" FOREIGN KEY ("teacherId") REFERENCES "Teacher"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 ALTER TABLE "BackgroundAsset" ADD CONSTRAINT "BackgroundAsset_backgroundPackId_fkey" FOREIGN KEY ("backgroundPackId") REFERENCES "BackgroundPack"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 ALTER TABLE "SourceFile" ADD CONSTRAINT "SourceFile_projectId_fkey" FOREIGN KEY ("projectId") REFERENCES "Project"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "SourcePage" ADD CONSTRAINT "SourcePage_sourceFileId_fkey" FOREIGN KEY ("sourceFileId") REFERENCES "SourceFile"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "ProcessingJob" ADD CONSTRAINT "ProcessingJob_projectId_fkey" FOREIGN KEY ("projectId") REFERENCES "Project"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 ALTER TABLE "GeneratedFile" ADD CONSTRAINT "GeneratedFile_projectId_fkey" FOREIGN KEY ("projectId") REFERENCES "Project"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "PublishedFlipbook" ADD CONSTRAINT "PublishedFlipbook_projectId_fkey" FOREIGN KEY ("projectId") REFERENCES "Project"("id") ON DELETE CASCADE ON UPDATE CASCADE;

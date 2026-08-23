@@ -10,4 +10,5 @@
 /lecture-handout-generator/.env.local
 /lecture-handout-generator/storage/
 /lecture-handout-generator/generated/
+/lecture-handout-generator/.tmp/
 *.log

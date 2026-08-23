@@ -46,6 +46,13 @@ export function TeacherSettings() {
     if (response.ok) { setEditing(null); await load(); }
   }
 
+  async function uploadAsset(kind: "PORTRAIT" | "EXPRESSION", files: FileList | null) {
+    if (!editing || !files?.[0]) return;
+    const form = new FormData(); form.set("file", files[0]); form.set("kind", kind); form.set("label", files[0].name);
+    const response = await fetch(`/api/teachers/${editing.id}/assets`, { method: "POST", body: form }); const payload = await response.json();
+    setMessage(response.ok ? "老师图片素材已上传" : payload.error ?? "上传失败"); if (response.ok) await load();
+  }
+
   return (
     <main className="settings-page">
       <header className="settings-header"><a href="/"><ArrowLeft size={17} />返回项目</a><div><p className="eyebrow">系统设置</p><h1>主讲老师资料库</h1></div></header>
@@ -62,12 +69,13 @@ export function TeacherSettings() {
           </div>}
         </section>
         <section className="panel teacher-form-panel">
-          <div className="panel-title"><span>{editing ? <Pencil size={16} /> : <Plus size={16} />}</span><div><h3>{editing ? "编辑教师" : "添加教师"}</h3><p>头像和表情包将在素材上传模块中关联</p></div></div>
+          <div className="panel-title"><span>{editing ? <Pencil size={16} /> : <Plus size={16} />}</span><div><h3>{editing ? "编辑教师" : "添加教师"}</h3><p>可上传头像和多张课堂表情</p></div></div>
           <form className="provider-form" key={editing?.id ?? "new"} onSubmit={editing ? save : create}>
             <label><span>正式姓名</span><input name="formalName" defaultValue={editing?.formalName} placeholder="例如：高远" required /></label>
             <label><span>课堂昵称</span><input name="nickname" defaultValue={editing?.nickname} placeholder="例如：哈哈老师" required /></label>
             <label><span>默认年级</span><input name="grade" defaultValue={editing?.grade ?? ""} placeholder="例如：1升2" /></label>
             <label><span>教师介绍</span><textarea name="introduction" defaultValue={editing?.introduction} rows={8} placeholder="用于家长使用手册" required /></label>
+            {editing && <div className="teacher-asset-actions"><label><ImagePlus size={14} />上传正式头像<input type="file" accept="image/*" onChange={(event) => void uploadAsset("PORTRAIT", event.target.files)} /></label><label><ImagePlus size={14} />上传课堂表情<input type="file" accept="image/*" onChange={(event) => void uploadAsset("EXPRESSION", event.target.files)} /></label></div>}
             <button><Save size={16} />{editing ? "保存修改" : "添加教师"}</button>
             {editing && <button className="cancel-edit" type="button" onClick={() => setEditing(null)}>取消编辑</button>}
             {message && <p className="settings-message">{message}</p>}

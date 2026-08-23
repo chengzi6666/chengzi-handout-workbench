@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { BookOpenCheck, ChevronDown, FileUp, LogOut, Search, Settings2, Sparkles } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { BookOpenCheck, CheckCircle2, ChevronDown, FileText, FileUp, Loader2, LogOut, Search, Settings2, Sparkles } from "lucide-react";
 import { ProjectSidebar } from "./project-sidebar";
 import { OUTPUT_OPTIONS, type HandoutProject, type OutputKind } from "@/lib/domain";
 
@@ -14,7 +15,41 @@ export function WorkspaceShell({ initialProjects, user }: WorkspaceShellProps) {
   const [projects, setProjects] = useState(initialProjects);
   const [selectedId, setSelectedId] = useState(initialProjects[0]?.id ?? "");
   const [outputs, setOutputs] = useState<OutputKind[]>(["lesson_student", "combined_student"]);
+  const [sourceFiles, setSourceFiles] = useState<Array<{ id: string; originalName: string; size: number }>>([]);
+  const [uploading, setUploading] = useState(false);
+  const [uploadMessage, setUploadMessage] = useState("");
+  const [processing, setProcessing] = useState(false);
+  const [generating, setGenerating] = useState(false);
+  const [processMessage, setProcessMessage] = useState("");
   const selected = useMemo(() => projects.find((project) => project.id === selectedId) ?? projects[0], [projects, selectedId]);
+
+  useEffect(() => {
+    if (!selectedId) { setSourceFiles([]); return; }
+    const project = projects.find((item) => item.id === selectedId);
+    if (project) setOutputs(project.outputKinds);
+    fetch(`/api/projects/${selectedId}/files`).then(async (response) => {
+      if (response.ok) setSourceFiles((await response.json()).files);
+    });
+  }, [selectedId]);
+
+  useEffect(() => {
+    if (!selectedId || !processing) return;
+    const timer = window.setInterval(async () => {
+      const response = await fetch(`/api/projects/${selectedId}/jobs`);
+      if (!response.ok) return;
+      const { jobs } = await response.json() as { jobs: Array<{ status: string; error?: string | null }> };
+      if (jobs.some((job) => job.status === "FAILED")) {
+        setProcessing(false);
+        setProcessMessage(jobs.find((job) => job.status === "FAILED")?.error?.split("\n")[0] ?? "解析失败，请检查PDF");
+      } else if (jobs.length > 0 && jobs.every((job) => job.status === "SUCCEEDED")) {
+        setProcessing(false);
+        setProcessMessage("PDF解析完成，已进入文字审核阶段");
+      } else {
+        setProcessMessage(`正在解析 ${jobs.filter((job) => job.status === "SUCCEEDED").length}/${jobs.length} 个PDF…`);
+      }
+    }, 1800);
+    return () => window.clearInterval(timer);
+  }, [processing, selectedId]);
 
   async function togglePinned(id: string) {
     const project = projects.find((item) => item.id === id);
@@ -43,7 +78,7 @@ export function WorkspaceShell({ initialProjects, user }: WorkspaceShellProps) {
     });
     if (!response.ok) return;
     const { project } = await response.json();
-    const next: HandoutProject = { id: project.id, name: project.name, grade: project.grade, lessonCount: project.lessonCount, status: "draft", pinned: project.pinned, updatedAt: "刚刚" };
+    const next: HandoutProject = { id: project.id, name: project.name, grade: project.grade, lessonCount: project.lessonCount, teachingYear: project.teachingYear, teachingYearConfirmed: false, outputKinds: ["lesson_student", "combined_student"], status: "draft", pinned: project.pinned, updatedAt: "刚刚" };
     setProjects((items) => [next, ...items]);
     setSelectedId(next.id);
   }
@@ -54,7 +89,63 @@ export function WorkspaceShell({ initialProjects, user }: WorkspaceShellProps) {
   }
 
   function toggleOutput(id: OutputKind) {
-    setOutputs((items) => items.includes(id) ? items.filter((item) => item !== id) : [...items, id]);
+    setOutputs((items) => {
+      const next = items.includes(id) ? items.filter((item) => item !== id) : [...items, id];
+      setProjects((projectItems) => projectItems.map((project) => project.id === selectedId ? { ...project, outputKinds: next } : project));
+      if (selectedId) void fetch(`/api/projects/${selectedId}/outputs`, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ kinds: next.map((kind) => ({ lesson_student: "LESSON_STUDENT", combined_student: "COMBINED_STUDENT", combined_answers: "COMBINED_ANSWERS", parent_manual: "PARENT_MANUAL", lesson_answers: "LESSON_ANSWERS" })[kind]) }) });
+      return next;
+    });
+  }
+
+  async function uploadPdfs(files: FileList | null) {
+    if (!files?.length || !selectedId) return;
+    setUploading(true);
+    setUploadMessage("");
+    let uploaded = 0;
+    for (const file of Array.from(files)) {
+      const form = new FormData();
+      form.set("file", file);
+      const response = await fetch(`/api/projects/${selectedId}/files`, { method: "POST", body: form });
+      const payload = await response.json();
+      if (!response.ok) { setUploadMessage(`${file.name}：${payload.error ?? "上传失败"}`); continue; }
+      uploaded += 1;
+      setSourceFiles((items) => items.some((item) => item.id === payload.file.id) ? items : [payload.file, ...items]);
+    }
+    if (uploaded > 0) setUploadMessage(`已成功保存 ${uploaded} 个主讲PDF`);
+    setUploading(false);
+  }
+
+  async function confirmYear() {
+    if (!selected || selected.teachingYearConfirmed) return true;
+    if (!window.confirm(`请确认：本项目按 ${selected.teachingYear} 年最新教材与课标口径检索。确认后才能开始解析。`)) return false;
+    const response = await fetch(`/api/projects/${selected.id}`, {
+      method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ confirmTeachingYear: true })
+    });
+    if (!response.ok) return false;
+    setProjects((items) => items.map((item) => item.id === selected.id ? { ...item, teachingYearConfirmed: true } : item));
+    return true;
+  }
+
+  async function startParsing() {
+    if (!selected || sourceFiles.length === 0 || outputs.length === 0) return;
+    setProcessMessage("");
+    if (!(await confirmYear())) return;
+    const response = await fetch(`/api/projects/${selected.id}/parse`, { method: "POST" });
+    const payload = await response.json();
+    if (!response.ok) { setProcessMessage(payload.error ?? "无法开始解析"); return; }
+    setProcessing(true);
+    setProcessMessage(`已创建 ${payload.jobCount} 个解析任务`);
+  }
+
+  async function generateContent() {
+    if (!selected) return;
+    setGenerating(true);
+    setProcessMessage("正在调用模型生成讲义初稿；多讲课程可能需要几分钟…");
+    const response = await fetch(`/api/projects/${selected.id}/generate-content`, { method: "POST" });
+    const payload = await response.json();
+    setGenerating(false);
+    if (!response.ok) { setProcessMessage(payload.error ?? "生成失败"); return; }
+    setProcessMessage(`已生成 ${payload.lessonIds.length} 讲文字初稿，请进入文字审核`);
   }
 
   return (
@@ -95,11 +186,13 @@ export function WorkspaceShell({ initialProjects, user }: WorkspaceShellProps) {
             <section className="panel upload-panel">
               <div className="panel-title"><span>01</span><div><h3>上传主讲PDF</h3><p>支持一次上传一讲或多讲</p></div></div>
               <label className="dropzone">
-                <FileUp size={30} />
-                <strong>点击选择或拖入PDF</strong>
+                {uploading ? <Loader2 className="spin" size={30} /> : <FileUp size={30} />}
+                <strong>{uploading ? "正在安全上传…" : "点击选择或拖入PDF"}</strong>
                 <span>系统将识别讲次、阅读文段、课堂方法和练习题</span>
-                <input type="file" accept="application/pdf" multiple />
+                <input type="file" accept="application/pdf" multiple onChange={(event) => void uploadPdfs(event.target.files)} disabled={uploading || !selectedId} />
               </label>
+              {sourceFiles.length > 0 && <div className="uploaded-files">{sourceFiles.map((file) => <div key={file.id}><FileText size={14} /><span>{file.originalName}</span><small>{(file.size / 1024 / 1024).toFixed(1)} MB</small><CheckCircle2 size={14} /></div>)}</div>}
+              {uploadMessage && <p className="upload-message">{uploadMessage}</p>}
               <div className="rule-note"><strong>阅读文段保护</strong><span>原文允许纠正识别错误，但不得压缩或改写；输出文字版不自动添加拼音。</span></div>
             </section>
 
@@ -132,8 +225,21 @@ export function WorkspaceShell({ initialProjects, user }: WorkspaceShellProps) {
             </div>
             <div className="action-row">
               <button className="secondary-button"><Settings2 size={16} /> 生成设置</button>
-              <button className="primary-button" disabled={outputs.length === 0}><Sparkles size={17} /> 开始解析</button>
+              {selected && <Link className="secondary-button" href={`/projects/${selected.id}/review`}>文字审核</Link>}
+              {selected?.grade.replace(/\s/g, "") === "1升2" && <Link className="secondary-button" href={`/projects/${selected.id}/pinyin`}>拼音审核</Link>}
+              {selected && <Link className="secondary-button" href={`/projects/${selected.id}/layout`}>版式与导出</Link>}
+              <button className="secondary-button" onClick={() => void generateContent()} disabled={processing || generating || sourceFiles.length === 0}>
+                {generating ? <Loader2 className="spin" size={16} /> : <FileText size={16} />} 生成文字初稿
+              </button>
+              <span className={`year-confirm ${selected?.teachingYearConfirmed ? "confirmed" : ""}`}>
+                {selected?.teachingYearConfirmed ? <CheckCircle2 size={15} /> : null}
+                {selected ? `${selected.teachingYear}年口径${selected.teachingYearConfirmed ? "已确认" : "待确认"}` : ""}
+              </span>
+              <button className="primary-button" onClick={() => void startParsing()} disabled={processing || outputs.length === 0 || sourceFiles.length === 0}>
+                {processing ? <Loader2 className="spin" size={17} /> : <Sparkles size={17} />} {processing ? "解析中" : "开始解析"}
+              </button>
             </div>
+            {processMessage && <p className="process-message">{processMessage}</p>}
           </section>
         </div>
       </section>

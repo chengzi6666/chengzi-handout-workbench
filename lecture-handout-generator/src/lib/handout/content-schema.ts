@@ -30,7 +30,7 @@ export const lessonContentSchema = z.object({
   }),
   closeReadingQuestions: z.array(z.string().trim().min(1)).min(1),
   methodSummary: z.string().trim().min(1),
-  practice: z.array(z.object({ prompt: z.string().trim().min(1), answer: z.string().trim().min(1), imageSourceFileId: z.string().optional() })).min(1),
+  practice: z.array(z.object({ prompt: z.string().trim().min(1), answer: z.string().trim().min(1), imageSourceFileId: z.string().optional(), imageSourcePageId: z.string().optional() })).min(1),
   littleTeacherSteps: z.array(z.string().trim().min(1)).min(1),
   oralFramework: z.string().trim().min(1)
 });
@@ -50,4 +50,3 @@ export function assertReadyForLayout(content: LessonContent, grade: string, piny
   if (requiresPinyinReview(grade) && !pinyinApproved) throw new Error("2年级阅读文段拼音尚未审核");
   return parsed;
 }
-

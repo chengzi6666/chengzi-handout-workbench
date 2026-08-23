@@ -18,19 +18,32 @@
 - 每讲默认5页，内容溢出时增加第6页，禁止删减阅读文段。
 - 合订版包含封面和家长手册，家长手册也可单独生成。
 - 先审核文字，再审核美化版页面，最后生成 DOCX。
+- 可发布带 Open Graph 分享信息的网页版翻页书；在微信内分享时显示标题卡片。接入微信小程序时可复用同一公开书籍页和数据接口。
 
 ## 本地启动
 
 ```bash
-npm install
-npm run dev
+pnpm install
+pnpm db:generate
+pnpm dev
+```
+
+另开一个终端启动后台PDF解析任务：
+
+```bash
+pnpm worker
 ```
 
 复制 `.env.example` 为 `.env.local`，按需配置数据库、对象存储和模型接口。
 
 ## Railway
 
-仓库包含 `Dockerfile` 和 `railway.toml`。部署时需要配置 PostgreSQL、对象存储、会话密钥和至少一个 AI 模型接口。
+仓库包含 `Dockerfile` 和 `railway.toml`。Railway 需要从同一仓库创建两个服务：
+
+- Web 服务：使用默认 Docker 启动命令。
+- Worker 服务：覆盖启动命令为 `pnpm db:migrate && pnpm worker`，无需公网域名。
+
+两项服务共享 PostgreSQL、S3兼容对象存储及密钥环境变量。另设置 `PUBLIC_APP_URL` 为 Web 公网域名，并在系统“模型设置”中至少启用一个支持 JSON 的大语言模型；需要自动查找最新教材对标时，应选公司内部支持联网检索的模型。
 
 ## 安全
 

@@ -5,7 +5,10 @@ import { readSession } from "@/lib/auth/session";
 
 const patchSchema = z.object({
   name: z.string().trim().min(1).max(80).optional(),
-  pinned: z.boolean().optional()
+  pinned: z.boolean().optional(),
+  confirmTeachingYear: z.boolean().optional(),
+  teacherId: z.string().nullable().optional(),
+  selectedProviderId: z.string().nullable().optional()
 }).refine((value) => Object.keys(value).length > 0, "没有需要更新的内容");
 
 export async function PATCH(request: Request, context: { params: Promise<{ id: string }> }) {
@@ -16,6 +19,13 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
   const { id } = await context.params;
   const existing = await db.project.findFirst({ where: { id, ownerId: session.userId } });
   if (!existing) return NextResponse.json({ error: "项目不存在" }, { status: 404 });
-  const project = await db.project.update({ where: { id }, data: parsed.data });
+  const { confirmTeachingYear, ...changes } = parsed.data;
+  const project = await db.project.update({
+    where: { id },
+    data: {
+      ...changes,
+      ...(confirmTeachingYear === undefined ? {} : { teachingYearConfirmedAt: confirmTeachingYear ? new Date() : null })
+    }
+  });
   return NextResponse.json({ project });
 }

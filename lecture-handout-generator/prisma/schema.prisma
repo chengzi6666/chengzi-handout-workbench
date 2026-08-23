@@ -62,6 +62,22 @@ enum SourceFileKind {
   BACKGROUND_IMAGE
 }
 
+enum JobKind {
+  PDF_PARSE
+  CURRICULUM_RESEARCH
+  CONTENT_GENERATE
+  LAYOUT_RENDER
+  DOCX_GENERATE
+  FLIPBOOK_PUBLISH
+}
+
+enum JobStatus {
+  QUEUED
+  RUNNING
+  SUCCEEDED
+  FAILED
+}
+
 model User {
   id             String    @id @default(cuid())
   employeeNumber String    @unique
@@ -85,6 +101,7 @@ model Project {
   selectedProviderId String?
   teacherId        String?
   backgroundPackId String?
+  layoutConfig     Json?
   createdAt        DateTime        @default(now())
   updatedAt        DateTime        @updatedAt
   ownerId          String
@@ -96,6 +113,8 @@ model Project {
   sourceFiles      SourceFile[]
   generatedFiles   GeneratedFile[]
   curriculumReferences CurriculumReference[]
+  jobs             ProcessingJob[]
+  flipbooks         PublishedFlipbook[]
 
   @@index([ownerId, pinned, updatedAt])
 }
@@ -226,6 +245,38 @@ model SourceFile {
   lessonNumber Int?
   createdAt   DateTime       @default(now())
   project     Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  pages       SourcePage[]
+}
+
+model SourcePage {
+  id             String     @id @default(cuid())
+  sourceFileId   String
+  pageNumber     Int
+  extractedText  String
+  imageObjectKey String?
+  width          Int?
+  height         Int?
+  sourceFile     SourceFile @relation(fields: [sourceFileId], references: [id], onDelete: Cascade)
+
+  @@unique([sourceFileId, pageNumber])
+}
+
+model ProcessingJob {
+  id          String     @id @default(cuid())
+  projectId   String
+  kind        JobKind
+  status      JobStatus  @default(QUEUED)
+  payload     Json
+  result      Json?
+  error       String?
+  attempts    Int        @default(0)
+  createdAt   DateTime   @default(now())
+  startedAt   DateTime?
+  finishedAt  DateTime?
+  project     Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([status, createdAt])
+  @@index([projectId, kind])
 }
 
 model GeneratedFile {
@@ -238,4 +289,18 @@ model GeneratedFile {
   pageCount   Int?
   createdAt   DateTime   @default(now())
   project     Project    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
+
+model PublishedFlipbook {
+  id          String   @id @default(cuid())
+  projectId   String
+  slug        String   @unique
+  title       String
+  description String
+  content     Json
+  publishedAt DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId, updatedAt])
 }
