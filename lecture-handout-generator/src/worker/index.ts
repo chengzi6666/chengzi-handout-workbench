@@ -7,6 +7,15 @@ let stopping = false;
 process.on("SIGINT", () => { stopping = true; });
 process.on("SIGTERM", () => { stopping = true; });
 
+async function recoverInterruptedJobs() {
+  const staleBefore = new Date(Date.now() - 10 * 60 * 1000);
+  const recovered = await db.processingJob.updateMany({
+    where: { status: "RUNNING", startedAt: { lt: staleBefore } },
+    data: { status: "QUEUED", startedAt: null, error: null, result: Prisma.JsonNull }
+  });
+  if (recovered.count > 0) console.log(`recovered ${recovered.count} interrupted job(s)`);
+}
+
 async function claimJob() {
   for (let attempt = 0; attempt < 5; attempt += 1) {
     const job = await db.processingJob.findFirst({ where: { status: "QUEUED" }, orderBy: { createdAt: "asc" } });
@@ -80,6 +89,7 @@ async function complete(job: ProcessingJob) {
 
 async function main() {
   console.log("handout worker started");
+  await recoverInterruptedJobs();
   while (!stopping) {
     const job = await claimJob();
     if (job) await complete(job);
