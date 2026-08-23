@@ -6,57 +6,34 @@ import { ArrowLeft, CheckCircle2, Download, FileCheck2, Save } from "lucide-reac
 import type { LessonContent } from "@/lib/handout/content-schema";
 
 type LessonRow = { id: string; lessonNumber: number; title: string; content: unknown; textApproved: boolean; pinyinApproved: boolean };
+const copy = (value: unknown) => JSON.parse(JSON.stringify(value)) as LessonContent;
+const lines = (items: string[]) => items.join("\n");
+const parseLines = (value: string) => value.split("\n").map((item) => item.trim()).filter(Boolean);
 
 export function ReviewWorkspace({ project, initialLessons }: { project: { id: string; name: string; grade: string }; initialLessons: LessonRow[] }) {
   const [lessons, setLessons] = useState(initialLessons);
   const [selectedId, setSelectedId] = useState(initialLessons[0]?.id ?? "");
-  const [draft, setDraft] = useState(() => JSON.stringify(initialLessons[0]?.content ?? {}, null, 2));
+  const [draft, setDraft] = useState<LessonContent>(() => copy(initialLessons[0]?.content ?? {}));
   const [message, setMessage] = useState("");
   const selected = useMemo(() => lessons.find((lesson) => lesson.id === selectedId), [lessons, selectedId]);
-
-  function selectLesson(lesson: LessonRow) { setSelectedId(lesson.id); setDraft(JSON.stringify(lesson.content ?? {}, null, 2)); setMessage(""); }
-
+  const update = (fn: (next: LessonContent) => void) => setDraft((value) => { const next = copy(value); fn(next); return next; });
+  const select = (lesson: LessonRow) => { setSelectedId(lesson.id); setDraft(copy(lesson.content)); setMessage(""); };
   async function save(approve = false) {
     if (!selected) return;
-    setMessage("");
-    try {
-      const content = JSON.parse(draft) as LessonContent;
-      const response = await fetch(`/api/lessons/${selected.id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ content, approveText: approve }) });
-      const payload = await response.json();
-      if (!response.ok) { setMessage(payload.error ?? "保存失败"); return; }
-      setLessons((items) => items.map((item) => item.id === selected.id ? { ...item, title: content.title, content, textApproved: approve || item.textApproved } : item));
-      setMessage(approve ? "本讲文字审核已通过" : "已保存文字修改");
-    } catch { setMessage("JSON格式不正确，请检查逗号和引号"); }
+    const response = await fetch(`/api/lessons/${selected.id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ content: draft, approveText: approve }) });
+    const payload = await response.json();
+    if (!response.ok) return setMessage(payload.error ?? "保存失败");
+    setLessons((items) => items.map((item) => item.id === selected.id ? { ...item, title: draft.title, content: draft, textApproved: approve || item.textApproved } : item));
+    setMessage(approve ? "本讲文字审核已通过" : "已保存文字修改");
   }
-
-  function confirmEvidence() {
-    try {
-      const content = JSON.parse(draft) as LessonContent;
-      content.readingExcerpt.approved = true;
-      content.curriculumAlignment = content.curriculumAlignment.map((item) => ({ ...item, confirmed: true }));
-      setDraft(JSON.stringify(content, null, 2));
-      setMessage("已标记阅读原文及联网来源为人工确认，请保存或通过审核");
-    } catch { setMessage("当前内容格式不正确"); }
-  }
-
+  function confirmEvidence() { update((content) => { content.readingExcerpt.approved = true; content.curriculumAlignment.forEach((item) => { item.confirmed = true; }); }); setMessage("已确认阅读原文和对标来源，保存后即可通过审核"); }
   async function uploadQuestionImage(files: FileList | null) {
-    const file = files?.[0]; if (!file || !selected) return; const form = new FormData(); form.set("file", file); form.set("kind", "QUESTION_IMAGE"); form.set("lessonNumber", String(selected.lessonNumber));
+    const file = files?.[0]; if (!file || !selected) return;
+    const form = new FormData(); form.set("file", file); form.set("kind", "QUESTION_IMAGE"); form.set("lessonNumber", String(selected.lessonNumber));
     const response = await fetch(`/api/projects/${project.id}/files`, { method: "POST", body: form }); const payload = await response.json();
-    if (!response.ok) { setMessage(payload.error ?? "题图上传失败"); return; }
-    try { const content = JSON.parse(draft) as LessonContent; if (!content.practice[0]) throw new Error(); content.practice[0].imageSourceFileId = payload.file.id; delete content.practice[0].imageSourcePageId; setDraft(JSON.stringify(content, null, 2)); setMessage("人工题图已关联到第1道练习；可在JSON中移动到其他练习"); } catch { setMessage("内容格式错误，暂无法关联题图"); }
+    if (!response.ok) return setMessage(payload.error ?? "题图上传失败");
+    update((content) => { if (content.practice[0]) { content.practice[0].imageSourceFileId = payload.file.id; delete content.practice[0].imageSourcePageId; } }); setMessage("题图已关联到第1道练习");
   }
-
-  return <main className="review-page">
-    <header className="review-header"><Link href="/"><ArrowLeft size={17} /> 返回工作台</Link><div><span>第一次人工审核</span><h1>{project.name}</h1></div><strong>{project.grade}</strong></header>
-    <div className="review-layout">
-      <aside className="lesson-tabs"><h2>课程目录</h2>{lessons.map((lesson) => <button key={lesson.id} className={lesson.id === selectedId ? "active" : ""} onClick={() => selectLesson(lesson)}><span>第{lesson.lessonNumber}讲</span><b>{lesson.title}</b>{lesson.textApproved && <CheckCircle2 size={15} />}</button>)}</aside>
-      <section className="review-editor">
-        {selected ? <>
-          <div className="review-toolbar"><div><h2>第{selected.lessonNumber}讲文字内容</h2><p>所有字段均可修改；阅读文段只能纠正PDF识别错误，不能压缩改写。</p></div><label className="secondary-button question-upload">人工替代题图<input type="file" accept="image/*" onChange={(event) => void uploadQuestionImage(event.target.files)} /></label><button className="secondary-button" onClick={confirmEvidence}><FileCheck2 size={16} /> 确认原文与来源</button></div>
-          <textarea className="json-editor" value={draft} onChange={(event) => setDraft(event.target.value)} spellCheck={false} />
-          <div className="review-actions"><span>{message}</span>{selected.textApproved && <><a className="secondary-button" href={`/api/projects/${project.id}/export?kind=lesson_student&lesson=${selected.lessonNumber}`}><Download size={16} /> 学生版</a><a className="secondary-button" href={`/api/projects/${project.id}/export?kind=lesson_answers&lesson=${selected.lessonNumber}`}><Download size={16} /> 独立答案</a></>}<button className="secondary-button" onClick={() => void save(false)}><Save size={16} /> 保存修改</button><button className="primary-button" onClick={() => void save(true)} disabled={selected.textApproved}><CheckCircle2 size={16} /> {selected.textApproved ? "已审核" : "通过本讲文字审核"}</button></div>
-        </> : <div className="empty-state">系统正在根据已解析的主讲文件自动生成文字初稿；完成后会自动进入此页。</div>}
-      </section>
-    </div>
-  </main>;
+  if (!selected) return <main className="review-page"><div className="empty-state">系统正在生成文字初稿。</div></main>;
+  return <main className="review-page"><header className="review-header"><Link href="/"><ArrowLeft size={17} /> 返回工作台</Link><div><span>第一次人工审核</span><h1>{project.name}</h1></div><strong>{project.grade}</strong></header><div className="review-layout"><aside className="lesson-tabs"><h2>课程目录</h2>{lessons.map((lesson) => <button type="button" key={lesson.id} className={lesson.id === selectedId ? "active" : ""} onClick={() => select(lesson)}><span>第{lesson.lessonNumber}讲</span><b>{lesson.title}</b>{lesson.textApproved && <CheckCircle2 size={15} />}</button>)}</aside><section className="review-editor"><div className="review-toolbar"><div><h2>第{selected.lessonNumber}讲文字内容</h2><p>这里是对外展示的中文内容；阅读文段只能纠正识别错误，不能压缩改写。</p></div><label className="secondary-button question-upload">人工替代题图<input type="file" accept="image/*" onChange={(event) => void uploadQuestionImage(event.target.files)} /></label><button className="secondary-button" onClick={confirmEvidence}><FileCheck2 size={16} /> 确认原文与来源</button></div><div className="content-editor"><section><h3>课程信息</h3><label>课程标题<input value={draft.title} onChange={(e) => update((x) => { x.title = e.target.value; })} /></label><label>课程副标题<input value={draft.subtitle ?? ""} onChange={(e) => update((x) => { x.subtitle = e.target.value; })} /></label><label>核心方法<textarea value={draft.technique} onChange={(e) => update((x) => { x.technique = e.target.value; })} /></label></section><section><h3>学习目标</h3><p>一行一条。</p><textarea value={lines(draft.learningGoals)} onChange={(e) => update((x) => { x.learningGoals = parseLines(e.target.value); })} /></section><section><h3>💬 下课后交流话题（每题均含参考答案）</h3>{draft.conversationTopics.map((item, index) => <div className="topic-editor" key={index}><label>问题 {index + 1}<textarea value={item.question} onChange={(e) => update((x) => { x.conversationTopics[index].question = e.target.value; })} /></label><label>参考答案<textarea value={item.referenceAnswer} onChange={(e) => update((x) => { x.conversationTopics[index].referenceAnswer = e.target.value; })} /></label></div>)}</section><section><h3>阅读文段</h3><p className="source-lock">来自主讲文件原文摘抄；仅允许修正识别错误。</p><textarea className="reading-editor" value={draft.readingExcerpt.text} onChange={(e) => update((x) => { x.readingExcerpt.text = e.target.value; })} /><h4>精读思考</h4><textarea value={lines(draft.closeReadingQuestions)} onChange={(e) => update((x) => { x.closeReadingQuestions = parseLines(e.target.value); })} /></section><section><h3>课堂方法与真题带练</h3><label>方法小结<textarea value={draft.methodSummary} onChange={(e) => update((x) => { x.methodSummary = e.target.value; })} /></label>{draft.practice.map((item, index) => <div className="topic-editor" key={index}><label>练习 {index + 1}<textarea value={item.prompt} onChange={(e) => update((x) => { x.practice[index].prompt = e.target.value; })} /></label><label>参考答案<textarea value={item.answer} onChange={(e) => update((x) => { x.practice[index].answer = e.target.value; })} /></label></div>)}</section><section><h3>我是小老师</h3><label>讲解步骤（每行一步）<textarea value={lines(draft.littleTeacherSteps)} onChange={(e) => update((x) => { x.littleTeacherSteps = parseLines(e.target.value); })} /></label><label>表达小支架<textarea value={draft.oralFramework} onChange={(e) => update((x) => { x.oralFramework = e.target.value; })} /></label></section></div><div className="review-actions"><span>{message}</span>{selected.textApproved && <><a className="secondary-button" href={`/api/projects/${project.id}/export?kind=lesson_student&lesson=${selected.lessonNumber}`}><Download size={16} /> 学生版</a><a className="secondary-button" href={`/api/projects/${project.id}/export?kind=lesson_answers&lesson=${selected.lessonNumber}`}><Download size={16} /> 独立答案</a></>}<button className="secondary-button" onClick={() => void save(false)}><Save size={16} /> 保存修改</button><button className="primary-button" onClick={() => void save(true)} disabled={selected.textApproved}><CheckCircle2 size={16} /> {selected.textApproved ? "已审核" : "通过本讲文字审核"}</button></div></section></div></main>;
 }
