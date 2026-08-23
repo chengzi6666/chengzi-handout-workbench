@@ -164,12 +164,12 @@ export async function generateHandoutDocx(input: HandoutDocumentInput) {
     styles: { default: { document: { run: { font: FONT, size: 22 }, paragraph: { spacing: { line: 360 } } } } },
     sections
   });
-  let buffer = Buffer.from(await Packer.toBuffer(document));
-  if (input.fontSize && input.fontSize !== 11) buffer = await replaceBodyFontSize(buffer, input.fontSize) as Buffer;
+  let buffer: Buffer<ArrayBufferLike> = Buffer.from(await Packer.toBuffer(document));
+  if (input.fontSize && input.fontSize !== 11) buffer = await replaceBodyFontSize(buffer, input.fontSize);
   if (input.mode === "student" && input.pinyinReviews && Object.keys(input.pinyinReviews).length > 0) {
     buffer = await addNativeRuby(buffer, input.lessons, input.pinyinReviews);
   }
-  return buffer;
+  return Buffer.from(buffer);
 }
 
 async function replaceBodyFontSize(buffer: Buffer, fontSize: number) {
