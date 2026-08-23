@@ -220,7 +220,7 @@ export function LayoutWorkspace({
           ))}
         </aside>
         <section className="layout-center">
-          <div className="layout-toolbar">
+          <div className="layout-toolbar" id="format">
             <div className="page-tabs" aria-label="讲义预览页面">
               {pageLabels.map((label, index) => (
                 <button
@@ -409,7 +409,7 @@ export function LayoutWorkspace({
             </button>
           </div>
         </section>
-        <aside className="export-panel">
+        <aside className="export-panel" id="export">
           <h2>导出Word</h2>
           <p>导出前仍会执行全部审核门禁。</p>
           {[

@@ -734,32 +734,32 @@ export function WorkspaceShell({ initialProjects, user }: WorkspaceShellProps) {
               {selected ? (
                 <Link
                   className="workflow-step"
-                  href={`/projects/${selected.id}/layout`}
+                  href={`/projects/${selected.id}/layout#format`}
                 >
                   <b>4</b>
-                  <strong>版式审核</strong>
-                  <span>拖动、缩放、换表情</span>
+                  <strong>格式审核</strong>
+                  <span>字号、字体与版面检查</span>
                 </Link>
               ) : (
                 <span className="workflow-step disabled">
                   <b>4</b>
-                  <strong>版式审核</strong>
+                  <strong>格式审核</strong>
                   <span>确认版式效果</span>
                 </span>
               )}
               {selected ? (
                 <Link
                   className="workflow-step"
-                  href={`/projects/${selected.id}/layout`}
+                  href={`/projects/${selected.id}/layout#export`}
                 >
                   <b>5</b>
-                  <strong>生成 Word</strong>
-                  <span>下载可编辑 DOCX</span>
+                  <strong>导出与分享</strong>
+                  <span>生成Word与翻页书预览</span>
                 </Link>
               ) : (
                 <span className="workflow-step disabled">
                   <b>5</b>
-                  <strong>生成 Word</strong>
+                  <strong>导出与分享</strong>
                   <span>完成后下载 DOCX</span>
                 </span>
               )}
