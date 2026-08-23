@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
 import { db } from "@/lib/db";
 import { readSession } from "@/lib/auth/session";
 import { assertReadyForLayout, lessonContentSchema } from "@/lib/handout/content-schema";
@@ -35,6 +37,18 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
   const typeOf = (key: string): "png" | "jpg" | "gif" | "bmp" => key.toLowerCase().match(/\.jpe?g$/) ? "jpg" : key.toLowerCase().endsWith(".gif") ? "gif" : key.toLowerCase().endsWith(".bmp") ? "bmp" : "png";
   const backgrounds: Record<string, { data: Buffer; type: "png" | "jpg" | "gif" | "bmp" }> = {};
   for (const asset of project.backgroundPack?.assets ?? []) backgrounds[asset.role] = { data: Buffer.from(await objectStore().get(asset.objectKey)), type: typeOf(asset.objectKey) };
+  // 没有上传背景时也不能退化成白纸。内置背景来自经确认的二年级成品讲义；用户上传的同用途背景始终优先。
+  const bundledBackground = async (name: string) => ({ data: await readFile(join(process.cwd(), "public", "handout-backgrounds", name)), type: "png" as const });
+  const defaults = {
+    blush: await bundledBackground("blush-school.png"),
+    mint: await bundledBackground("mint-school.png"),
+    butter: await bundledBackground("butter-school.png"),
+  };
+  const defaultRoles: Record<string, keyof typeof defaults> = {
+    SIMPLE: "blush", COVER: "butter", PARENT_MANUAL: "mint", LESSON_HOME: "butter",
+    CONVERSATION: "blush", READING: "mint", PRACTICE: "butter", LITTLE_TEACHER: "blush",
+  };
+  for (const [role, palette] of Object.entries(defaultRoles)) backgrounds[role] ??= defaults[palette];
   const layout = project.layoutConfig as { teacherImage?: { assetId?: string; x: number; y: number; width: number; height: number } } | null;
   const teacherAsset = project.teacher?.assets.find((asset) => asset.id === layout?.teacherImage?.assetId) ?? project.teacher?.assets.find((asset) => asset.kind === "EXPRESSION");
   const teacherImage = teacherAsset ? { data: Buffer.from(await objectStore().get(teacherAsset.objectKey)), type: typeOf(teacherAsset.objectKey) } : undefined;

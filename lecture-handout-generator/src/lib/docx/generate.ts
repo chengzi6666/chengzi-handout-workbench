@@ -106,13 +106,26 @@ function lessonSections(lesson: LessonContent, input: HandoutDocumentInput) {
 }
 
 function parentSections(input: HandoutDocumentInput) {
-  return [section([
-    ...title(`${input.grade}读写综合能力提升`, "家长使用手册"),
-    heading("课程说明"), body(`本手册配合${input.teachingYear}年${input.projectName}使用，帮助家长了解每讲目标、陪学方式和课后交流重点。`),
-    heading("主讲老师"), body(input.teacherFormalName ? `${input.teacherFormalName}老师` : "以项目中绑定的主讲老师为准"),
-    heading("使用建议"), ...numbered(["课前只做轻量预热，不提前讲答案。", "课后优先让孩子复述课堂方法，再完成交流话题。", "交流话题没有唯一表达，但讲义中的参考答案可帮助家长追问。", "阅读文段以主讲PDF原文为准，不随意删改。"]),
-    heading("五讲安排"), ...input.lessons.map((lesson) => body(`第${lesson.lessonNumber}讲｜${lesson.title}｜${lesson.technique}`))
-  ], pickBackground(input, "PARENT_MANUAL"))];
+  const overview = section([
+    ...title(`${input.grade}读写综合能力提升`, "家长使用手册  ·  真读书 · 有深度 · 用得上"),
+    heading("双师陪伴"), body(`主讲老师：${input.teacherFormalName ? `${input.teacherFormalName}老师` : "以项目绑定主讲老师为准"}。本手册配合${input.teachingYear}年${input.projectName}使用，帮助家长了解课程目标、陪学方式与课后沟通重点。`),
+    heading("五讲课程带来的能力提升"), body("五讲合起来，孩子练习的是：读懂故事 → 找到证据 → 学会方法 → 说清楚 → 写完整。"),
+    heading(`${input.grade}阶段，最需要关注什么？`),
+    body("基础：从“会认字”走向“会用字词”。阅读中看见、理解并能在表达中使用，是低年级语文能力的关键起点。"),
+    body("阅读：从“听故事”走向“读懂故事”。家长可追问人物、事情、证据和道理，帮助孩子把感受说清楚。"),
+    body("表达：从“说一句话”走向“完整表达”。先把人物、事情、动作、语言、心情和结果说完整，再落到笔头。"),
+    heading("家长怎么配合？"), ...numbered(["课前只做轻量预热，不提前讲答案，让孩子保留课堂发现感。", "课后先请孩子复述课堂方法，再完成讲义中的交流话题。", "参考答案用于追问与校准，不要求孩子逐字复述。", "阅读文段以主讲文件原文为准，不随意删改。"])
+  ], pickBackground(input, "PARENT_MANUAL"));
+  const schedule = section([
+    ...title("五讲学习安排", "每讲学什么 · 家长怎么陪"),
+    ...input.lessons.flatMap((lesson) => [
+      heading(`第${lesson.lessonNumber}讲  ${lesson.title}`),
+      body(`课堂方法：${lesson.technique}`, true),
+      body(`课后建议：${lesson.parentBusySteps[0] ?? "请孩子用自己的话复述今天的一个方法。"}`),
+      body(`交流重点：${lesson.conversationTopics[0]?.question ?? "请孩子说说今天学到的内容。"}`)
+    ])
+  ], pickBackground(input, "PARENT_MANUAL"));
+  return [overview, schedule];
 }
 
 function coverSections(input: HandoutDocumentInput) {
