@@ -72,14 +72,19 @@ export function WorkspaceShell({ initialProjects, user }: WorkspaceShellProps) {
         setProcessMessage("");
         return;
       }
-      if (jobs.some((job) => job.status === "FAILED")) {
+      const contentJob = jobs.find((job) => job.kind === "CONTENT_GENERATE");
+      const parseJobs = jobs.filter((job) => job.kind === "PDF_PARSE");
+      // jobs 按时间倒序返回：只看最新一轮内容任务，历史失败不能覆盖已成功的重试结果。
+      if (contentJob?.status === "FAILED") {
         setProcessing(false);
         setParseProgress(null);
-        const failed = jobs.find((job) => job.status === "FAILED");
-        setProcessMessage(failed?.kind === "CONTENT_GENERATE" ? `文字初稿生成失败：${failed.error?.split("\n")[0] ?? "请检查模型 Key 与权限"}` : failed?.error?.split("\n")[0] ?? "解析失败，请检查PDF");
+        setProcessMessage(`文字初稿生成失败：${contentJob.error?.split("\n")[0] ?? "请检查模型连接"}`);
+      } else if (!contentJob && parseJobs.some((job) => job.status === "FAILED")) {
+        setProcessing(false);
+        setParseProgress(null);
+        const failedParse = parseJobs.find((job) => job.status === "FAILED");
+        setProcessMessage(failedParse?.error?.split("\n")[0] ?? "解析失败，请检查主讲文件");
       } else {
-        const contentJob = jobs.find((job) => job.kind === "CONTENT_GENERATE");
-        const parseJobs = jobs.filter((job) => job.kind === "PDF_PARSE");
         if (contentJob?.status === "SUCCEEDED") {
           setProcessing(false);
           setParseProgress({ percent: 100, label: "文字初稿已生成" });
