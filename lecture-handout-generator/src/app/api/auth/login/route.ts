@@ -13,6 +13,11 @@ export async function POST(request: Request) {
   if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "登录信息不正确" }, { status: 400 });
 
   const { employeeNumber, name } = parsed.data;
+  if (process.env.LOCAL_DEMO_MODE === "true") {
+    const user = { id: `demo-${employeeNumber}`, employeeNumber, name };
+    await createSession({ userId: user.id, employeeNumber, name });
+    return NextResponse.json({ user });
+  }
   const existing = await db.user.findUnique({ where: { employeeNumber } });
   if (existing && existing.name !== name) {
     return NextResponse.json({ error: "工号与姓名不匹配" }, { status: 403 });
@@ -25,4 +30,3 @@ export async function POST(request: Request) {
   await createSession({ userId: user.id, employeeNumber: user.employeeNumber, name: user.name });
   return NextResponse.json({ user: { id: user.id, employeeNumber: user.employeeNumber, name: user.name } });
 }
-

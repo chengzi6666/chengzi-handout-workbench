@@ -17,6 +17,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
   const parsed = patchSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "更新内容不正确" }, { status: 400 });
   const { id } = await context.params;
+  if (process.env.LOCAL_DEMO_MODE === "true") return NextResponse.json({ project: { id, ...parsed.data } });
   const existing = await db.project.findFirst({ where: { id, ownerId: session.userId } });
   if (!existing) return NextResponse.json({ error: "项目不存在" }, { status: 404 });
   const { confirmTeachingYear, ...changes } = parsed.data;

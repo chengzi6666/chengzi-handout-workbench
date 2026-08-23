@@ -15,6 +15,7 @@ export async function GET(_: Request, context: { params: Promise<{ id: string }>
   const session = await readSession();
   if (!session) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const { id } = await context.params;
+  if (process.env.LOCAL_DEMO_MODE === "true") return NextResponse.json({ files: [{ id: `${id}-pdf-1`, originalName: "秋01讲《要是没有发明文字》——探索文字奥秘.pdf", size: 18_240_000 }, { id: `${id}-pdf-2`, originalName: "秋02讲《爷爷一定有办法》——奇妙的毯子.pdf", size: 21_680_000 }] });
   if (!(await ownedProject(id, session.userId))) return NextResponse.json({ error: "项目不存在" }, { status: 404 });
   const files = await db.sourceFile.findMany({ where: { projectId: id }, orderBy: { createdAt: "desc" } });
   return NextResponse.json({ files });
@@ -24,6 +25,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
   const session = await readSession();
   if (!session) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const { id } = await context.params;
+  if (process.env.LOCAL_DEMO_MODE === "true") return NextResponse.json({ error: "本地演示模式不保存上传文件" }, { status: 409 });
   if (!(await ownedProject(id, session.userId))) return NextResponse.json({ error: "项目不存在" }, { status: 404 });
   const form = await request.formData();
   const file = form.get("file");
