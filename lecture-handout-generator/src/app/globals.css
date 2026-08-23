@@ -258,9 +258,16 @@ button { cursor: pointer; }
 .layout-toolbar select { height: 34px; padding: 0 8px; border: 1px solid var(--line); border-radius: 7px; background: #fff; }
 .page-canvas { position: relative; aspect-ratio: 210 / 297; max-height: calc(100vh - 250px); margin: auto; overflow: hidden; border: 1px solid #d8d0c9; box-shadow: 0 10px 30px #7e6c5a25; background: #fff center/100% 100% no-repeat; }
 .canvas-copy { padding: 11% 10%; color: #453d38; font-family: "Microsoft YaHei"; }
+.page-tabs { display: flex; flex: 1 1 100%; gap: 6px; margin-bottom: 8px; overflow-x: auto; }
+.page-tabs button { flex: 1 0 auto; padding: 7px 10px; border: 1px solid #ead8cc; border-radius: 999px; color: #755d4d; background: #fff; font-size: 11px; cursor: pointer; }
+.page-tabs button.active { color: #fff; border-color: var(--orange); background: var(--orange); }
 .canvas-copy h2 { color: var(--orange); font-size: clamp(16px, 2vw, 28px); }
 .canvas-copy h3 { margin-top: 9%; color: var(--orange-dark); font-size: clamp(12px, 1.3vw, 18px); }
 .canvas-copy p { max-width: 70%; font-size: clamp(9px, 1vw, 14px); line-height: 1.8; }
+.canvas-copy ol { max-width: 72%; padding-left: 22px; font-size: clamp(9px, 1vw, 14px); line-height: 1.8; }
+.canvas-copy section { max-width: 72%; margin: 12px 0; }
+.canvas-copy section h3 { margin-top: 0; }
+.canvas-copy .reading-preview { white-space: pre-wrap; }
 .floating-teacher, .teacher-placeholder { position: absolute; object-fit: contain; touch-action: none; cursor: move; user-select: none; }
 .teacher-placeholder { display: grid; place-items: center; border: 2px dashed #f3a37d; color: #b47052; background: #fff3ebbb; font-size: 10px; text-align: center; }
 .export-panel a { margin-top: 8px; padding: 10px; display: flex; align-items: center; gap: 7px; border-radius: 8px; color: #fff; background: var(--orange); font-size: 10px; font-weight: 700; }

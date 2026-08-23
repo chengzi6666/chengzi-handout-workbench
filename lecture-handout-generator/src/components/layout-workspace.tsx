@@ -28,11 +28,31 @@ type Position = {
   width: number;
   height: number;
 };
+type LessonPreview = {
+  lessonNumber: number;
+  title: string;
+  subtitle?: string;
+  technique: string;
+  learningGoals: string[];
+  conversationTopics: Array<{ question: string; referenceAnswer: string }>;
+  readingExcerpt: { text: string };
+  closeReadingQuestions: string[];
+  methodSummary: string;
+  practice: Array<{ prompt: string; answer: string }>;
+  littleTeacherSteps: string[];
+  oralFramework: string;
+};
+const pageRoles = ["LESSON_HOME", "CONVERSATION", "READING", "PRACTICE", "LITTLE_TEACHER"] as const;
+const pageLabels = ["课程首页", "交流话题", "精读阅读", "真题带练", "小老师"];
+const defaultBackgrounds: Record<(typeof pageRoles)[number], string> = {
+  LESSON_HOME: "/handout-backgrounds/butter-school.png", CONVERSATION: "/handout-backgrounds/blush-school.png", READING: "/handout-backgrounds/mint-school.png", PRACTICE: "/handout-backgrounds/butter-school.png", LITTLE_TEACHER: "/handout-backgrounds/blush-school.png",
+};
 
 export function LayoutWorkspace({
   project,
   backgrounds: initialBackgrounds,
   teachers,
+  lessons,
 }: {
   project: {
     id: string;
@@ -43,6 +63,7 @@ export function LayoutWorkspace({
   };
   backgrounds: Array<{ id: string; role: string }>;
   teachers: Teacher[];
+  lessons: LessonPreview[];
 }) {
   const initial = (project.layoutConfig as { teacherImage?: Position } | null)
     ?.teacherImage ?? { x: 67, y: 57, width: 25, height: 30 };
@@ -55,6 +76,7 @@ export function LayoutWorkspace({
   );
   const [backgrounds, setBackgrounds] = useState(initialBackgrounds);
   const [message, setMessage] = useState("");
+  const [pageIndex, setPageIndex] = useState(0);
   const canvas = useRef<HTMLDivElement>(null);
   const dragging = useRef(false);
   const teacher = teachers.find((item) => item.id === teacherId);
@@ -66,9 +88,10 @@ export function LayoutWorkspace({
       expressions[0],
     [expressions, position.assetId],
   );
-  const previewBackground =
-    backgrounds.find((asset) => asset.role === "PRACTICE") ??
-    backgrounds.find((asset) => asset.role === "SIMPLE");
+  const currentRole = pageRoles[pageIndex];
+  const currentLesson = lessons[0];
+  const uploadedBackground = backgrounds.find((asset) => asset.role === currentRole) ?? backgrounds.find((asset) => asset.role === "SIMPLE");
+  const previewBackground = uploadedBackground ? `url(/api/assets/background/${uploadedBackground.id})` : `url(${defaultBackgrounds[currentRole]})`;
   async function upload(role: string, files: FileList | null) {
     const file = files?.[0];
     if (!file) return;
@@ -148,7 +171,7 @@ export function LayoutWorkspace({
       <div className="layout-studio">
         <aside className="asset-panel">
           <h2>背景图片</h2>
-          <p>简单模式上传一张；专业模式按页面用途分别上传。</p>
+          <p>系统会自动套用默认美化背景；上传图片仅用于覆盖对应页面。</p>
           {roles.map(([role, label]) => (
             <label className="asset-upload" key={role}>
               <span>
@@ -158,7 +181,7 @@ export function LayoutWorkspace({
               <em>
                 {backgrounds.some((item) => item.role === role)
                   ? "已上传，可替换"
-                  : "选择图片"}
+                  : "系统默认 · 可替换"}
               </em>
               <input
                 type="file"
@@ -170,6 +193,9 @@ export function LayoutWorkspace({
         </aside>
         <section className="layout-center">
           <div className="layout-toolbar">
+            <div className="page-tabs" aria-label="讲义预览页面">
+              {pageLabels.map((label, index) => <button type="button" className={pageIndex === index ? "active" : ""} onClick={() => setPageIndex(index)} key={label}>{index + 1}. {label}</button>)}
+            </div>
             <label>
               主讲老师
               <select
@@ -228,22 +254,10 @@ export function LayoutWorkspace({
             onPointerLeave={() => {
               dragging.current = false;
             }}
-            style={
-              previewBackground
-                ? {
-                    backgroundImage: `url(/api/assets/background/${previewBackground.id})`,
-                  }
-                : undefined
-            }
+            style={{ backgroundImage: previewBackground }}
           >
             <div className="canvas-copy">
-              <h2>课堂方法与真题带练</h2>
-              <h3>方法小结</h3>
-              <p>
-                这里展示可选择、可编辑的微软雅黑正文。导出后，正文仍是Word文字。
-              </p>
-              <h3>练一练</h3>
-              <p>题目与参考答案将按审核后的内容排版。</p>
+              {!currentLesson ? <><h2>尚无已审核内容</h2><p>完成文字审核后，这里会自动显示真实讲义。</p></> : pageIndex === 0 ? <><h2>第{currentLesson.lessonNumber}讲 {currentLesson.title}</h2><p>{currentLesson.subtitle}</p><h3>今天学什么</h3><ol>{currentLesson.learningGoals.map((item) => <li key={item}>{item}</li>)}</ol><h3>核心方法</h3><p>{currentLesson.technique}</p></> : pageIndex === 1 ? <><h2>下课后，建议家长可以和孩子交流的话题</h2>{currentLesson.conversationTopics.map((item, index) => <section key={item.question}><h3>{index + 1}. {item.question}</h3><p><b>参考：</b>{item.referenceAnswer}</p></section>)}</> : pageIndex === 2 ? <><h2>阅读文段</h2><p className="reading-preview">{currentLesson.readingExcerpt.text}</p><h3>精读思考</h3><ol>{currentLesson.closeReadingQuestions.map((item) => <li key={item}>{item}</li>)}</ol></> : pageIndex === 3 ? <><h2>课堂方法与真题带练</h2><h3>方法小结</h3><p>{currentLesson.methodSummary}</p><h3>练一练</h3>{currentLesson.practice.map((item, index) => <section key={item.prompt}><p><b>{index + 1}. {item.prompt}</b></p><p>参考答案：{item.answer}</p></section>)}</> : <><h2>我是小老师</h2><h3>讲解步骤</h3><ol>{currentLesson.littleTeacherSteps.map((item) => <li key={item}>{item}</li>)}</ol><h3>表达小支架</h3><p>{currentLesson.oralFramework}</p></>}
             </div>
             {activeAsset ? (
               <img
