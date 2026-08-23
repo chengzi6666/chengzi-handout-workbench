@@ -5,6 +5,7 @@
 /*.pdf
 /lecture-handout-generator/node_modules/
 /lecture-handout-generator/.next/
+/lecture-handout-generator/.next-stale-cache/
 /lecture-handout-generator/*.tsbuildinfo
 /lecture-handout-generator/.env
 /lecture-handout-generator/.env.local
