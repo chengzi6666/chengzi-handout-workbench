@@ -93,10 +93,16 @@ export function WorkspaceShell({ initialProjects, user }: WorkspaceShellProps) {
     if (!name?.trim()) return;
     const grade = window.prompt("请输入年级，例如：1升2", "1升2");
     if (!grade?.trim()) return;
+    const yearValue = window.prompt("请输入本课程适用的教材年份，例如：2026", String(new Date().getFullYear()));
+    const teachingYear = Number(yearValue);
+    if (!Number.isInteger(teachingYear) || teachingYear < 2022 || teachingYear > 2100) {
+      window.alert("请输入 2022—2100 之间的四位年份");
+      return;
+    }
     const response = await fetch("/api/projects", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ name: name.trim(), grade: grade.trim(), teachingYear: new Date().getFullYear(), season: "秋季", lessonCount: 5 })
+      body: JSON.stringify({ name: name.trim(), grade: grade.trim(), teachingYear, season: "秋季", lessonCount: 5 })
     });
     if (!response.ok) return;
     const { project } = await response.json();
@@ -146,6 +152,24 @@ export function WorkspaceShell({ initialProjects, user }: WorkspaceShellProps) {
     if (!response.ok) return false;
     setProjects((items) => items.map((item) => item.id === selected.id ? { ...item, teachingYearConfirmed: true } : item));
     return true;
+  }
+
+  async function changeTeachingYear() {
+    if (!selected) return;
+    const value = window.prompt("请输入本课程适用的教材年份", String(selected.teachingYear));
+    if (value === null) return;
+    const teachingYear = Number(value);
+    if (!Number.isInteger(teachingYear) || teachingYear < 2022 || teachingYear > 2100) {
+      window.alert("请输入 2022—2100 之间的四位年份");
+      return;
+    }
+    if (teachingYear === selected.teachingYear) return;
+    const response = await fetch(`/api/projects/${selected.id}`, {
+      method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ teachingYear })
+    });
+    if (!response.ok) return;
+    setProjects((items) => items.map((item) => item.id === selected.id ? { ...item, teachingYear, teachingYearConfirmed: false } : item));
+    setProcessMessage(`已切换为 ${teachingYear} 年教材口径，请在解析前重新确认。`);
   }
 
   async function startParsing() {
@@ -254,10 +278,10 @@ export function WorkspaceShell({ initialProjects, user }: WorkspaceShellProps) {
               <button className="secondary-button" onClick={() => void generateContent()} disabled={processing || generating || sourceFiles.length === 0}>
                 {generating ? <Loader2 className="spin" size={16} /> : <FileText size={16} />} 生成文字初稿
               </button>
-              <span className={`year-confirm ${selected?.teachingYearConfirmed ? "confirmed" : ""}`}>
+              <button className={`year-confirm ${selected?.teachingYearConfirmed ? "confirmed" : ""}`} onClick={() => void changeTeachingYear()} title="点击修改教材年份">
                 {selected?.teachingYearConfirmed ? <CheckCircle2 size={15} /> : null}
-                {selected ? `${selected.teachingYear}年口径${selected.teachingYearConfirmed ? "已确认" : "待确认"}` : ""}
-              </span>
+                {selected ? `${selected.teachingYear}年口径${selected.teachingYearConfirmed ? "已确认" : "待确认"}` : ""} <small>修改</small>
+              </button>
               <button className="primary-button" onClick={() => void startParsing()} disabled={processing || outputs.length === 0 || sourceFiles.length === 0}>
                 {processing ? <Loader2 className="spin" size={17} /> : <Sparkles size={17} />} {processing ? "解析中" : "开始解析"}
               </button>

@@ -186,8 +186,9 @@ button { cursor: pointer; }
 .teacher-asset-actions input { display: none; }
 @media (max-width: 900px) { .teacher-layout { grid-template-columns: 1fr; } }
 @media (max-width: 600px) { .teacher-grid { grid-template-columns: 1fr; } }
-.year-confirm { display: inline-flex; align-items: center; gap: 6px; color: #9a6b2f; font-size: 13px; margin-left: auto; }
+.year-confirm { display: inline-flex; align-items: center; gap: 6px; margin-left: auto; padding: 0; border: 0; color: #9a6b2f; background: transparent; font-size: 13px; cursor: pointer; }
 .year-confirm.confirmed { color: #23805e; }
+.year-confirm small { color: #958b83; font-size: 10px; font-weight: 600; text-decoration: underline; text-underline-offset: 2px; }
 .process-message { margin: 12px 0 0; text-align: right; color: #5a6b64; font-size: 13px; }
 .parse-progress { margin-top: 12px; max-width: 410px; margin-left: auto; }
 .parse-progress-meta { display: flex; justify-content: space-between; gap: 16px; color: #5a6b64; font-size: 13px; margin-bottom: 7px; }

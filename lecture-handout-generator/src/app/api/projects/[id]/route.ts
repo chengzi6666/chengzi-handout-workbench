@@ -7,6 +7,7 @@ const patchSchema = z.object({
   name: z.string().trim().min(1).max(80).optional(),
   pinned: z.boolean().optional(),
   confirmTeachingYear: z.boolean().optional(),
+  teachingYear: z.number().int().min(2022).max(2100).optional(),
   teacherId: z.string().nullable().optional(),
   selectedProviderId: z.string().nullable().optional()
 }).refine((value) => Object.keys(value).length > 0, "没有需要更新的内容");
@@ -20,11 +21,12 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
   if (process.env.LOCAL_DEMO_MODE === "true") return NextResponse.json({ project: { id, ...parsed.data } });
   const existing = await db.project.findFirst({ where: { id, ownerId: session.userId } });
   if (!existing) return NextResponse.json({ error: "项目不存在" }, { status: 404 });
-  const { confirmTeachingYear, ...changes } = parsed.data;
+  const { confirmTeachingYear, teachingYear, ...changes } = parsed.data;
   const project = await db.project.update({
     where: { id },
     data: {
       ...changes,
+      ...(teachingYear === undefined ? {} : { teachingYear, teachingYearConfirmedAt: null }),
       ...(confirmTeachingYear === undefined ? {} : { teachingYearConfirmedAt: confirmTeachingYear ? new Date() : null })
     }
   });
