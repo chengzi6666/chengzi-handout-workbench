@@ -264,18 +264,21 @@ button { cursor: pointer; }
 .asset-upload span { display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 700; }
 .asset-upload em { color: #a08778; font-size: 9px; font-style: normal; }
 .asset-upload input { display: none; }
-.layout-toolbar { margin-bottom: 12px; display: flex; gap: 12px; align-items: flex-end; }
-.layout-toolbar label { display: grid; gap: 5px; color: #716861; font-size: 10px; }
-.layout-toolbar select { height: 34px; padding: 0 8px; border: 1px solid var(--line); border-radius: 7px; background: #fff; }
+.layout-toolbar { margin-bottom: 12px; display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; }
+.layout-toolbar label { display: grid; gap: 5px; color: #716861; font-size: 12px; font-weight: 700; }
+.layout-toolbar select { height: 38px; padding: 0 10px; border: 1px solid var(--line); border-radius: 8px; background: #fff; font-size: 14px; }
+.preview-kind-tabs, .lesson-tabs, .page-tabs { display: flex; gap: 6px; flex-wrap: wrap; }
+.preview-kind-tabs button, .lesson-tabs button, .page-tabs button { min-height: 36px; padding: 0 12px; border: 1px solid #e4cbbb; border-radius: 18px; color: #7d5d4e; background: #fff; font-size: 13px; cursor: pointer; }
+.preview-kind-tabs button.active, .lesson-tabs button.active, .page-tabs button.active { color: #fff; border-color: #f06f36; background: #ff6b2d; }
 .page-canvas { position: relative; aspect-ratio: 210 / 297; max-height: calc(100vh - 250px); margin: auto; overflow: hidden; border: 1px solid #d8d0c9; box-shadow: 0 10px 30px #7e6c5a25; background: #fff center/100% 100% no-repeat; }
-.canvas-copy { padding: 11% 10%; color: #453d38; font-family: "Microsoft YaHei"; }
+.canvas-copy { padding: 11% 10%; color: #453d38; }
 .page-tabs { display: flex; flex: 1 1 100%; gap: 6px; margin-bottom: 8px; overflow-x: auto; }
 .page-tabs button { flex: 1 0 auto; padding: 7px 10px; border: 1px solid #ead8cc; border-radius: 999px; color: #755d4d; background: #fff; font-size: 11px; cursor: pointer; }
 .page-tabs button.active { color: #fff; border-color: var(--orange); background: var(--orange); }
 .canvas-copy h2 { color: var(--orange); font-size: clamp(16px, 2vw, 28px); }
 .canvas-copy h3 { margin-top: 9%; color: var(--orange-dark); font-size: clamp(12px, 1.3vw, 18px); }
-.canvas-copy p { max-width: 70%; font-size: clamp(9px, 1vw, 14px); line-height: 1.8; }
-.canvas-copy ol { max-width: 72%; padding-left: 22px; font-size: clamp(9px, 1vw, 14px); line-height: 1.8; }
+.canvas-copy p { max-width: 70%; line-height: 1.8; }
+.canvas-copy ol { max-width: 72%; padding-left: 22px; line-height: 1.8; }
 .canvas-copy section { max-width: 72%; margin: 12px 0; }
 .canvas-copy section h3 { margin-top: 0; }
 .canvas-copy .reading-preview { white-space: pre-wrap; }
@@ -287,6 +290,16 @@ button { cursor: pointer; }
 .publish-button { width: 100%; margin-top: 14px; padding: 10px; border: 1px solid var(--orange); border-radius: 8px; color: var(--orange-dark); background: #fff5ef; font-size: 10px; font-weight: 700; text-align: center; text-decoration: none; }
 .flipbook-preview-bar { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 10px max(20px, calc((100% - 1100px) / 2)); color: #7a522f; background: #fff3dc; border-bottom: 1px solid #e7c590; font-size: 13px; }
 .flipbook-preview-bar a { color: #8c4c24; font-weight: 700; }
+.spread-book { position: relative; width: min(84vw, 1120px); aspect-ratio: 420 / 297; display: flex; transform-style: preserve-3d; filter: drop-shadow(0 20px 28px #5a3c2730); }
+.spread-book::after { content: ""; position: absolute; inset: 1% -10px; z-index: -2; border-radius: 10px; background: repeating-linear-gradient(0deg, #e8ddcf 0 1px, #fffaf2 1px 3px); }
+.book-cover-spread { width: 100%; border: 0; border-radius: 9px; color: #fff7ed; background: linear-gradient(125deg, #df7544, #9d4e35); box-shadow: inset 0 0 0 7px #f7a17755; cursor: pointer; }
+.book-cover-spread h2 { max-width: 70%; margin: 12% auto; font-size: clamp(28px, 5vw, 58px); }
+.book-cover-spread small { letter-spacing: .12em; }.book-cover-spread p { font-size: 13px; }
+.book-leaf { position: relative; width: 50%; min-width: 0; padding: 5.5% 6%; overflow: auto; background: #fffdf7; animation: spread-page-turn .58s cubic-bezier(.25,.7,.2,1); }
+.book-left { border-radius: 9px 2px 2px 9px; transform-origin: right center; }.book-right { border-radius: 2px 9px 9px 2px; transform-origin: left center; }
+.book-spine { position: absolute; top: 0; bottom: 0; left: 50%; width: 18px; transform: translateX(-50%); pointer-events: none; background: linear-gradient(90deg, #b9aa9b55, #fff 46%, #b9aa9b55); box-shadow: 0 0 16px #6f554344; }
+@keyframes spread-page-turn { from { opacity: .25; transform: rotateY(-28deg); } to { opacity: 1; transform: rotateY(0); } }
+.book-leaf h2 { margin: 5px 0 16px; color: #b65e39; font-size: clamp(20px, 3vw, 34px); }.book-leaf h3 { color: #7c6254; font-size: 15px; }.book-leaf p, .book-leaf li { font-size: clamp(12px, 1.35vw, 16px); line-height: 1.9; }.book-leaf section { margin: 13px 0; }.book-leaf section p { margin: 5px 0; color: #706158; }.book-leaf footer { position: absolute; bottom: 4%; left: 0; right: 0; text-align: center; color: #a18f84; font-size: 10px; }.book-hint { margin: -25px 0 0; text-align: center; color: #7d6556; font-size: 13px; }
 .book-stage { min-height: 100vh; padding: 20px; color: #3b302a; background: radial-gradient(circle at 50% 25%, #fff8ef, #e8d9ca); }
 .book-stage > header { max-width: 1100px; margin: 0 auto 15px; display: flex; align-items: center; }
 .book-stage > header div { flex: 1; }
@@ -316,3 +329,4 @@ button { cursor: pointer; }
 .book-callout { margin: 14px 0; padding: 12px; border-left: 4px solid #df7544; border-radius: 5px; background: #fff1e7; }
 .book-page footer { position: sticky; bottom: 0; margin-top: 25px; text-align: center; color: #a18f84; font-size: 10px; }
 @media (max-width: 650px) { .book-stage { padding: 12px; } .book-shell { gap: 4px; } .book-shell > button { width: 34px; height: 34px; } .book { width: 78vw; } }
+@media (max-width: 650px) { .spread-book { width: 78vw; aspect-ratio: 210 / 297; }.book-right { display: none; }.book-left { width: 100%; border-radius: 8px; }.book-spine { display: none; } }

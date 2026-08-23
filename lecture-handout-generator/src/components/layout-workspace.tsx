@@ -79,6 +79,7 @@ export function LayoutWorkspace({
     ?.teacherImage ?? { x: 67, y: 57, width: 25, height: 30 };
   const [position, setPosition] = useState<Position>(initial);
   const [fontSize, setFontSize] = useState((project.layoutConfig as { fontSize?: number } | null)?.fontSize ?? 11);
+  const [fontFamily, setFontFamily] = useState((project.layoutConfig as { fontFamily?: string } | null)?.fontFamily ?? "Microsoft YaHei");
   const [teacherId, setTeacherId] = useState(
     project.teacherId ??
       teachers.find((teacher) => teacher.grade === project.grade)?.id ??
@@ -88,6 +89,8 @@ export function LayoutWorkspace({
   const [backgrounds, setBackgrounds] = useState(initialBackgrounds);
   const [message, setMessage] = useState("");
   const [pageIndex, setPageIndex] = useState(0);
+  const [lessonIndex, setLessonIndex] = useState(0);
+  const [previewKind, setPreviewKind] = useState<"student" | "answers" | "parent">("student");
   const canvas = useRef<HTMLDivElement>(null);
   const dragging = useRef(false);
   const teacher = teachers.find((item) => item.id === teacherId);
@@ -100,7 +103,7 @@ export function LayoutWorkspace({
     [expressions, position.assetId],
   );
   const currentRole = pageRoles[pageIndex];
-  const currentLesson = lessons[0];
+  const currentLesson = lessons[lessonIndex];
   const defaultTeacherKey =
     (
       {
@@ -175,7 +178,7 @@ export function LayoutWorkspace({
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           teacherImage: { ...position, assetId: activeAsset?.id },
-          fontFamily: "Microsoft YaHei", fontSize,
+          fontFamily, fontSize,
         }),
       }),
     ]);
@@ -221,7 +224,15 @@ export function LayoutWorkspace({
         </aside>
         <section className="layout-center">
           <div className="layout-toolbar" id="format">
-            <div className="page-tabs" aria-label="讲义预览页面">
+            <div className="preview-kind-tabs" aria-label="预览文档类型">
+              <button type="button" className={previewKind === "student" ? "active" : ""} onClick={() => setPreviewKind("student")}>学生版讲义</button>
+              <button type="button" className={previewKind === "answers" ? "active" : ""} onClick={() => setPreviewKind("answers")}>参考答案</button>
+              <button type="button" className={previewKind === "parent" ? "active" : ""} onClick={() => setPreviewKind("parent")}>家长使用手册</button>
+            </div>
+            {previewKind !== "parent" && <div className="lesson-tabs" aria-label="讲次选择">
+              {lessons.map((lesson, index) => <button type="button" className={lessonIndex === index ? "active" : ""} onClick={() => setLessonIndex(index)} key={lesson.lessonNumber}>第{lesson.lessonNumber}讲</button>)}
+            </div>}
+            {previewKind === "student" && <div className="page-tabs" aria-label="讲义预览页面">
               {pageLabels.map((label, index) => (
                 <button
                   type="button"
@@ -232,7 +243,16 @@ export function LayoutWorkspace({
                   {index + 1}. {label}
                 </button>
               ))}
-            </div>
+            </div>}
+            <label>
+              正文字体
+              <select value={fontFamily} onChange={(event) => setFontFamily(event.target.value)}>
+                <option value="Microsoft YaHei">微软雅黑</option>
+                <option value="SimSun">宋体</option>
+                <option value="KaiTi">楷体</option>
+                <option value="FangSong">仿宋</option>
+              </select>
+            </label>
             <label>
               主讲老师
               <select
@@ -249,10 +269,10 @@ export function LayoutWorkspace({
             <label>
               正文字号
               <select value={fontSize} onChange={(event) => setFontSize(Number(event.target.value))}>
-                {[10, 11, 12, 13, 14, 15, 16].map((size) => <option key={size} value={size}>{size} 号</option>)}
+                {[10, 11, 12, 13, 14, 15, 16, 17, 18].map((size) => <option key={size} value={size}>{size} 号</option>)}
               </select>
             </label>
-            {pageIndex === 3 && (
+            {previewKind === "student" && pageIndex === 3 && (
               <>
                 <label>
                   课堂表情
@@ -303,11 +323,28 @@ export function LayoutWorkspace({
             }}
             style={{ backgroundImage: previewBackground }}
           >
-            <div className="canvas-copy">
+            <div className="canvas-copy" style={{ fontFamily, fontSize: `${fontSize}pt` }}>
               {!currentLesson ? (
                 <>
                   <h2>尚无已审核内容</h2>
                   <p>完成文字审核后，这里会自动显示真实讲义。</p>
+                </>
+              ) : previewKind === "parent" ? (
+                <>
+                  <h2>{project.grade}读写综合能力提升</h2>
+                  <p>家长使用手册 · 真读书 · 有深度 · 用得上</p>
+                  <h3>五讲课程带来的能力提升</h3>
+                  <p>五讲合起来，孩子练习的是：读懂故事 → 找到证据 → 学会方法 → 说清楚 → 写完整。</p>
+                  <h3>五讲学习安排</h3>
+                  {lessons.map((lesson) => <section key={lesson.lessonNumber}><b>第{lesson.lessonNumber}讲 {lesson.title}</b><p>课堂方法：{lesson.technique}</p><p>课后交流：{lesson.conversationTopics[0]?.question ?? "请孩子复述今天学到的方法。"}</p></section>)}
+                </>
+              ) : previewKind === "answers" ? (
+                <>
+                  <h2>第{currentLesson.lessonNumber}讲参考答案</h2>
+                  <h3>交流话题参考</h3>
+                  {currentLesson.conversationTopics.map((item, index) => <section key={item.question}><b>{index + 1}. {item.question}</b><p>参考：{item.referenceAnswer}</p></section>)}
+                  <h3>真题带练参考</h3>
+                  {currentLesson.practice.map((item, index) => <section key={item.prompt}><b>{index + 1}. {item.prompt}</b><p>参考答案：{item.answer}</p></section>)}
                 </>
               ) : pageIndex === 0 ? (
                 <>
@@ -383,7 +420,7 @@ export function LayoutWorkspace({
                 </>
               )}
             </div>
-            {pageIndex === 3 ? (
+            {previewKind === "student" && pageIndex === 3 ? (
               <img
                 className="floating-teacher"
                 src={teacherPreviewSrc}

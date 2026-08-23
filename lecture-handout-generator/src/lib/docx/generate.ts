@@ -23,6 +23,7 @@ export type HandoutDocumentInput = {
   teacherPortrait?: ImageAsset;
   teacherPosition?: { x: number; y: number; width: number; height: number };
   fontSize?: number;
+  fontFamily?: "Microsoft YaHei" | "SimSun" | "KaiTi" | "FangSong";
   practiceImages?: Record<string, ImageAsset>;
   includeFrontMatter?: boolean;
   mode: "student" | "answers" | "parent";
@@ -166,10 +167,22 @@ export async function generateHandoutDocx(input: HandoutDocumentInput) {
   });
   let buffer: Buffer<ArrayBufferLike> = Buffer.from(await Packer.toBuffer(document));
   if (input.fontSize && input.fontSize !== 11) buffer = await replaceBodyFontSize(buffer, input.fontSize);
+  if (input.fontFamily && input.fontFamily !== FONT) buffer = await replaceDocumentFont(buffer, input.fontFamily);
   if (input.mode === "student" && input.pinyinReviews && Object.keys(input.pinyinReviews).length > 0) {
     buffer = await addNativeRuby(buffer, input.lessons, input.pinyinReviews);
   }
   return Buffer.from(buffer);
+}
+
+async function replaceDocumentFont(buffer: Buffer, fontFamily: string) {
+  const zip = await JSZip.loadAsync(buffer);
+  for (const path of ["word/document.xml", "word/styles.xml"]) {
+    const entry = zip.file(path);
+    if (!entry) continue;
+    const xml = await entry.async("string");
+    zip.file(path, xml.replaceAll("Microsoft YaHei", fontFamily));
+  }
+  return Buffer.from(await zip.generateAsync({ type: "nodebuffer", compression: "DEFLATE" }));
 }
 
 async function replaceBodyFontSize(buffer: Buffer, fontSize: number) {
