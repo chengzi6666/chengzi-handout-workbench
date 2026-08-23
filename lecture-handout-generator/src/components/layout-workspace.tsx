@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useRef, useState } from "react";
-import { ArrowLeft, Download, Grip, ImagePlus, Save } from "lucide-react";
+import { ArrowLeft, Download, ImagePlus, Save } from "lucide-react";
 
 const roles = [
   ["SIMPLE", "简单模式·全文"],
@@ -90,6 +90,8 @@ export function LayoutWorkspace({
   );
   const currentRole = pageRoles[pageIndex];
   const currentLesson = lessons[0];
+  const defaultTeacherKey = ({ "0升1": "0l1", "1升2": "1l2", "2升3": "2l3", "3升4": "3l4", "4升5": "4l5" } as Record<string, string>)[project.grade] ?? "1l2";
+  const teacherPreviewSrc = activeAsset ? `/api/assets/teacher/${activeAsset.id}` : `/teacher-defaults/${defaultTeacherKey}-expression.png`;
   const uploadedBackground = backgrounds.find((asset) => asset.role === currentRole) ?? backgrounds.find((asset) => asset.role === "SIMPLE");
   const previewBackground = uploadedBackground ? `url(/api/assets/background/${uploadedBackground.id})` : `url(${defaultBackgrounds[currentRole]})`;
   async function upload(role: string, files: FileList | null) {
@@ -209,6 +211,7 @@ export function LayoutWorkspace({
                 ))}
               </select>
             </label>
+            {pageIndex === 3 && <>
             <label>
               课堂表情
               <select
@@ -243,6 +246,7 @@ export function LayoutWorkspace({
                 }
               />
             </label>
+            </>}
           </div>
           <div
             className="page-canvas"
@@ -259,10 +263,10 @@ export function LayoutWorkspace({
             <div className="canvas-copy">
               {!currentLesson ? <><h2>尚无已审核内容</h2><p>完成文字审核后，这里会自动显示真实讲义。</p></> : pageIndex === 0 ? <><h2>第{currentLesson.lessonNumber}讲 {currentLesson.title}</h2><p>{currentLesson.subtitle}</p><h3>今天学什么</h3><ol>{currentLesson.learningGoals.map((item) => <li key={item}>{item}</li>)}</ol><h3>核心方法</h3><p>{currentLesson.technique}</p></> : pageIndex === 1 ? <><h2>下课后，建议家长可以和孩子交流的话题</h2>{currentLesson.conversationTopics.map((item, index) => <section key={item.question}><h3>{index + 1}. {item.question}</h3><p><b>参考：</b>{item.referenceAnswer}</p></section>)}</> : pageIndex === 2 ? <><h2>阅读文段</h2><p className="reading-preview">{currentLesson.readingExcerpt.text}</p><h3>精读思考</h3><ol>{currentLesson.closeReadingQuestions.map((item) => <li key={item}>{item}</li>)}</ol></> : pageIndex === 3 ? <><h2>课堂方法与真题带练</h2><h3>方法小结</h3><p>{currentLesson.methodSummary}</p><h3>练一练</h3>{currentLesson.practice.map((item, index) => <section key={item.prompt}><p><b>{index + 1}. {item.prompt}</b></p><p>参考答案：{item.answer}</p></section>)}</> : <><h2>我是小老师</h2><h3>讲解步骤</h3><ol>{currentLesson.littleTeacherSteps.map((item) => <li key={item}>{item}</li>)}</ol><h3>表达小支架</h3><p>{currentLesson.oralFramework}</p></>}
             </div>
-            {activeAsset ? (
+            {pageIndex === 3 ? (
               <img
                 className="floating-teacher"
-                src={`/api/assets/teacher/${activeAsset.id}`}
+                src={teacherPreviewSrc}
                 alt="主讲老师课堂表情"
                 draggable={false}
                 onPointerDown={(event) => {
@@ -276,20 +280,7 @@ export function LayoutWorkspace({
                   height: `${position.height}%`,
                 }}
               />
-            ) : (
-              <div
-                className="teacher-placeholder"
-                style={{
-                  left: `${position.x}%`,
-                  top: `${position.y}%`,
-                  width: `${position.width}%`,
-                  height: `${position.height}%`,
-                }}
-              >
-                <Grip />
-                上传老师表情后可拖动
-              </div>
-            )}
+            ) : null}
           </div>
           <div className="review-actions">
             <span>{message}</span>

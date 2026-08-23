@@ -20,6 +20,7 @@ export type HandoutDocumentInput = {
   pinyinReviews?: Record<number, PinyinUnit[]>;
   backgrounds?: Partial<Record<"SIMPLE" | "COVER" | "PARENT_MANUAL" | "LESSON_HOME" | "CONVERSATION" | "READING" | "PRACTICE" | "LITTLE_TEACHER", ImageAsset>>;
   teacherImage?: ImageAsset;
+  teacherPortrait?: ImageAsset;
   teacherPosition?: { x: number; y: number; width: number; height: number };
   practiceImages?: Record<string, ImageAsset>;
   includeFrontMatter?: boolean;
@@ -76,6 +77,11 @@ function teacherParagraph(input: HandoutDocumentInput) {
   return [new Paragraph({ children: [new ImageRun({ ...input.teacherImage, transformation: { width: Math.round(794 * pos.width / 100), height: Math.round(1123 * pos.height / 100) }, floating: { horizontalPosition: { relative: HorizontalPositionRelativeFrom.PAGE, offset: Math.round(794 * pos.x / 100 * 9525) }, verticalPosition: { relative: VerticalPositionRelativeFrom.PAGE, offset: Math.round(1123 * pos.y / 100 * 9525) }, behindDocument: false, allowOverlap: true } })] })];
 }
 
+function parentTeacherParagraph(input: HandoutDocumentInput) {
+  if (!input.teacherPortrait) return [];
+  return [new Paragraph({ children: [new ImageRun({ ...input.teacherPortrait, transformation: { width: 110, height: 110 }, floating: { horizontalPosition: { relative: HorizontalPositionRelativeFrom.PAGE, offset: 5_650_000 }, verticalPosition: { relative: VerticalPositionRelativeFrom.PAGE, offset: 1_000_000 }, behindDocument: false, allowOverlap: true } })] })];
+}
+
 function practiceImage(input: HandoutDocumentInput, pageId?: string, fileId?: string) {
   const image = pageId ? input.practiceImages?.[pageId] : fileId ? input.practiceImages?.[fileId] : undefined;
   return image ? [new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 120 }, children: [new ImageRun({ ...image, transformation: { width: 480, height: 320 } })] })] : [];
@@ -108,6 +114,7 @@ function lessonSections(lesson: LessonContent, input: HandoutDocumentInput) {
 function parentSections(input: HandoutDocumentInput) {
   const overview = section([
     ...title(`${input.grade}读写综合能力提升`, "家长使用手册  ·  真读书 · 有深度 · 用得上"),
+    ...parentTeacherParagraph(input),
     heading("双师陪伴"), body(`主讲老师：${input.teacherFormalName ? `${input.teacherFormalName}老师` : "以项目绑定主讲老师为准"}。本手册配合${input.teachingYear}年${input.projectName}使用，帮助家长了解课程目标、陪学方式与课后沟通重点。`),
     heading("五讲课程带来的能力提升"), body("五讲合起来，孩子练习的是：读懂故事 → 找到证据 → 学会方法 → 说清楚 → 写完整。"),
     heading(`${input.grade}阶段，最需要关注什么？`),
