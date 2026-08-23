@@ -151,6 +151,7 @@ button { cursor: pointer; }
 .provider-form > label { display: grid; gap: 6px; }
 .provider-form label span { font-size: 11px; font-weight: 700; }
 .provider-form input, .provider-form select { height: 41px; padding: 0 11px; border: 1px solid #ded8d2; border-radius: 9px; outline: none; background: #fff; }
+.provider-form textarea { padding: 10px 11px; border: 1px solid #ded8d2; border-radius: 9px; outline: none; resize: vertical; background: #fff; line-height: 1.6; }
 .provider-form input:focus, .provider-form select:focus { border-color: #ff9b69; }
 .checkbox-row { display: flex; gap: 18px; padding: 4px 0; }
 .checkbox-row label { display: flex; align-items: center; gap: 6px; color: #69615b; font-size: 11px; }
@@ -160,3 +161,19 @@ button { cursor: pointer; }
 .spin { animation: spin 1s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 @media (max-width: 860px) { .settings-grid { grid-template-columns: 1fr; } }
+.teacher-layout { max-width: 1180px; margin: 0 auto; display: grid; grid-template-columns: 1.35fr .65fr; gap: 18px; align-items: start; }
+.teacher-list-panel { min-height: 560px; }
+.teacher-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 11px; }
+.teacher-card { display: grid; grid-template-columns: 46px 1fr; gap: 10px; padding: 14px; border: 1px solid var(--line); border-radius: 12px; background: #fcfbfa; }
+.teacher-avatar { width: 46px; height: 46px; display: grid; place-items: center; border-radius: 14px; color: var(--orange); background: var(--orange-soft); }
+.teacher-card strong, .teacher-card em, .teacher-card span { display: block; }
+.teacher-card strong { font-size: 13px; }
+.teacher-card em { margin-top: 3px; color: var(--orange-dark); font-size: 10px; font-style: normal; }
+.teacher-card div > span { margin-top: 4px; color: #958d86; font-size: 9px; }
+.teacher-card > p { grid-column: 1 / -1; margin: 3px 0; color: #706861; font-size: 10px; line-height: 1.65; }
+.teacher-card footer { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; }
+.teacher-card footer > span { display: flex; align-items: center; gap: 4px; color: #9a928a; font-size: 9px; }
+.teacher-card footer button { padding: 5px 8px; display: flex; align-items: center; gap: 4px; border: 1px solid #ded7d0; border-radius: 7px; color: #675f59; background: #fff; font-size: 9px; }
+.cancel-edit { color: #6f675f !important; border: 1px solid var(--line) !important; background: #fff !important; }
+@media (max-width: 900px) { .teacher-layout { grid-template-columns: 1fr; } }
+@media (max-width: 600px) { .teacher-grid { grid-template-columns: 1fr; } }

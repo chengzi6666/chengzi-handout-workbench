@@ -44,7 +44,7 @@ export function ProjectSidebar({ projects, selectedId, onSelect, onTogglePinned,
           </div>
         ))}
       </nav>
-      <div className="sidebar-footer"><button><Settings size={17} /> 系统设置</button><button onClick={() => { window.location.href = "/settings/models"; }}><SlidersHorizontal size={17} /> AI模型与接口</button></div>
+      <div className="sidebar-footer"><button onClick={() => { window.location.href = "/settings/teachers"; }}><Settings size={17} /> 教师资料库</button><button onClick={() => { window.location.href = "/settings/models"; }}><SlidersHorizontal size={17} /> AI模型与接口</button></div>
     </aside>
   );
 }
