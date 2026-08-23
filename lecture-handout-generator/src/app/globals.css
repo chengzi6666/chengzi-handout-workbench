@@ -57,13 +57,13 @@ button { cursor: pointer; }
 .icon-button { width: 38px; display: grid; place-items: center; color: #756e68; }
 .profile-button { padding: 0 10px; display: grid; grid-template-columns: auto auto auto; gap: 6px; align-items: center; font-size: 11px; }
 .profile-button span { color: #9b938d; }
-.workspace-scroll { max-width: 1180px; margin: 0 auto; padding: 28px 30px 60px; }
+.workspace-scroll { width: 100%; max-width: none; margin: 0; padding: 28px 34px 60px; }
 .hero-card { min-height: 168px; display: flex; align-items: center; justify-content: space-between; padding: 28px 34px; border: 1px solid #ffd6c1; border-radius: 20px; overflow: hidden; background: radial-gradient(circle at 90% 10%, #ffd9c7 0, transparent 30%), linear-gradient(135deg, #fff 10%, #fff4ed 100%); }
 .step-badge { display: inline-block; padding: 5px 9px; border-radius: 20px; background: #fff0e7; color: var(--orange-dark); font-size: 11px; font-weight: 700; }
 .hero-card h2 { max-width: 720px; margin: 14px 0 10px; font-size: 30px; line-height: 1.35; }
 .hero-card p { margin: 0; color: var(--muted); font-size: 14px; }
 .hero-illustration { width: 112px; height: 112px; display: grid; place-items: center; color: #fff; border-radius: 34px; transform: rotate(5deg); background: linear-gradient(145deg, #ff9b68, #f45a1c); box-shadow: 0 20px 36px #e75a1e30; }
-.content-grid { margin-top: 18px; display: grid; grid-template-columns: 1.08fr .92fr; gap: 18px; }
+.content-grid { margin-top: 18px; display: grid; grid-template-columns: minmax(580px, 1.18fr) minmax(420px, .82fr); gap: 18px; }
 .panel { padding: 22px; background: var(--panel); border: 1px solid var(--line); border-radius: 16px; box-shadow: 0 5px 18px #4d38290a; }
 .panel-title { display: flex; align-items: center; gap: 11px; margin-bottom: 18px; }
 .panel-title > span { width: 30px; height: 30px; display: grid; place-items: center; border-radius: 9px; background: var(--orange-soft); color: var(--orange-dark); font-size: 11px; font-weight: 800; }
