@@ -5,10 +5,10 @@ import { readSession } from "@/lib/auth/session";
 import { decryptSecret, encryptSecret, maskSecret } from "@/lib/security/encryption";
 
 const GROUP_MODEL_PRESET = {
-  displayName: "集团 Claude Sonnet 4.6",
+  displayName: "集团 GPT-5.4",
   kind: "INTERNAL" as const,
   baseUrl: "http://ai-service.tal.com/claw",
-  model: "claude-sonnet-4.6",
+  model: "gpt-5.4",
   supportsVision: true,
   supportsSearch: true,
   supportsJson: true
