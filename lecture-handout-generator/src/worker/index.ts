@@ -26,13 +26,28 @@ async function parsePdf(job: ProcessingJob) {
   const source = await db.sourceFile.findUnique({ where: { id: payload.sourceFileId } });
   if (!source || source.projectId !== job.projectId) throw new Error("PDF源文件不存在");
   const pdf = await objectStore().get(source.objectKey);
-  const pages = await extractPdfPages(pdf);
+  const pages = await extractPdfPages(pdf, async ({ pageNumber, totalPages }) => {
+    const percent = Math.max(1, Math.round((pageNumber / totalPages) * 90));
+    await db.processingJob.update({
+      where: { id: job.id },
+      data: { result: { stage: "extracting", pageNumber, totalPages, percent } as Prisma.InputJsonValue }
+    });
+  });
   const storedPages: Array<(typeof pages)[number] & { imageObjectKey: string }> = [];
-  for (const page of pages) {
+  for (const [index, page] of pages.entries()) {
     const imageObjectKey = `projects/${job.projectId}/parsed/${source.id}/page-${String(page.pageNumber).padStart(3, "0")}.png`;
     await objectStore().put({ key: imageObjectKey, body: page.image, contentType: "image/png" });
     storedPages.push({ ...page, imageObjectKey });
+    const percent = 90 + Math.max(1, Math.round(((index + 1) / pages.length) * 9));
+    await db.processingJob.update({
+      where: { id: job.id },
+      data: { result: { stage: "saving", pageNumber: index + 1, totalPages: pages.length, percent } as Prisma.InputJsonValue }
+    });
   }
+  await db.processingJob.update({
+    where: { id: job.id },
+    data: { result: { stage: "writing", pageNumber: pages.length, totalPages: pages.length, percent: 99 } as Prisma.InputJsonValue }
+  });
   await db.$transaction(async (transaction) => {
     await transaction.sourcePage.deleteMany({ where: { sourceFileId: source.id } });
     for (const page of storedPages) {

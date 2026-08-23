@@ -21,6 +21,7 @@ export function WorkspaceShell({ initialProjects, user }: WorkspaceShellProps) {
   const [processing, setProcessing] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [processMessage, setProcessMessage] = useState("");
+  const [parseProgress, setParseProgress] = useState<{ percent: number; label: string } | null>(null);
   const selected = useMemo(() => projects.find((project) => project.id === selectedId) ?? projects[0], [projects, selectedId]);
 
   useEffect(() => {
@@ -30,6 +31,14 @@ export function WorkspaceShell({ initialProjects, user }: WorkspaceShellProps) {
     fetch(`/api/projects/${selectedId}/files`).then(async (response) => {
       if (response.ok) setSourceFiles((await response.json()).files);
     });
+    fetch(`/api/projects/${selectedId}/jobs`).then(async (response) => {
+      if (!response.ok) return;
+      const { jobs } = await response.json() as { jobs: Array<{ status: string }> };
+      if (jobs.some((job) => job.status === "QUEUED" || job.status === "RUNNING")) {
+        setProcessing(true);
+        setProcessMessage("正在恢复解析进度…");
+      }
+    });
   }, [selectedId]);
 
   useEffect(() => {
@@ -37,15 +46,28 @@ export function WorkspaceShell({ initialProjects, user }: WorkspaceShellProps) {
     const timer = window.setInterval(async () => {
       const response = await fetch(`/api/projects/${selectedId}/jobs`);
       if (!response.ok) return;
-      const { jobs } = await response.json() as { jobs: Array<{ status: string; error?: string | null }> };
+      const { jobs } = await response.json() as { jobs: Array<{ status: string; error?: string | null; result?: { stage?: string; pageNumber?: number; totalPages?: number; percent?: number } | null }> };
       if (jobs.some((job) => job.status === "FAILED")) {
         setProcessing(false);
+        setParseProgress(null);
         setProcessMessage(jobs.find((job) => job.status === "FAILED")?.error?.split("\n")[0] ?? "解析失败，请检查PDF");
       } else if (jobs.length > 0 && jobs.every((job) => job.status === "SUCCEEDED")) {
         setProcessing(false);
+        setParseProgress({ percent: 100, label: "解析完成" });
         setProcessMessage("PDF解析完成，已进入文字审核阶段");
       } else {
-        setProcessMessage(`正在解析 ${jobs.filter((job) => job.status === "SUCCEEDED").length}/${jobs.length} 个PDF…`);
+        const active = jobs.find((job) => job.status === "RUNNING" && job.result?.percent !== undefined);
+        const completed = jobs.filter((job) => job.status === "SUCCEEDED").length;
+        if (active?.result) {
+          const { percent = 0, pageNumber = 0, totalPages = 0, stage } = active.result;
+          const stageLabel = stage === "saving" ? "正在保存原图" : stage === "writing" ? "正在写入解析内容" : "正在提取课件";
+          const overallPercent = Math.min(99, Math.round(((completed + percent / 100) / jobs.length) * 100));
+          setParseProgress({ percent: overallPercent, label: `${stageLabel}：第 ${pageNumber}/${totalPages} 页` });
+          setProcessMessage(`正在解析 ${completed + 1}/${jobs.length} 个PDF…`);
+        } else {
+          setParseProgress({ percent: Math.round((completed / jobs.length) * 100), label: `正在等待解析第 ${completed + 1} 个PDF` });
+          setProcessMessage(`正在解析 ${completed}/${jobs.length} 个PDF…`);
+        }
       }
     }, 1800);
     return () => window.clearInterval(timer);
@@ -129,6 +151,7 @@ export function WorkspaceShell({ initialProjects, user }: WorkspaceShellProps) {
   async function startParsing() {
     if (!selected || sourceFiles.length === 0 || outputs.length === 0) return;
     setProcessMessage("");
+    setParseProgress({ percent: 0, label: "正在创建解析任务" });
     if (!(await confirmYear())) return;
     const response = await fetch(`/api/projects/${selected.id}/parse`, { method: "POST" });
     const payload = await response.json();
@@ -240,6 +263,10 @@ export function WorkspaceShell({ initialProjects, user }: WorkspaceShellProps) {
               </button>
             </div>
             {processMessage && <p className="process-message">{processMessage}</p>}
+            {parseProgress && <div className="parse-progress" aria-live="polite">
+              <div className="parse-progress-meta"><span>{parseProgress.label}</span><strong>{parseProgress.percent}%</strong></div>
+              <div className="parse-progress-track"><span style={{ width: `${parseProgress.percent}%` }} /></div>
+            </div>}
           </section>
         </div>
       </section>

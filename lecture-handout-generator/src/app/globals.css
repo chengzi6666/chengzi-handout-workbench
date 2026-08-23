@@ -189,6 +189,11 @@ button { cursor: pointer; }
 .year-confirm { display: inline-flex; align-items: center; gap: 6px; color: #9a6b2f; font-size: 13px; margin-left: auto; }
 .year-confirm.confirmed { color: #23805e; }
 .process-message { margin: 12px 0 0; text-align: right; color: #5a6b64; font-size: 13px; }
+.parse-progress { margin-top: 12px; max-width: 410px; margin-left: auto; }
+.parse-progress-meta { display: flex; justify-content: space-between; gap: 16px; color: #5a6b64; font-size: 13px; margin-bottom: 7px; }
+.parse-progress-meta strong { color: #257f5a; font-variant-numeric: tabular-nums; }
+.parse-progress-track { height: 8px; overflow: hidden; border-radius: 999px; background: #e4eee8; box-shadow: inset 0 1px 1px rgba(31, 93, 66, .07); }
+.parse-progress-track span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #2aa274, #83c955); transition: width .35s ease; }
 .review-page { min-height: 100vh; background: #f6f3ef; }
 .review-header { height: 82px; padding: 0 30px; display: flex; align-items: center; gap: 22px; border-bottom: 1px solid var(--line); background: #fff; }
 .review-header > a { display: flex; align-items: center; gap: 6px; color: #6c635d; font-size: 13px; }

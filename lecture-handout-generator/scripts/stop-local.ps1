@@ -21,4 +21,4 @@ foreach ($name in @("web", "worker")) {
   }
 }
 
-Write-Host "橙子讲义工坊网页与后台任务已停止。"
+Write-Host "Handout workbench web and worker stopped."

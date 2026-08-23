@@ -25,7 +25,10 @@ function executable(name: "pdfinfo" | "pdftotext" | "pdftoppm") {
   return configured || name;
 }
 
-export async function extractPdfPages(pdf: Uint8Array): Promise<ExtractedPdfPage[]> {
+export async function extractPdfPages(
+  pdf: Uint8Array,
+  onProgress?: (progress: { pageNumber: number; totalPages: number }) => Promise<void> | void
+): Promise<ExtractedPdfPage[]> {
   const directory = await mkdtemp(join(tmpdir(), "handout-pdf-"));
   const inputPath = join(directory, "source.pdf");
   await writeFile(inputPath, pdf);
@@ -42,10 +45,10 @@ export async function extractPdfPages(pdf: Uint8Array): Promise<ExtractedPdfPage
       const image = new Uint8Array(await readFile(`${imagePrefix}.png`));
       const text = (await readFile(textPath, "utf8")).replace(/\f/g, "").trim();
       pages.push({ pageNumber, text, image, ...pngSize(image) });
+      await onProgress?.({ pageNumber, totalPages: pageCount });
     }
     return pages;
   } finally {
     await rm(directory, { recursive: true, force: true });
   }
 }
-

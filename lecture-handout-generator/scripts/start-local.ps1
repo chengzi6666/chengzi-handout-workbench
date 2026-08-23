@@ -39,5 +39,5 @@ try {
   Pop-Location
 }
 
-Write-Host "橙子讲义工坊已启动：http://localhost:3100/"
-Write-Host "网页和后台解析日志位于：$runtime"
+Write-Host "Handout workbench started: http://localhost:3100/"
+Write-Host "Web and worker logs: $runtime"
