@@ -19,7 +19,7 @@ const providerSchema = z.object({
   kind: z.enum(["OPENAI", "OPENAI_COMPATIBLE", "INTERNAL"]).optional().default(GROUP_MODEL_PRESET.kind),
   baseUrl: z.string().url().optional().default(GROUP_MODEL_PRESET.baseUrl),
   model: z.string().trim().min(1).max(100).optional().default(GROUP_MODEL_PRESET.model),
-  apiKey: z.string().trim().min(1).max(500),
+  apiKey: z.string().trim().regex(/^sk-code-/i, "请输入 Token Plan 申请的 sk-code- 开头 Key；APPID:API Key 不能用于大模型网关").max(500),
   supportsVision: z.boolean().optional().default(GROUP_MODEL_PRESET.supportsVision),
   supportsSearch: z.boolean().optional().default(GROUP_MODEL_PRESET.supportsSearch),
   supportsJson: z.boolean().optional().default(GROUP_MODEL_PRESET.supportsJson),
@@ -28,7 +28,7 @@ const providerSchema = z.object({
 
 export async function GET() {
   if (!(await readSession())) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  const providers = await db.aiProviderConfig.findMany({ orderBy: [{ isDefault: "desc" }, { updatedAt: "desc" }] });
+  const providers = await db.aiProviderConfig.findMany({ where: { enabled: true }, orderBy: [{ isDefault: "desc" }, { updatedAt: "desc" }] });
   return NextResponse.json({
     providers: providers.map((provider) => ({
       ...provider,
@@ -44,8 +44,13 @@ export async function POST(request: Request) {
   if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "模型配置不正确" }, { status: 400 });
   const { apiKey, ...data } = parsed.data;
   const provider = await db.$transaction(async (transaction) => {
-    if (data.isDefault) await transaction.aiProviderConfig.updateMany({ data: { isDefault: false } });
-    return transaction.aiProviderConfig.create({ data: { ...data, encryptedApiKey: encryptSecret(apiKey) } });
+    const existing = await transaction.aiProviderConfig.findFirst({ where: { kind: "INTERNAL", baseUrl: GROUP_MODEL_PRESET.baseUrl }, orderBy: { updatedAt: "desc" } });
+    await transaction.aiProviderConfig.updateMany({ where: { kind: "INTERNAL", baseUrl: GROUP_MODEL_PRESET.baseUrl }, data: { enabled: false, isDefault: false } });
+    if (existing) {
+      return transaction.aiProviderConfig.update({ where: { id: existing.id }, data: { ...data, encryptedApiKey: encryptSecret(apiKey), enabled: true, isDefault: true } });
+    }
+    await transaction.aiProviderConfig.updateMany({ data: { isDefault: false } });
+    return transaction.aiProviderConfig.create({ data: { ...data, encryptedApiKey: encryptSecret(apiKey), enabled: true, isDefault: true } });
   });
   return NextResponse.json({ provider: { ...provider, encryptedApiKey: undefined, apiKeyMask: maskSecret(apiKey) } }, { status: 201 });
 }
