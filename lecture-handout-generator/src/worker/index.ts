@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { objectStore } from "@/lib/storage/object-store";
 import { extractPdfTextPages } from "@/lib/pdf/extract";
 import { extractWordText } from "@/lib/word/extract";
+import { generateProjectContent } from "@/lib/handout/generate-project-content";
 
 let stopping = false;
 process.on("SIGINT", () => { stopping = true; });
@@ -68,6 +69,7 @@ async function parseSourceDocument(job: ProcessingJob) {
 async function runJob(job: ProcessingJob) {
   switch (job.kind) {
     case "PDF_PARSE": return parseSourceDocument(job);
+    case "CONTENT_GENERATE": return { lessonIds: await generateProjectContent(job.projectId) };
     default: throw new Error(`任务类型 ${job.kind} 尚未实现`);
   }
 }
@@ -78,7 +80,11 @@ async function complete(job: ProcessingJob) {
     await db.processingJob.update({ where: { id: job.id }, data: { status: "SUCCEEDED", result: result as Prisma.InputJsonValue, finishedAt: new Date() } });
     if (job.kind === "PDF_PARSE") {
       const remaining = await db.processingJob.count({ where: { projectId: job.projectId, kind: "PDF_PARSE", status: { in: ["QUEUED", "RUNNING"] } } });
-      if (remaining === 0) await db.project.update({ where: { id: job.projectId }, data: { status: "TEXT_REVIEW" } });
+      if (remaining === 0) {
+        await db.project.update({ where: { id: job.projectId }, data: { status: "PARSING" } });
+        const existingContentJob = await db.processingJob.count({ where: { projectId: job.projectId, kind: "CONTENT_GENERATE", status: { in: ["QUEUED", "RUNNING", "SUCCEEDED"] } } });
+        if (existingContentJob === 0) await db.processingJob.create({ data: { projectId: job.projectId, kind: "CONTENT_GENERATE", payload: { automatic: true } } });
+      }
     }
   } catch (error) {
     await db.processingJob.update({ where: { id: job.id }, data: { status: "FAILED", error: error instanceof Error ? error.stack?.slice(0, 8000) ?? error.message : "未知错误", finishedAt: new Date() } });

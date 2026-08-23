@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { BookOpenCheck, CheckCircle2, ChevronDown, FileText, FileUp, Loader2, LogOut, Search, Settings2, Sparkles } from "lucide-react";
+import { BookOpenCheck, CheckCircle2, FileText, FileUp, Loader2, LogOut, Settings2, Sparkles } from "lucide-react";
 import { ProjectSidebar } from "./project-sidebar";
 import { OUTPUT_OPTIONS, type HandoutProject, type OutputKind } from "@/lib/domain";
 
@@ -20,11 +20,15 @@ export function WorkspaceShell({ initialProjects, user }: WorkspaceShellProps) {
   const [uploadMessage, setUploadMessage] = useState("");
   const [processing, setProcessing] = useState(false);
   const [generating, setGenerating] = useState(false);
-  const [searchFocusToken, setSearchFocusToken] = useState(0);
   const [generationSettingsOpen, setGenerationSettingsOpen] = useState(false);
+  const [createProjectOpen, setCreateProjectOpen] = useState(false);
+  const [newProjectName, setNewProjectName] = useState("");
+  const [newProjectGrade, setNewProjectGrade] = useState("1升2");
+  const [newProjectYear, setNewProjectYear] = useState(String(new Date().getFullYear()));
+  const [createProjectMessage, setCreateProjectMessage] = useState("");
   const [settingsYear, setSettingsYear] = useState("");
   const [settingsMessage, setSettingsMessage] = useState("");
-  const autoGenerationStartedFor = useRef<string | null>(null);
+  const autoNavigateToReviewFor = useRef<string | null>(null);
   const [processMessage, setProcessMessage] = useState("");
   const [parseProgress, setParseProgress] = useState<{ percent: number; label: string } | null>(null);
   const selected = useMemo(() => projects.find((project) => project.id === selectedId) ?? projects[0], [projects, selectedId]);
@@ -37,7 +41,7 @@ export function WorkspaceShell({ initialProjects, user }: WorkspaceShellProps) {
     setProcessing(false);
     setParseProgress(null);
     setProcessMessage("");
-    autoGenerationStartedFor.current = null;
+    autoNavigateToReviewFor.current = null;
     const project = projects.find((item) => item.id === selectedId);
     if (project) setOutputs(project.outputKinds);
     fetch(`/api/projects/${selectedId}/files`, { signal: controller.signal }).then(async (response) => {
@@ -61,7 +65,7 @@ export function WorkspaceShell({ initialProjects, user }: WorkspaceShellProps) {
       const response = await fetch(`/api/projects/${selectedId}/jobs`).catch(() => null);
       if (!active || !response) return;
       if (!response.ok) return;
-      const { jobs } = await response.json() as { jobs: Array<{ status: string; error?: string | null; result?: { stage?: string; pageNumber?: number; totalPages?: number; percent?: number } | null }> };
+      const { jobs } = await response.json() as { jobs: Array<{ kind: string; status: string; error?: string | null; result?: { stage?: string; pageNumber?: number; totalPages?: number; percent?: number } | null }> };
       if (jobs.length === 0) {
         setProcessing(false);
         setParseProgress(null);
@@ -71,27 +75,42 @@ export function WorkspaceShell({ initialProjects, user }: WorkspaceShellProps) {
       if (jobs.some((job) => job.status === "FAILED")) {
         setProcessing(false);
         setParseProgress(null);
-        setProcessMessage(jobs.find((job) => job.status === "FAILED")?.error?.split("\n")[0] ?? "解析失败，请检查PDF");
-      } else if (jobs.length > 0 && jobs.every((job) => job.status === "SUCCEEDED")) {
-        setProcessing(false);
-        setParseProgress({ percent: 100, label: "解析完成" });
-        if (autoGenerationStartedFor.current !== selectedId) {
-          autoGenerationStartedFor.current = selectedId;
-          setProcessMessage("PDF解析完成，正在自动生成文字初稿…");
-          void generateContent(true);
-        }
+        const failed = jobs.find((job) => job.status === "FAILED");
+        setProcessMessage(failed?.kind === "CONTENT_GENERATE" ? `文字初稿生成失败：${failed.error?.split("\n")[0] ?? "请检查模型 Key 与权限"}` : failed?.error?.split("\n")[0] ?? "解析失败，请检查PDF");
       } else {
-        const active = jobs.find((job) => job.status === "RUNNING" && job.result?.percent !== undefined);
-        const completed = jobs.filter((job) => job.status === "SUCCEEDED").length;
+        const contentJob = jobs.find((job) => job.kind === "CONTENT_GENERATE");
+        const parseJobs = jobs.filter((job) => job.kind === "PDF_PARSE");
+        if (contentJob?.status === "SUCCEEDED") {
+          setProcessing(false);
+          setParseProgress({ percent: 100, label: "文字初稿已生成" });
+          setProcessMessage("文字初稿已生成，正在进入文字审核…");
+          if (autoNavigateToReviewFor.current !== selectedId) {
+            autoNavigateToReviewFor.current = selectedId;
+            window.location.href = `/projects/${selectedId}/review`;
+          }
+          return;
+        }
+        if (contentJob?.status === "QUEUED" || contentJob?.status === "RUNNING") {
+          setParseProgress({ percent: contentJob.status === "RUNNING" ? 88 : 82, label: contentJob.status === "RUNNING" ? "正在生成文字初稿" : "文字初稿正在排队生成" });
+          setProcessMessage("主讲文件解析完成，系统正在自动生成文字初稿…");
+          return;
+        }
+        if (parseJobs.length > 0 && parseJobs.every((job) => job.status === "SUCCEEDED")) {
+          setParseProgress({ percent: 80, label: "解析完成，正在创建文字初稿任务" });
+          setProcessMessage("主讲文件解析完成，系统正在自动生成文字初稿…");
+          return;
+        }
+        const active = parseJobs.find((job) => job.status === "RUNNING" && job.result?.percent !== undefined);
+        const completed = parseJobs.filter((job) => job.status === "SUCCEEDED").length;
         if (active?.result) {
           const { percent = 0, pageNumber = 0, totalPages = 0, stage } = active.result;
           const stageLabel = stage === "saving" ? "正在保存原图" : stage === "writing" ? "正在写入解析内容" : "正在提取课件";
-          const overallPercent = Math.min(99, Math.round(((completed + percent / 100) / jobs.length) * 100));
+          const overallPercent = Math.min(79, Math.round(((completed + percent / 100) / parseJobs.length) * 80));
           setParseProgress({ percent: overallPercent, label: `${stageLabel}：第 ${pageNumber}/${totalPages} 页` });
-          setProcessMessage(`正在解析 ${completed + 1}/${jobs.length} 个PDF…`);
+          setProcessMessage(`正在解析 ${completed + 1}/${parseJobs.length} 个主讲文件…`);
         } else {
-          setParseProgress({ percent: Math.round((completed / jobs.length) * 100), label: `正在等待解析第 ${completed + 1} 个PDF` });
-          setProcessMessage(`正在解析 ${completed}/${jobs.length} 个PDF…`);
+          setParseProgress({ percent: Math.round((completed / parseJobs.length) * 80), label: `正在等待解析第 ${completed + 1} 个主讲文件` });
+          setProcessMessage(`正在解析 ${completed}/${parseJobs.length} 个主讲文件…`);
         }
       }
     };
@@ -115,27 +134,32 @@ export function WorkspaceShell({ initialProjects, user }: WorkspaceShellProps) {
     if (!response.ok && previous) setProjects((items) => items.map((item) => item.id === id ? previous : item));
   }
 
+  function openCreateProject() {
+    setNewProjectName(`${new Date().getFullYear()}年秋季五讲`);
+    setNewProjectGrade("1升2");
+    setNewProjectYear(String(new Date().getFullYear()));
+    setCreateProjectMessage("");
+    setCreateProjectOpen(true);
+  }
+
   async function createProject() {
-    const name = window.prompt("请输入项目名称", `${new Date().getFullYear()}年秋季五讲`);
-    if (!name?.trim()) return;
-    const grade = window.prompt("请输入年级，例如：1升2", "1升2");
-    if (!grade?.trim()) return;
-    const yearValue = window.prompt("请输入本课程适用的教材年份，例如：2026", String(new Date().getFullYear()));
-    const teachingYear = Number(yearValue);
+    const teachingYear = Number(newProjectYear);
     if (!Number.isInteger(teachingYear) || teachingYear < 2022 || teachingYear > 2100) {
-      window.alert("请输入 2022—2100 之间的四位年份");
+      setCreateProjectMessage("请输入 2022—2100 之间的四位年份。");
       return;
     }
+    if (!newProjectName.trim() || !newProjectGrade.trim()) { setCreateProjectMessage("请填写项目名称和年级。"); return; }
     const response = await fetch("/api/projects", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ name: name.trim(), grade: grade.trim(), teachingYear, season: "秋季", lessonCount: 5 })
+      body: JSON.stringify({ name: newProjectName.trim(), grade: newProjectGrade.trim(), teachingYear, season: "秋季", lessonCount: 5 })
     });
-    if (!response.ok) return;
+    if (!response.ok) { setCreateProjectMessage("新建失败，请稍后重试。"); return; }
     const { project } = await response.json();
     const next: HandoutProject = { id: project.id, name: project.name, grade: project.grade, lessonCount: project.lessonCount, teachingYear: project.teachingYear, teachingYearConfirmed: false, outputKinds: ["lesson_student", "combined_student"], status: "draft", pinned: project.pinned, updatedAt: "刚刚" };
     setProjects((items) => [next, ...items]);
     setSelectedId(next.id);
+    setCreateProjectOpen(false);
   }
 
   async function logout() {
@@ -254,8 +278,7 @@ export function WorkspaceShell({ initialProjects, user }: WorkspaceShellProps) {
         onSelect={setSelectedId}
         onTogglePinned={togglePinned}
         onRename={renameProject}
-        onCreate={createProject}
-        searchFocusToken={searchFocusToken}
+        onCreate={openCreateProject}
       />
 
       <section className="workspace">
@@ -265,8 +288,7 @@ export function WorkspaceShell({ initialProjects, user }: WorkspaceShellProps) {
             <h1>{selected?.name ?? "新建讲义项目"}</h1>
           </div>
           <div className="topbar-actions">
-            <Link className="model-picker" href="/settings/models"><Sparkles size={16} /> 公司内部模型 <ChevronDown size={15} /></Link>
-            <button className="icon-button" aria-label="搜索项目" title="搜索项目" onClick={() => setSearchFocusToken((value) => value + 1)}><Search size={18} /></button>
+            <div className="model-status" title="在左侧底部的“模型与接口”中管理 Key"><Sparkles size={16} /><span>当前模型</span><strong>GPT-5.3 Codex</strong></div>
             <button className="profile-button" onClick={logout} title="退出登录"><span>{user.employeeNumber}</span><strong>{user.name}</strong><LogOut size={14} /></button>
           </div>
         </header>
@@ -339,6 +361,16 @@ export function WorkspaceShell({ initialProjects, user }: WorkspaceShellProps) {
             <p className="modal-note">修改年份后，系统会要求在下一次解析前重新确认教材口径。</p>
             {settingsMessage && <p className="settings-message">{settingsMessage}</p>}
             <div className="modal-actions"><button className="secondary-button" onClick={() => setGenerationSettingsOpen(false)}>取消</button><button className="primary-button" onClick={() => void saveGenerationSettings()}>保存设置</button></div>
+          </section>
+        </div>}
+        {createProjectOpen && <div className="settings-modal-backdrop" role="presentation" onMouseDown={() => setCreateProjectOpen(false)}>
+          <section className="generation-settings-modal" role="dialog" aria-modal="true" aria-labelledby="new-project-title" onMouseDown={(event) => event.stopPropagation()}>
+            <div><p className="eyebrow">从这里开始</p><h2 id="new-project-title">新建讲义项目</h2><p>先填写课程信息，再上传一讲或多讲主讲文件。</p></div>
+            <label><span>项目名称</span><input aria-label="项目名称" value={newProjectName} onChange={(event) => setNewProjectName(event.target.value)} /></label>
+            <label><span>年级</span><input aria-label="年级" value={newProjectGrade} onChange={(event) => setNewProjectGrade(event.target.value)} placeholder="例如：1升2" /></label>
+            <label><span>教材年份</span><input aria-label="教材年份" value={newProjectYear} inputMode="numeric" maxLength={4} onChange={(event) => setNewProjectYear(event.target.value)} /></label>
+            {createProjectMessage && <p className="settings-message">{createProjectMessage}</p>}
+            <div className="modal-actions"><button className="secondary-button" onClick={() => setCreateProjectOpen(false)}>取消</button><button className="primary-button" onClick={() => void createProject()}>创建并上传课件</button></div>
           </section>
         </div>}
       </section>

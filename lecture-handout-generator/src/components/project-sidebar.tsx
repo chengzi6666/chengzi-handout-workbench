@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { FileText, MoreHorizontal, PanelLeftClose, Pencil, Pin, Plus, Search, Settings, SlidersHorizontal } from "lucide-react";
 import type { HandoutProject } from "@/lib/domain";
 
@@ -11,16 +11,11 @@ interface ProjectSidebarProps {
   onTogglePinned(id: string): void;
   onRename(id: string, name: string): void;
   onCreate(): void;
-  searchFocusToken?: number;
 }
 
-export function ProjectSidebar({ projects, selectedId, onSelect, onTogglePinned, onRename, onCreate, searchFocusToken = 0 }: ProjectSidebarProps) {
+export function ProjectSidebar({ projects, selectedId, onSelect, onTogglePinned, onRename, onCreate }: ProjectSidebarProps) {
   const [query, setQuery] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
-  const searchInputRef = useRef<HTMLInputElement>(null);
-  useEffect(() => {
-    if (searchFocusToken > 0) searchInputRef.current?.focus();
-  }, [searchFocusToken]);
   const filtered = useMemo(() => projects
     .filter((project) => project.name.toLowerCase().includes(query.toLowerCase()))
     .sort((a, b) => Number(b.pinned) - Number(a.pinned)), [projects, query]);
@@ -29,7 +24,7 @@ export function ProjectSidebar({ projects, selectedId, onSelect, onTogglePinned,
     <aside className="sidebar">
       <div className="brand"><div className="brand-mark">橙</div><div><strong>橙子讲义工坊</strong><span>教研工作台</span></div><button aria-label="收起侧边栏"><PanelLeftClose size={18} /></button></div>
       <button className="new-project" onClick={onCreate}><Plus size={18} /> 新建讲义项目</button>
-      <label className="sidebar-search"><Search size={16} /><input ref={searchInputRef} value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索项目" /></label>
+      <label className="sidebar-search"><Search size={16} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索项目" /></label>
       <div className="sidebar-section-title"><span>项目</span><SlidersHorizontal size={14} /></div>
       <nav className="project-list">
         {filtered.map((project) => (
@@ -49,7 +44,7 @@ export function ProjectSidebar({ projects, selectedId, onSelect, onTogglePinned,
           </div>
         ))}
       </nav>
-      <div className="sidebar-footer"><button onClick={() => { window.location.href = "/settings/teachers"; }}><Settings size={17} /> 教师资料库</button><button onClick={() => { window.location.href = "/settings/models"; }}><SlidersHorizontal size={17} /> AI模型与接口</button></div>
+      <div className="sidebar-footer"><p>系统设置</p><button onClick={() => { window.location.href = "/settings/teachers"; }}><Settings size={18} /><span><strong>教师资料库</strong><small>姓名、昵称、介绍与头像</small></span></button><button onClick={() => { window.location.href = "/settings/models"; }}><SlidersHorizontal size={18} /><span><strong>模型与接口</strong><small>配置 Token Plan Key</small></span></button></div>
     </aside>
   );
 }
