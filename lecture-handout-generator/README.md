@@ -22,6 +22,20 @@
 
 ## 本地启动
 
+Windows 本机已安装依赖时，可一键启动：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\start-local.ps1
+```
+
+浏览器访问 `http://localhost:3100/`。停止网页和后台任务：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\stop-local.ps1
+```
+
+也可以手动启动：
+
 ```bash
 pnpm install
 pnpm db:generate
@@ -34,7 +48,7 @@ pnpm dev
 pnpm worker
 ```
 
-复制 `.env.example` 为 `.env.local`，按需配置数据库、对象存储和模型接口。
+复制 `.env.example` 为 `.env`，按需配置数据库、对象存储和模型接口。
 
 ## Railway
 

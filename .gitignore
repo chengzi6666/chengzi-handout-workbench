@@ -11,4 +11,6 @@
 /lecture-handout-generator/storage/
 /lecture-handout-generator/generated/
 /lecture-handout-generator/.tmp/
+/lecture-handout-generator/.local-postgres/
+/lecture-handout-generator/.local-runtime/
 *.log
