@@ -53,11 +53,20 @@ button { cursor: pointer; }
 .topbar-actions { display: flex; gap: 9px; align-items: center; }
 .model-picker, .profile-button, .icon-button { height: 38px; border: 1px solid var(--line); background: #fff; border-radius: 10px; }
 .model-picker { padding: 0 12px; display: flex; align-items: center; gap: 7px; color: #5d554f; font-size: 12px; }
+.model-picker { text-decoration: none; }
 .model-picker svg { color: var(--orange); }
 .icon-button { width: 38px; display: grid; place-items: center; color: #756e68; }
 .profile-button { padding: 0 10px; display: grid; grid-template-columns: auto auto auto; gap: 6px; align-items: center; font-size: 11px; }
 .profile-button span { color: #9b938d; }
 .workspace-scroll { width: 100%; max-width: none; margin: 0; padding: 28px 34px 60px; }
+.settings-modal-backdrop { position: fixed; inset: 0; z-index: 20; display: grid; place-items: center; padding: 24px; background: rgba(49, 39, 31, .35); }
+.generation-settings-modal { width: min(440px, 100%); padding: 28px; border: 1px solid #ffd1bd; border-radius: 18px; background: #fff; box-shadow: 0 24px 70px rgba(58, 39, 24, .24); }
+.generation-settings-modal h2 { margin: 3px 0 8px; font-size: 24px; }
+.generation-settings-modal p { color: #756e68; line-height: 1.65; }
+.generation-settings-modal label { display: grid; gap: 7px; margin-top: 18px; font-size: 14px; font-weight: 700; }
+.generation-settings-modal input { width: 100%; height: 42px; padding: 0 12px; border: 1px solid var(--line); border-radius: 9px; font: inherit; }
+.modal-note { margin: 10px 0 0; font-size: 12px; }
+.modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 22px; }
 .hero-card { min-height: 168px; display: flex; align-items: center; justify-content: space-between; padding: 28px 34px; border: 1px solid #ffd6c1; border-radius: 20px; overflow: hidden; background: radial-gradient(circle at 90% 10%, #ffd9c7 0, transparent 30%), linear-gradient(135deg, #fff 10%, #fff4ed 100%); }
 .step-badge { display: inline-block; padding: 5px 9px; border-radius: 20px; background: #fff0e7; color: var(--orange-dark); font-size: 11px; font-weight: 700; }
 .hero-card h2 { max-width: 720px; margin: 14px 0 10px; font-size: 30px; line-height: 1.35; }

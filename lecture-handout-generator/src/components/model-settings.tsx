@@ -33,9 +33,11 @@ export function ModelSettings() {
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    // React 会在异步请求后回收事件对象；先保存表单引用，避免保存成功时页面报错。
+    const formElement = event.currentTarget;
     setSaving(true);
     setMessage("");
-    const form = new FormData(event.currentTarget);
+    const form = new FormData(formElement);
     const response = await fetch("/api/ai-providers", {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -45,7 +47,7 @@ export function ModelSettings() {
     });
     setSaving(false);
     if (!response.ok) { setMessage((await response.json()).error ?? "保存失败"); return; }
-    event.currentTarget.reset();
+    formElement.reset();
     setMessage("模型接口已安全保存");
     await load();
   }

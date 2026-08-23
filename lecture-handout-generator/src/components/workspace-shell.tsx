@@ -20,6 +20,10 @@ export function WorkspaceShell({ initialProjects, user }: WorkspaceShellProps) {
   const [uploadMessage, setUploadMessage] = useState("");
   const [processing, setProcessing] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const [searchFocusToken, setSearchFocusToken] = useState(0);
+  const [generationSettingsOpen, setGenerationSettingsOpen] = useState(false);
+  const [settingsYear, setSettingsYear] = useState("");
+  const [settingsMessage, setSettingsMessage] = useState("");
   const [processMessage, setProcessMessage] = useState("");
   const [parseProgress, setParseProgress] = useState<{ percent: number; label: string } | null>(null);
   const selected = useMemo(() => projects.find((project) => project.id === selectedId) ?? projects[0], [projects, selectedId]);
@@ -189,6 +193,29 @@ export function WorkspaceShell({ initialProjects, user }: WorkspaceShellProps) {
     setProcessMessage(`已切换为 ${teachingYear} 年教材口径，请在解析前重新确认。`);
   }
 
+  function openGenerationSettings() {
+    if (!selected) return;
+    setSettingsYear(String(selected.teachingYear));
+    setSettingsMessage("");
+    setGenerationSettingsOpen(true);
+  }
+
+  async function saveGenerationSettings() {
+    if (!selected) return;
+    const teachingYear = Number(settingsYear);
+    if (!Number.isInteger(teachingYear) || teachingYear < 2022 || teachingYear > 2100) {
+      setSettingsMessage("请输入 2022—2100 之间的四位年份。");
+      return;
+    }
+    const response = await fetch(`/api/projects/${selected.id}`, {
+      method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ teachingYear })
+    });
+    if (!response.ok) { setSettingsMessage("保存失败，请稍后重试。"); return; }
+    setProjects((items) => items.map((item) => item.id === selected.id ? { ...item, teachingYear, teachingYearConfirmed: teachingYear === item.teachingYear ? item.teachingYearConfirmed : false } : item));
+    setProcessMessage(teachingYear === selected.teachingYear ? "生成设置已保存。" : `已切换为 ${teachingYear} 年教材口径，请在解析前重新确认。`);
+    setGenerationSettingsOpen(false);
+  }
+
   async function startParsing() {
     if (!selected || sourceFiles.length === 0 || outputs.length === 0) return;
     setProcessMessage("");
@@ -221,6 +248,7 @@ export function WorkspaceShell({ initialProjects, user }: WorkspaceShellProps) {
         onTogglePinned={togglePinned}
         onRename={renameProject}
         onCreate={createProject}
+        searchFocusToken={searchFocusToken}
       />
 
       <section className="workspace">
@@ -230,8 +258,8 @@ export function WorkspaceShell({ initialProjects, user }: WorkspaceShellProps) {
             <h1>{selected?.name ?? "新建讲义项目"}</h1>
           </div>
           <div className="topbar-actions">
-            <button className="model-picker"><Sparkles size={16} /> 公司内部模型 <ChevronDown size={15} /></button>
-            <button className="icon-button" aria-label="搜索"><Search size={18} /></button>
+            <Link className="model-picker" href="/settings/models"><Sparkles size={16} /> 公司内部模型 <ChevronDown size={15} /></Link>
+            <button className="icon-button" aria-label="搜索项目" title="搜索项目" onClick={() => setSearchFocusToken((value) => value + 1)}><Search size={18} /></button>
             <button className="profile-button" onClick={logout} title="退出登录"><span>{user.employeeNumber}</span><strong>{user.name}</strong><LogOut size={14} /></button>
           </div>
         </header>
@@ -288,7 +316,7 @@ export function WorkspaceShell({ initialProjects, user }: WorkspaceShellProps) {
               ))}
             </div>
             <div className="action-row">
-              <button className="secondary-button"><Settings2 size={16} /> 生成设置</button>
+              <button className="secondary-button" onClick={openGenerationSettings}><Settings2 size={16} /> 生成设置</button>
               {selected && <Link className="secondary-button" href={`/projects/${selected.id}/review`}>文字审核</Link>}
               {selected?.grade.replace(/\s/g, "") === "1升2" && <Link className="secondary-button" href={`/projects/${selected.id}/pinyin`}>拼音审核</Link>}
               {selected && <Link className="secondary-button" href={`/projects/${selected.id}/layout`}>版式与导出</Link>}
@@ -310,6 +338,15 @@ export function WorkspaceShell({ initialProjects, user }: WorkspaceShellProps) {
             </div>}
           </section>
         </div>
+        {generationSettingsOpen && selected && <div className="settings-modal-backdrop" role="presentation" onMouseDown={() => setGenerationSettingsOpen(false)}>
+          <section className="generation-settings-modal" role="dialog" aria-modal="true" aria-labelledby="generation-settings-title" onMouseDown={(event) => event.stopPropagation()}>
+            <div><p className="eyebrow">本项目设置</p><h2 id="generation-settings-title">生成设置</h2><p>输出类型可直接在上方勾选；此处用于确认生成所依据的教材年份。</p></div>
+            <label><span>教材年份</span><input aria-label="教材年份" value={settingsYear} inputMode="numeric" maxLength={4} onChange={(event) => setSettingsYear(event.target.value)} /></label>
+            <p className="modal-note">修改年份后，系统会要求在下一次解析前重新确认教材口径。</p>
+            {settingsMessage && <p className="settings-message">{settingsMessage}</p>}
+            <div className="modal-actions"><button className="secondary-button" onClick={() => setGenerationSettingsOpen(false)}>取消</button><button className="primary-button" onClick={() => void saveGenerationSettings()}>保存设置</button></div>
+          </section>
+        </div>}
       </section>
     </main>
   );
