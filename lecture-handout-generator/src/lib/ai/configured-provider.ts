@@ -13,6 +13,8 @@ export async function getConfiguredProvider(id?: string | null) {
     baseUrl: config.baseUrl,
     apiKey: decryptSecret(config.encryptedApiKey),
     model: config.model,
+    // 未来云调试台将参数标注为 token，但网关实际兼容 OpenAI Bearer 鉴权。
+    useTokenHeader: false,
     extraHeaders: (config.extraHeaders ?? undefined) as Record<string, string> | undefined
   });
 }

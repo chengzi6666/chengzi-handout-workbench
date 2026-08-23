@@ -23,6 +23,7 @@ export interface OpenAiCompatibleProviderOptions {
   apiKey: string;
   model: string;
   extraHeaders?: Record<string, string>;
+  useTokenHeader?: boolean;
 }
 
 export class OpenAiCompatibleProvider implements AiProvider {
@@ -40,7 +41,7 @@ export class OpenAiCompatibleProvider implements AiProvider {
       method: "POST",
       headers: {
         "content-type": "application/json",
-        authorization: `Bearer ${this.options.apiKey}`,
+        ...(this.options.useTokenHeader ? { token: this.options.apiKey } : { authorization: `Bearer ${this.options.apiKey}` }),
         ...this.options.extraHeaders
       },
       body: JSON.stringify({
@@ -66,4 +67,3 @@ export class OpenAiCompatibleProvider implements AiProvider {
     return { text, model: this.options.model, provider: this.id };
   }
 }
-
