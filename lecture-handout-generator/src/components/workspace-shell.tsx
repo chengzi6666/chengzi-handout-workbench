@@ -25,28 +25,43 @@ export function WorkspaceShell({ initialProjects, user }: WorkspaceShellProps) {
   const selected = useMemo(() => projects.find((project) => project.id === selectedId) ?? projects[0], [projects, selectedId]);
 
   useEffect(() => {
-    if (!selectedId) { setSourceFiles([]); return; }
+    if (!selectedId) { setSourceFiles([]); setProcessing(false); setParseProgress(null); return; }
+    let active = true;
+    const controller = new AbortController();
+    setSourceFiles([]);
+    setProcessing(false);
+    setParseProgress(null);
+    setProcessMessage("");
     const project = projects.find((item) => item.id === selectedId);
     if (project) setOutputs(project.outputKinds);
-    fetch(`/api/projects/${selectedId}/files`).then(async (response) => {
-      if (response.ok) setSourceFiles((await response.json()).files);
-    });
-    fetch(`/api/projects/${selectedId}/jobs`).then(async (response) => {
+    fetch(`/api/projects/${selectedId}/files`, { signal: controller.signal }).then(async (response) => {
+      if (active && response.ok) setSourceFiles((await response.json()).files);
+    }).catch(() => undefined);
+    fetch(`/api/projects/${selectedId}/jobs`, { signal: controller.signal }).then(async (response) => {
       if (!response.ok) return;
       const { jobs } = await response.json() as { jobs: Array<{ status: string }> };
-      if (jobs.some((job) => job.status === "QUEUED" || job.status === "RUNNING")) {
+      if (active && jobs.some((job) => job.status === "QUEUED" || job.status === "RUNNING")) {
         setProcessing(true);
         setProcessMessage("正在恢复解析进度…");
       }
-    });
+    }).catch(() => undefined);
+    return () => { active = false; controller.abort(); };
   }, [selectedId]);
 
   useEffect(() => {
     if (!selectedId || !processing) return;
-    const timer = window.setInterval(async () => {
-      const response = await fetch(`/api/projects/${selectedId}/jobs`);
+    let active = true;
+    const poll = async () => {
+      const response = await fetch(`/api/projects/${selectedId}/jobs`).catch(() => null);
+      if (!active || !response) return;
       if (!response.ok) return;
       const { jobs } = await response.json() as { jobs: Array<{ status: string; error?: string | null; result?: { stage?: string; pageNumber?: number; totalPages?: number; percent?: number } | null }> };
+      if (jobs.length === 0) {
+        setProcessing(false);
+        setParseProgress(null);
+        setProcessMessage("");
+        return;
+      }
       if (jobs.some((job) => job.status === "FAILED")) {
         setProcessing(false);
         setParseProgress(null);
@@ -69,8 +84,10 @@ export function WorkspaceShell({ initialProjects, user }: WorkspaceShellProps) {
           setProcessMessage(`正在解析 ${completed}/${jobs.length} 个PDF…`);
         }
       }
-    }, 1800);
-    return () => window.clearInterval(timer);
+    };
+    void poll();
+    const timer = window.setInterval(() => void poll(), 1800);
+    return () => { active = false; window.clearInterval(timer); };
   }, [processing, selectedId]);
 
   async function togglePinned(id: string) {
