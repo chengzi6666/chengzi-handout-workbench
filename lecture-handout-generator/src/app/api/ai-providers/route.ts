@@ -4,15 +4,25 @@ import { db } from "@/lib/db";
 import { readSession } from "@/lib/auth/session";
 import { decryptSecret, encryptSecret, maskSecret } from "@/lib/security/encryption";
 
+const GROUP_MODEL_PRESET = {
+  displayName: "集团 Claude Sonnet 4.6",
+  kind: "INTERNAL" as const,
+  baseUrl: "http://ai-service.tal.com/claw",
+  model: "claude-sonnet-4.6",
+  supportsVision: true,
+  supportsSearch: true,
+  supportsJson: true
+};
+
 const providerSchema = z.object({
-  displayName: z.string().trim().min(1).max(50),
-  kind: z.enum(["OPENAI", "OPENAI_COMPATIBLE", "INTERNAL"]),
-  baseUrl: z.string().url(),
-  model: z.string().trim().min(1).max(100),
+  displayName: z.string().trim().min(1).max(50).optional().default(GROUP_MODEL_PRESET.displayName),
+  kind: z.enum(["OPENAI", "OPENAI_COMPATIBLE", "INTERNAL"]).optional().default(GROUP_MODEL_PRESET.kind),
+  baseUrl: z.string().url().optional().default(GROUP_MODEL_PRESET.baseUrl),
+  model: z.string().trim().min(1).max(100).optional().default(GROUP_MODEL_PRESET.model),
   apiKey: z.string().trim().min(1).max(500),
-  supportsVision: z.boolean().default(false),
-  supportsSearch: z.boolean().default(false),
-  supportsJson: z.boolean().default(true),
+  supportsVision: z.boolean().optional().default(GROUP_MODEL_PRESET.supportsVision),
+  supportsSearch: z.boolean().optional().default(GROUP_MODEL_PRESET.supportsSearch),
+  supportsJson: z.boolean().optional().default(GROUP_MODEL_PRESET.supportsJson),
   isDefault: z.boolean().default(false)
 });
 
@@ -39,4 +49,3 @@ export async function POST(request: Request) {
   });
   return NextResponse.json({ provider: { ...provider, encryptedApiKey: undefined, apiKeyMask: maskSecret(apiKey) } }, { status: 201 });
 }
-

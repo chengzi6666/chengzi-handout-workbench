@@ -158,6 +158,10 @@ button { cursor: pointer; }
 .provider-form label span { font-size: 11px; font-weight: 700; }
 .provider-form input, .provider-form select { height: 41px; padding: 0 11px; border: 1px solid #ded8d2; border-radius: 9px; outline: none; background: #fff; }
 .provider-form textarea { padding: 10px 11px; border: 1px solid #ded8d2; border-radius: 9px; outline: none; resize: vertical; background: #fff; line-height: 1.6; }
+.group-model-preset { padding: 16px; display: grid; gap: 7px; border: 1px solid #cfe8dc; border-radius: 12px; color: #2c6f54; background: #f0faf5; }
+.group-model-preset strong { font-size: 15px; }
+.group-model-preset span { font-size: 12px; }
+.group-model-preset small, .key-help { margin: 0; color: #7a847e; font-size: 11px; line-height: 1.65; }
 .provider-form input:focus, .provider-form select:focus { border-color: #ff9b69; }
 .checkbox-row { display: flex; gap: 18px; padding: 4px 0; }
 .checkbox-row label { display: flex; align-items: center; gap: 6px; color: #69615b; font-size: 11px; }

@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
-import { ArrowLeft, Bot, CheckCircle2, Eye, Globe2, KeyRound, Loader2, Plus, Save, TestTube2 } from "lucide-react";
+import { ArrowLeft, Bot, CheckCircle2, Eye, Globe2, KeyRound, Loader2, Save, TestTube2 } from "lucide-react";
 
 interface ProviderRow {
   id: string;
@@ -40,8 +40,7 @@ export function ModelSettings() {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
-        displayName: form.get("displayName"), kind: form.get("kind"), baseUrl: form.get("baseUrl"), model: form.get("model"), apiKey: form.get("apiKey"),
-        supportsVision: form.get("supportsVision") === "on", supportsSearch: form.get("supportsSearch") === "on", supportsJson: true, isDefault: providers.length === 0
+        apiKey: form.get("apiKey"), isDefault: providers.length === 0
       })
     });
     setSaving(false);
@@ -74,15 +73,12 @@ export function ModelSettings() {
           ))}
         </section>
         <section className="panel">
-          <div className="panel-title"><span><Plus size={16} /></span><div><h3>添加模型接口</h3><p>支持OpenAI兼容及公司内部网关</p></div></div>
+          <div className="panel-title"><span><KeyRound size={16} /></span><div><h3>接入集团模型</h3><p>系统已预设集团网关与模型，只需要填写你的 Token Plan Key</p></div></div>
           <form className="provider-form" onSubmit={submit}>
-            <label><span>显示名称</span><input name="displayName" placeholder="例如：公司 Qwen3.5 Plus" required /></label>
-            <label><span>接口类型</span><select name="kind" defaultValue="INTERNAL"><option value="INTERNAL">公司内部接口</option><option value="OPENAI_COMPATIBLE">OpenAI兼容接口</option><option value="OPENAI">OpenAI官方</option></select></label>
-            <label><span>Base URL</span><input name="baseUrl" type="url" placeholder="https://ai.company.com/v1" required /></label>
-            <label><span>模型名称</span><input name="model" placeholder="qwen3.5-plus" required /></label>
-            <label><span>API Key</span><input name="apiKey" type="password" autoComplete="new-password" placeholder="只会加密保存在服务端" required /></label>
-            <div className="checkbox-row"><label><input name="supportsVision" type="checkbox" />支持图片/PDF视觉</label><label><input name="supportsSearch" type="checkbox" />支持联网搜索</label></div>
-            <button disabled={saving}><Save size={16} />{saving ? "正在保存…" : "保存接口"}</button>
+            <div className="group-model-preset"><strong>Claude Sonnet 4.6（推荐）</strong><span>集团网关 · 图片理解 · 联网检索 · 结构化 JSON</span><small>接口地址：ai-service.tal.com/claw</small></div>
+            <label><span>Token Plan API Key</span><input name="apiKey" type="password" autoComplete="new-password" placeholder="粘贴 sk-code- 开头的个人 Key" required /></label>
+            <p className="key-help">请在未来云 → 星图应用开发平台 → Token Plan → 模型一键申请中开通 <b>claude-sonnet-4.6</b> 后粘贴 Key。Key 会使用 AES 加密保存。</p>
+            <button disabled={saving}><Save size={16} />{saving ? "正在保存…" : "保存并启用"}</button>
             {message && <p className="settings-message">{message}</p>}
           </form>
         </section>
