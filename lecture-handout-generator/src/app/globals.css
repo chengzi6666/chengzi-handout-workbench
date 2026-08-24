@@ -325,7 +325,9 @@ button { cursor: pointer; }
 .lesson-subtitle { color: #6e655f; }
 .lesson-callout, .note-preview { padding: 14px 16px; border: 1px solid #ead8cc; border-radius: 10px; background: #fffaf5; }
 .lesson-callout p, .note-preview p { margin: 7px 0; }
-.note-preview { min-height: 160px; }
+.note-preview { min-height: 190px; white-space: pre-wrap; overflow: hidden; }
+.note-editable { outline: 0; cursor: text; }
+.note-editable:focus { border-color: #f07a42; box-shadow: 0 0 0 3px #f07a4220; }
 .note-preview p { color: #b6aaa0; }
 .note-own-page { position: absolute; inset: 28% 10% auto; min-height: 34%; padding: 18px; border: 1px solid #ead8cc; border-radius: 10px; background: #fffaf5; }
 .note-own-page-toggle { margin-top: 10px; display: inline-flex; align-items: center; gap: 7px; color: #75655b; font-size: 13px; }
@@ -356,13 +358,14 @@ button { cursor: pointer; }
 .book-cover-spread h2 { max-width: 70%; margin: 12% auto; font-size: clamp(28px, 5vw, 58px); }
 .book-cover-spread small { letter-spacing: .12em; }.book-cover-spread p { font-size: 13px; }
 .book-leaf { position: relative; width: 50%; min-width: 0; padding: 5.5% 6%; overflow: auto; background: #fffdf7; animation: spread-page-turn .58s cubic-bezier(.25,.7,.2,1); }
-.book-turn-sheet { position: absolute; z-index: 4; top: 0; bottom: 0; width: 50%; padding: 5.5% 6%; overflow: hidden; color: #3b302a; background: linear-gradient(90deg, #f5ede4, #fffdf7 14%, #fffdf7 84%, #eadfce); backface-visibility: hidden; box-shadow: 0 0 18px #57392055; will-change: transform; }
+.book-turn-sheet { position: absolute; z-index: 4; top: 0; bottom: 0; width: 50%; padding: 5.5% 6%; overflow: hidden; color: #3b302a; background: linear-gradient(90deg, #f5ede4, #fffdf7 14%, #fffdf7 84%, #eadfce); backface-visibility: hidden; box-shadow: 0 0 18px #57392055; will-change: transform; transform-style: preserve-3d; }
 .book-turn-sheet::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(90deg, #3b211b00 10%, #3b211b33 48%, #fff9ee99 62%, #3b211b00 92%); mix-blend-mode: multiply; }
 .turn-next { right: 0; transform-origin: left center; animation: book-turn-next .52s cubic-bezier(.16,.78,.24,1) forwards; }.turn-previous { left: 0; transform-origin: right center; animation: book-turn-previous .52s cubic-bezier(.16,.78,.24,1) forwards; }
 @keyframes book-turn-next { 0% { transform: rotateY(0deg) skewY(0); } 50% { transform: rotateY(-82deg) skewY(-2deg); } 100% { transform: rotateY(-179deg) skewY(0); } } @keyframes book-turn-previous { 0% { transform: rotateY(0deg) skewY(0); } 50% { transform: rotateY(82deg) skewY(2deg); } 100% { transform: rotateY(179deg) skewY(0); } }
 .book-left { border-radius: 9px 2px 2px 9px; transform-origin: right center; }.book-right { border-radius: 2px 9px 9px 2px; transform-origin: left center; }
 .book-leaf.kind-home { background: #fff2cf url("/handout-backgrounds/butter-school.png") center/100% 100% no-repeat; }.book-leaf.kind-conversation, .book-leaf.kind-teacher { background: #fff0ec url("/handout-backgrounds/blush-school.png") center/100% 100% no-repeat; }.book-leaf.kind-reading { background: #eaf7ef url("/handout-backgrounds/mint-school.png") center/100% 100% no-repeat; }.book-leaf.kind-practice { background: #fff2cf url("/handout-backgrounds/butter-school.png") center/100% 100% no-repeat; }
 .pinyin-reading ruby { ruby-position: over; }.pinyin-reading rt { color: #df6f42; font-size: .56em; }
+.book-answer-supplement { margin-top: 14px; border-top: 1px dashed #c78a6c; padding-top: 8px; }
 .book-spine { position: absolute; top: 0; bottom: 0; left: 50%; width: 18px; transform: translateX(-50%); pointer-events: none; background: linear-gradient(90deg, #b9aa9b55, #fff 46%, #b9aa9b55); box-shadow: 0 0 16px #6f554344; }
 @keyframes spread-page-turn { from { opacity: .25; transform: rotateY(-28deg); } to { opacity: 1; transform: rotateY(0); } }
 .book-leaf h2 { margin: 5px 0 16px; color: #b65e39; font-size: clamp(20px, 3vw, 34px); }.book-leaf h3 { color: #7c6254; font-size: 15px; }.book-leaf p, .book-leaf li { font-size: clamp(12px, 1.35vw, 16px); line-height: 1.9; }.book-leaf section { margin: 13px 0; }.book-leaf section p { margin: 5px 0; color: #706158; }.book-leaf footer { position: absolute; bottom: 4%; left: 0; right: 0; text-align: center; color: #a18f84; font-size: 10px; }.book-hint { margin: -25px 0 0; text-align: center; color: #7d6556; font-size: 13px; }

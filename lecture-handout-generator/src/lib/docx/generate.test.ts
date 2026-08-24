@@ -38,11 +38,11 @@ test("grade two reviewed pinyin is emitted as native Word ruby", async () => {
 
 test("practice blanks reserve student writing space", () => {
   const bracket = expandAnswerSpace("（ ）");
-  assert.match(bracket, /^（　+）$/u);
-  assert.ok(bracket.length >= 26 && bracket.length <= 42);
+  assert.match(bracket, /^（＿+）$/u);
+  assert.equal(bracket.length, 42);
   assert.ok(expandAnswerSpace("答案：*").length >= 22);
   const student = normalizeStudentFacingContent(lesson);
-  assert.match(student.oralFramework, /________/);
+  assert.match(student.oralFramework, /＿{20}/u);
   assert.equal(student.oralReferenceAnswer, lesson.oralFramework);
 });
 
@@ -54,4 +54,6 @@ test("parent manual follows the family guidance structure", async () => {
   assert.match(xml, /五讲课程带来的能力提升/);
   assert.match(xml, /家长怎么配合/);
   assert.match(xml, /高远老师/);
+  assert.match(xml, /讲次名称/);
+  assert.ok((xml.match(/w:type w:val="nextPage"/g) ?? []).length >= 4);
 });

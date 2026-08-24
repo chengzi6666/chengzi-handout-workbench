@@ -17,6 +17,7 @@ export type HandoutDocumentInput = {
   teachingYear: number;
   teacherFormalName?: string;
   teacherNickname?: string;
+  teacherIntroduction?: string;
   headerText?: string;
   headerSize?: number;
   footerText?: string;
@@ -127,7 +128,7 @@ function teacherParagraph(input: HandoutDocumentInput) {
 
 function parentTeacherTable(input: HandoutDocumentInput) {
   const image = input.teacherPortrait ? [new Paragraph({ alignment: AlignmentType.CENTER, children: [new ImageRun({ ...input.teacherPortrait, transformation: { width: 130, height: 130 } })] })] : [body("主讲老师")];
-  const introduction = teacherIntroduction(input.teacherFormalName);
+  const introduction = input.teacherIntroduction?.trim() || teacherIntroduction(input.teacherFormalName);
   return new Table({ width: { size: 7600, type: WidthType.DXA }, rows: [new TableRow({ children: [
     new TableCell({ width: { size: 1900, type: WidthType.DXA }, shading: { type: ShadingType.CLEAR, color: "F5F0EA", fill: "FFF8F2" }, children: image }),
     new TableCell({ width: { size: 5700, type: WidthType.DXA }, shading: { type: ShadingType.CLEAR, color: "F5F0EA", fill: "FFF8F2" }, children: introduction.split("\n").map((line, i) => new Paragraph({ spacing: { after: i ? 0 : 80 }, children: [run(line, { bold: i === 0, size: i === 0 ? 24 : 21, color: i === 0 ? orange : "4D423A" })] })) })
@@ -189,9 +190,8 @@ function parentCooperationTable() {
 function noteTable() {
   return new Table({ width: { size: 7600, type: WidthType.DXA }, rows: [new TableRow({ children: [new TableCell({ width: { size: 7600, type: WidthType.DXA }, shading: { type: ShadingType.CLEAR, color: "F2E5D9", fill: "FFFCF8" }, children: [
     new Paragraph({ children: [run("📖 笔记", { bold: true, size: 23, color: orange })] }),
-    new Paragraph({ spacing: { before: 80, after: 720 }, children: [run("")] }),
-    new Paragraph({ spacing: { after: 720 }, children: [run("")] }),
-    new Paragraph({ spacing: { after: 360 }, children: [run("")] })
+    // 一个可持续输入的笔记框。不要用多个空表格/段落模拟行数，否则回车会被误解为新增笔记框。
+    new Paragraph({ spacing: { before: 80, after: 2200 }, children: [run("")] })
   ] })] })] });
 }
 
@@ -233,24 +233,31 @@ function parentSections(input: HandoutDocumentInput) {
     parentTeacherTable(input),
     heading("🤝 双师陪伴｜主讲老师＋班主任老师"),
     doubleTeacherTable(input),
-    heading("📚 五讲课程带来的能力提升"), body(capability),
-    heading("五讲合起来，孩子练习的是："), body("读懂故事 → 找到证据 → 学会方法 → 说清楚 → 写完整。"),
+  ], pickBackground(input, "PARENT_MANUAL"), input);
+  const ability = section([
+    ...title("📚 五讲课程带来的能力提升"),
+    body(capability),
+    heading("五讲合起来，孩子练习的是："), body("读懂故事 → 找到证据 → 学会方法 → 说清楚 → 写完整。")
+  ], pickBackground(input, "PARENT_MANUAL"), input);
+  const scheduleRows = [
+    new TableRow({ children: ["讲次", "讲次名称", "讲次技法", "具体学习内容"].map((value) => new TableCell({ shading: { type: ShadingType.CLEAR, color: "F5E1D5", fill: "FFE8DB" }, children: [new Paragraph({ children: [run(value, { bold: true, size: 20, color: orange })] })] })) }),
+    ...input.lessons.map((lesson) => new TableRow({ children: [
+      `第${lesson.lessonNumber}讲`, lessonBookTitle(lesson.title), lesson.technique,
+      lesson.learningGoals.map((goal, index) => `${index + 1}. ${printableLearningGoal(goal)}`).join("\n")
+    ].map((value) => new TableCell({ children: String(value).split("\n").map((line) => new Paragraph({ spacing: { after: 40 }, children: [run(line, { size: 18 })] })) })) }))
+  ];
+  const schedule = section([
+    ...title("五讲学习安排", "每讲学什么 · 家长怎么陪"),
+    new Table({ width: { size: 7600, type: WidthType.DXA }, rows: scheduleRows })
+  ], pickBackground(input, "PARENT_MANUAL"), input);
+  const stage = section([
     heading(`🎯 ${gradeName}阶段，最需要关注什么？`),
     body(`基础：结合${input.teachingYear}年课程学习节奏，从“会认字”走向“会用字词”，让孩子在故事语境中把字词读懂、用上。`),
     body("阅读：从“听故事”走向“读懂故事”，能说清人物、事情、证据和道理。"),
     body("表达：从“说一句话”走向“完整表达”，逐步写清人物、事情、动作、语言、心情和结果。"),
     heading("💡 家长怎么配合？"), parentCooperationTable()
   ], pickBackground(input, "PARENT_MANUAL"), input);
-  const schedule = section([
-    ...title("五讲学习安排", "每讲学什么 · 家长怎么陪"),
-    ...input.lessons.flatMap((lesson) => [
-      heading(`第${lesson.lessonNumber}讲  ${lesson.title}`),
-      body(`课堂方法：${lesson.technique}`, true),
-      body(`课后建议：${lesson.parentBusySteps[0] ?? "请孩子用自己的话复述今天的一个方法。"}`),
-      body(`交流重点：${lesson.conversationTopics[0]?.question ?? "请孩子说说今天学到的内容。"}`)
-    ])
-  ], pickBackground(input, "PARENT_MANUAL"), input);
-  return [overview, schedule];
+  return [overview, ability, schedule, stage];
 }
 
 function coverSections(input: HandoutDocumentInput) {
@@ -332,11 +339,12 @@ async function addNativeRuby(buffer: Buffer, lessons: LessonContent[], reviews: 
     const units = reviews[lesson.lessonNumber];
     if (!units) continue;
     const escaped = escapeXml(lesson.readingExcerpt.text);
-    const marker = `<w:t xml:space="preserve">${escaped}</w:t>`;
-    const fallback = `<w:t>${escaped}</w:t>`;
-    const target = xml.includes(marker) ? marker : fallback;
-    if (!xml.includes(target)) throw new Error(`第${lesson.lessonNumber}讲阅读文段无法定位，未添加拼音`);
-    xml = xml.replace(target, `</w:r>${rubyXml(units)}<w:r><w:t></w:t>`);
+    // w:ruby 必须是段落的直接子节点，不能插到既有 w:r 内部。旧实现会留下不配对的 w:r，
+    // 这正是下载的“课文片段”出现标点/乱码的根因。
+    const textPattern = new RegExp(`<w:r(?:\\s[^>]*)?>[\\s\\S]*?<w:t(?:\\s[^>]*)?>${escaped}<\\/w:t>[\\s\\S]*?<\\/w:r>`);
+    const match = xml.match(textPattern);
+    if (!match) throw new Error(`第${lesson.lessonNumber}讲阅读文段无法定位，未添加拼音`);
+    xml = xml.replace(match[0], rubyXml(units));
   }
   zip.file("word/document.xml", xml);
   return Buffer.from(await zip.generateAsync({ type: "nodebuffer", compression: "DEFLATE" }));

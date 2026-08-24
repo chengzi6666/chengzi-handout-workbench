@@ -74,9 +74,12 @@ export default async function FlipbookPreviewPage({
       },
     ];
   });
+  const parentBackground = pageBackground(project, "PARENT_MANUAL");
   const parentPages = [
-    { collection: "parent", kind: "parent", title: "家长使用手册", subtitle: "—— 真读书 · 有深度 · 用得上 ——", backgroundSrc: pageBackground(project, "PARENT_MANUAL"), body: ["双师陪伴：主讲老师负责课程讲解、阅读方法和表达写作训练；班主任老师负责直播跟课、答疑、反馈和学习规划。", "五讲合起来，孩子练习的是：读懂故事 → 找到证据 → 学会方法 → 说清楚 → 写完整。"] },
-    { collection: "parent", kind: "parent", title: "五讲学习安排", backgroundSrc: pageBackground(project, "PARENT_MANUAL"), body: project.lessons.map((savedLesson) => { const lesson = lessonContentSchema.parse(savedLesson.structuredContent); return `第${savedLesson.lessonNumber}讲《${lesson.title}》：${lesson.subtitle ?? lesson.technique}`; }) }
+    { collection: "parent", kind: "parent", title: "家长使用手册", subtitle: "—— 真读书 · 有深度 · 用得上 ——", backgroundSrc: parentBackground, body: ["🤝 双师陪伴｜主讲老师＋班主任老师", "主讲老师负责课程讲解、阅读方法和表达写作训练；班主任老师负责直播跟课、日常答疑、阶段反馈、薄弱点跟踪和学习规划。"] },
+    { collection: "parent", kind: "parent", title: "五讲课程带来的能力提升", backgroundSrc: parentBackground, body: ["五讲合起来，孩子练习的是：读懂故事 → 找到证据 → 学会方法 → 说清楚 → 写完整。", ...project.lessons.map((savedLesson) => { const lesson = lessonContentSchema.parse(savedLesson.structuredContent); return `第${savedLesson.lessonNumber}讲《${lesson.title}》：${lesson.subtitle ?? lesson.technique}`; })] },
+    { collection: "parent", kind: "parent", title: "五讲学习安排", backgroundSrc: parentBackground, body: project.lessons.map((savedLesson) => { const lesson = lessonContentSchema.parse(savedLesson.structuredContent); return `第${savedLesson.lessonNumber}讲《${lesson.title}》｜${lesson.technique}｜${lesson.learningGoals.map((goal) => goal.replace(/^我[们]?/u, "")).join("；")}`; }) },
+    { collection: "parent", kind: "parent", title: `🎯 ${project.grade}阶段，最需要关注什么？`, backgroundSrc: parentBackground, body: ["基础：从“会认字”走向“会用字词”。", "阅读：从“听故事”走向“读懂故事”，能说清人物、事情、证据和道理。", "表达：从“说一句话”走向“完整表达”。", "💡 家长怎么配合？正课前后按讲义完成复述、笔记或书面练习，并由班主任给予跟踪反馈。"] }
   ];
   const answerPages = project.lessons.flatMap((savedLesson) => {
     const lesson = lessonContentSchema.parse(savedLesson.structuredContent);
@@ -99,6 +102,7 @@ export default async function FlipbookPreviewPage({
         pages={pages}
         projectId={project.id}
         coverSrc={project.backgroundPack?.assets.find((asset) => asset.role === "COVER") ? `/api/assets/background/${project.backgroundPack?.assets.find((asset) => asset.role === "COVER")?.id}` : undefined}
+        shareCoverSrc={project.backgroundPack?.assets.find((asset) => asset.role === "WECHAT_SHARE") ? `/api/assets/background/${project.backgroundPack?.assets.find((asset) => asset.role === "WECHAT_SHARE")?.id}` : undefined}
       />
     </>
   );

@@ -3,10 +3,12 @@
 import Link from "next/link";
 import { useMemo, useRef, useState } from "react";
 import { ArrowLeft, Bold, Download, Highlighter, ImagePlus, Italic, Save, Underline } from "lucide-react";
+import { createPinyinReview } from "@/lib/handout/pinyin";
 
 const roles = [
   ["SIMPLE", "简单模式·全文"],
-  ["COVER", "电子翻页书／微信封面"],
+  ["COVER", "电子翻页书封面（A4竖版）"],
+  ["WECHAT_SHARE", "微信分享封面（建议1200×630横版）"],
   ["PARENT_MANUAL", "家长手册"],
   ["LESSON_HOME", "课程首页"],
   ["CONVERSATION", "交流话题"],
@@ -37,6 +39,7 @@ type LessonPreview = {
   learningGoals: string[];
   conversationTopics: Array<{ question: string; referenceAnswer: string }>;
   readingExcerpt: { text: string };
+  pinyinUnits?: Array<{ char: string; pinyin: string }>;
   closeReadingQuestions: string[];
   methodSummary: string;
   practice: Array<{ prompt: string; answer: string; imageSourceFileId?: string; imageSourcePageId?: string }>;
@@ -77,6 +80,11 @@ function visibleCourseAlignment(value?: string) {
 
 function printableLearningGoal(value: string) {
   return value.replace(/^\s*(?:我|我们)\s*(?:要|能|可以|学会)?\s*/u, "").replace(/^能/u, "能够");
+}
+
+function ReadingText({ text, grade, units }: { text: string; grade: string; units?: Array<{ char: string; pinyin: string }> }) {
+  if (grade !== "1升2") return <p className="reading-preview">{text}</p>;
+  return <p className="reading-preview pinyin-reading">{(units ?? createPinyinReview(text)).map((unit, index) => unit.pinyin ? <ruby key={index}>{unit.char}<rt>{unit.pinyin}</rt></ruby> : <span key={index}>{unit.char}</span>)}</p>;
 }
 
 function defaultBodySize(pageIndex: number, lesson?: LessonPreview) {
@@ -513,16 +521,20 @@ export function LayoutWorkspace({
               ) : pageIndex === 2 ? (
                 <>
                   <h2 style={{ fontSize: `${currentTitleSize}pt` }}>阅读文段</h2>
-                  <p className="reading-preview">
-                    {currentLesson.readingExcerpt.text}
-                  </p>
+                  <ReadingText text={currentLesson.readingExcerpt.text} grade={project.grade} units={currentLesson.pinyinUnits} />
                   <h3>精读思考</h3>
                   <ol>
                     {currentLesson.closeReadingQuestions.map((item) => (
                       <li key={item}>{item}</li>
                     ))}
                   </ol>
-                  {!noteOwnPage && <section className="note-preview"><b>📖 笔记</b><p> </p><p> </p><p> </p></section>}
+                  {!noteOwnPage && <section className="note-preview note-editable" contentEditable suppressContentEditableWarning onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.preventDefault();
+                      document.execCommand("insertLineBreak");
+                      event.currentTarget.style.minHeight = `${Math.min(440, event.currentTarget.offsetHeight + 28)}px`;
+                    }
+                  }}><b contentEditable={false}>📖 笔记</b><br /></section>}
                 </>
               ) : pageIndex === 3 ? (
                 <>
@@ -556,7 +568,9 @@ export function LayoutWorkspace({
                 </>
               )}
             </div>
-            {previewKind === "student" && pageIndex === 2 && noteOwnPage ? <section className="note-own-page"><b>📖 笔记</b><p>在此记录阅读发现、好词好句或自己的问题。</p></section> : null}
+            {previewKind === "student" && pageIndex === 2 && noteOwnPage ? <section className="note-own-page note-editable" contentEditable suppressContentEditableWarning onKeyDown={(event) => {
+              if (event.key === "Enter") { event.preventDefault(); document.execCommand("insertLineBreak"); event.currentTarget.style.minHeight = `${Math.min(620, event.currentTarget.offsetHeight + 28)}px`; }
+            }}><b contentEditable={false}>📖 笔记</b><br /></section> : null}
             {footerText ? <div className="preview-running-footer" style={{ fontFamily, fontSize: `${footerSize}pt` }}>{footerText}　·　第{pageIndex + 1}页</div> : null}
             {previewKind === "student" && pageIndex === 3 ? (
               <img

@@ -5,7 +5,7 @@ import { readSession } from "@/lib/auth/session";
 import { objectStore } from "@/lib/storage/object-store";
 import { safeFileName } from "@/lib/storage/keys";
 
-const roles = ["SIMPLE", "COVER", "PARENT_MANUAL", "LESSON_HOME", "CONVERSATION", "READING", "PRACTICE", "LITTLE_TEACHER"] as const;
+const roles = ["SIMPLE", "COVER", "WECHAT_SHARE", "PARENT_MANUAL", "LESSON_HOME", "CONVERSATION", "READING", "PRACTICE", "LITTLE_TEACHER"] as const;
 const roleSchema = z.enum(roles);
 
 export async function GET(_request: Request, context: { params: Promise<{ id: string }> }) {

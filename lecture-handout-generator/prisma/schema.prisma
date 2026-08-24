@@ -47,6 +47,7 @@ enum AssetKind {
 enum BackgroundRole {
   SIMPLE
   COVER
+  WECHAT_SHARE
   PARENT_MANUAL
   LESSON_HOME
   CONVERSATION
