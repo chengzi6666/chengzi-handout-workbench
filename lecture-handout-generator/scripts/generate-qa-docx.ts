@@ -9,7 +9,7 @@ const lesson: LessonContent = {
   parentBusySteps: ["请孩子用一分钟复述毯子的变化。"], parentExtendedSteps: ["找一件旧物，说说它背后的家庭故事。"],
   conversationTopics: [1, 2, 3, 4].map((n) => ({ question: `故事交流问题${n}是什么？`, referenceAnswer: `这是第${n}道问题的示例参考答案，家长可以继续追问孩子为什么。` })),
   readingExcerpt: { text: "重阳节到了，爷爷把旧毯子变成了一件温暖的外套。", sourceFileId: "qa", sourcePages: [1], sourceFingerprint: "1234567890abcdef", corrections: [], approved: true },
-  closeReadingQuestions: ["爷爷为什么一次次改造旧毯子？", "你从故事中感受到了怎样的亲情？"], methodSummary: "先找出物品每一次变化，再用“先、接着、然后、最后”串起来。",
+  closeReadingQuestions: ["爷爷为什么一次次改造旧毯子？", "你从故事中感受到了怎样的亲情？"], closeReadingAnswers: ["因为爷爷珍惜旧毯子，也想一直陪伴家人。", "我感受到爷爷对家人的关心和温暖。"], methodSummary: "先找出物品每一次变化，再用“先、接着、然后、最后”串起来。",
   practice: [{ prompt: "请按顺序说一说旧毯子的变化。", answer: "旧毯子先变成外套，接着又变成其他有用的物品。" }],
   littleTeacherSteps: ["先介绍故事人物。", "按顺序说清物品变化。", "最后说出自己的感受。"], oralFramework: "我先讲……接着讲……最后我感受到……"
 };

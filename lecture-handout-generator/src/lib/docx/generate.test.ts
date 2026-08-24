@@ -9,7 +9,7 @@ const lesson: LessonContent = {
   curriculumAlignment: [{ claim: "课标对标", sourceUrl: "https://example.com/standard", sourceTitle: "标准", confirmed: true }],
   parentBusySteps: ["复述方法"], parentExtendedSteps: ["亲子讨论"], conversationTopics: Array.from({ length: 4 }, (_, index) => ({ question: `问题${index + 1}`, referenceAnswer: `答案${index + 1}` })),
   readingExcerpt: { text: "重阳节。", sourceFileId: "source-1", sourcePages: [1], sourceFingerprint: "1234567890abcdef", corrections: [], approved: true },
-  closeReadingQuestions: ["想一想"], methodSummary: "先观察，再表达。", practice: [{ prompt: "练习", answer: "参考" }], littleTeacherSteps: ["说标题"], oralFramework: "我先……再……"
+  closeReadingQuestions: ["想一想"], closeReadingAnswers: ["参考答案"], methodSummary: "先观察，再表达。", practice: [{ prompt: "练习", answer: "参考" }], littleTeacherSteps: ["说标题"], oralFramework: "我先……再……"
 };
 
 test("student docx contains five next-page sections and inline conversation answers", async () => {

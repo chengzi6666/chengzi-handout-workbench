@@ -29,6 +29,8 @@ export const lessonContentSchema = z.object({
     approved: z.boolean()
   }),
   closeReadingQuestions: z.array(z.string().trim().min(1)).min(1),
+  // 仅用于独立答案册；学生版只展示问题。default 保证旧项目仍可打开审核页。
+  closeReadingAnswers: z.array(z.string().trim().min(1)).default([]),
   methodSummary: z.string().trim().min(1),
   practice: z.array(z.object({ prompt: z.string().trim().min(1), answer: z.string().trim().min(1), imageSourceFileId: z.string().optional(), imageSourcePageId: z.string().optional() })).min(1),
   littleTeacherSteps: z.array(z.string().trim().min(1)).min(1),

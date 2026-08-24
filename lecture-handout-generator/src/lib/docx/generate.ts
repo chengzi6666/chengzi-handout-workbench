@@ -92,23 +92,26 @@ function practiceImage(input: HandoutDocumentInput, pageId?: string, fileId?: st
 function lessonSections(lesson: LessonContent, input: HandoutDocumentInput) {
   const p1 = section([
     ...title(`第${lesson.lessonNumber}讲  ${lesson.title}`, lesson.subtitle),
-    heading("今天学什么"), ...numbered(lesson.learningGoals),
-    heading("核心方法"), body(lesson.technique, true),
-    heading("家长陪学建议"), body("时间紧："), ...numbered(lesson.parentBusySteps), body("有时间："), ...numbered(lesson.parentExtendedSteps)
+    heading("🎯 一、本讲要学什么"), ...numbered(lesson.learningGoals),
+    heading("本讲方法"), body(lesson.technique, true)
   ], pickBackground(input, "LESSON_HOME"));
   const p2 = section([
-    ...title("💬 下课后，建议家长可以和孩子交流的话题"),
+    ...title("💡 二、家长使用提示", "忙碌时口头复述 · 学有余力书面练习"),
+    heading("忙碌时（5分钟）"), ...numbered(lesson.parentBusySteps),
+    heading("学有余力时"), ...numbered(lesson.parentExtendedSteps),
+    heading("💬 下课后，建议家长可以和孩子交流的话题"),
     ...lesson.conversationTopics.flatMap((topic, index) => [heading(`${index + 1}. ${topic.question}`), body(`参考：${topic.referenceAnswer}`)])
   ], pickBackground(input, "CONVERSATION"));
   const p3 = section([
-    ...title("阅读文段"), body(lesson.readingExcerpt.text), heading("精读思考"), ...numbered(lesson.closeReadingQuestions)
+    ...title("📖 三、精读片段：读原文，找证据"), heading("课文片段"), body(lesson.readingExcerpt.text),
+    heading("💡 精读批注"), ...numbered(lesson.closeReadingQuestions), heading("精读小笔记"), body(lesson.methodSummary)
   ], pickBackground(input, "READING"));
   const p4 = section([
-    ...title("课堂方法与真题带练"), heading("方法小结"), body(lesson.methodSummary), heading("练一练"),
-    ...lesson.practice.flatMap((item, index) => [body(`${index + 1}. ${item.prompt}`, true), ...practiceImage(input, item.imageSourcePageId, item.imageSourceFileId), body(`参考答案：${item.answer}`)]), ...teacherParagraph(input)
+    ...title("🌟 四、哈哈老师课堂 · 真题带练"), heading("本讲方法"), body(lesson.methodSummary), heading("练一练"),
+    ...lesson.practice.flatMap((item, index) => [body(`${index + 1}. ${item.prompt}`, true), ...practiceImage(input, item.imageSourcePageId, item.imageSourceFileId), body("我的作答：________________________________________________________________")]), ...teacherParagraph(input)
   ], pickBackground(input, "PRACTICE"));
   const p5 = section([
-    ...title("我是小老师"), heading("讲解步骤"), ...numbered(lesson.littleTeacherSteps), heading("表达小支架"), body(lesson.oralFramework)
+    ...title("🎤 五、我是今天的小老师"), heading("作答步骤"), ...numbered(lesson.littleTeacherSteps), heading("口头表达示范框架"), body(lesson.oralFramework)
   ], pickBackground(input, "LITTLE_TEACHER"));
   return [p1, p2, p3, p4, p5];
 }
@@ -148,8 +151,10 @@ function coverSections(input: HandoutDocumentInput) {
 function answerSections(input: HandoutDocumentInput) {
   return input.lessons.map((lesson) => section([
     ...title(`第${lesson.lessonNumber}讲参考答案`, lesson.title),
-    heading("交流话题参考"), ...lesson.conversationTopics.flatMap((item, index) => [body(`${index + 1}. ${item.question}`, true), body(item.referenceAnswer)]),
-    heading("练习参考"), ...lesson.practice.flatMap((item, index) => [body(`${index + 1}. ${item.prompt}`, true), body(item.answer)])
+    body("使用说明：客观题给出明确答案；开放题提供一种完整示例，合理、有依据、表达通顺即可，不要求与示例完全一致。"),
+    heading("一、阅读与方法题"), ...lesson.closeReadingQuestions.flatMap((question, index) => [body(question, true), body(lesson.closeReadingAnswers[index] ?? "参考：请结合原文中的词句或具体情节作答。")]),
+    heading("二、真题带练／书面练习"), ...lesson.practice.flatMap((item, index) => [body(`${index + 1}. ${item.prompt}`, true), body(`示例：${item.answer}`)]),
+    heading("三、“我是小老师”口头表达示例"), body(lesson.oralFramework), body("★ 开放题答案不唯一，重点看是否使用本讲方法。")
   ], pickBackground(input, "SIMPLE")));
 }
 
