@@ -111,6 +111,42 @@ function lessonTitleFromSource(source: string, lessonNumber: number) {
   return match?.[1]?.trim() || `第${lessonNumber}讲阅读课`;
 }
 
+function targetGradeName(grade: string) {
+  const match = grade.match(/(\d)\s*升\s*(\d)/u);
+  if (match) return `${match[2]}年级`;
+  return grade.replace("升", "年级");
+}
+
+function hasSpecificCourseAlignment(value: string) {
+  return /(?:[一二三四五六]|[1-6])年级.{0,10}(?:上册|下册)/u.test(value)
+    && /(?:第.{1,4}单元|第.{1,4}课|快乐读书吧)/u.test(value);
+}
+
+async function repairCourseAlignment(input: {
+  provider: Awaited<ReturnType<typeof getConfiguredProvider>>;
+  grade: string;
+  year: number;
+  season: string;
+  title: string;
+  source: string;
+}) {
+  const result = await input.provider.generateText({
+    systemPrompt: "你是小学语文教材教研员。只能输出 JSON，不要解释。",
+    userPrompt: `请联网核对${input.year}年小学语文教材目录。课程为${targetGradeName(input.grade)}、${input.season}、题材《${input.title}》。输出 JSON：{"courseAlignment":"不超过80字，必须含几年级上/下册、第几单元第几课或快乐读书吧书目，以及本讲能力对应","claim":"同一条可核验结论","sourceUrl":"官方教材或教育部链接","sourceTitle":"来源标题"}。如果无法核验具体单元/课文，不能猜测，输出{"courseAlignment":"","claim":"","sourceUrl":"","sourceTitle":""}。课堂证据如下：${input.source.slice(0, 12000)}`,
+    temperature: 0
+  });
+  const value = parseJsonResponse(result.text) as Record<string, unknown>;
+  const alignment = textOf(value.courseAlignment);
+  const sourceUrl = textOf(value.sourceUrl);
+  if (!hasSpecificCourseAlignment(alignment) || !/^https?:\/\//u.test(sourceUrl)) throw new Error(`未能联网核对《${input.title}》对应的具体教材单元/课文；请更换支持联网搜索的模型后重试`);
+  return {
+    courseAlignment: alignment,
+    claim: textOf(value.claim, alignment),
+    sourceUrl,
+    sourceTitle: textOf(value.sourceTitle)
+  };
+}
+
 function promptForLesson(input: { lessonNumber: number; grade: string; year: number; season: string; sourceId: string; sourceName: string; pages: Array<{ id: string; pageNumber: number; extractedText: string }> }) {
   const source = input.pages.map((page) => `【PDF第${page.pageNumber}页，页面ID=${page.id}】\n${page.extractedText}`).join("\n\n").slice(0, 180_000);
   return `为${input.grade}、${input.year}年${input.season}生成第${input.lessonNumber}讲讲义文字初稿。源文件ID=${input.sourceId}，文件名=${input.sourceName}。\n\n${patternPrompt(input.grade)}\n\n先从源文件识别本讲的故事、知识方法、课堂活动和题目证据；再以教研编辑身份补全完整讲义。不要把“没有写到某板块”当作空白理由：学习目标、方法小结、精读问题、精读参考答案、家长交流、练习答案、小老师表达和家长指导均应根据课堂证据新写，语言具体、可教、可练。只有readingExcerpt.text必须逐字取自源文件，可从没有“原文摘抄”标签的正文中定位，但绝不可以自行改写或拼接。closeReadingQuestions与closeReadingAnswers必须一一对应，答案要回扣原文证据。\n\n本讲对标必须先使用你的联网检索能力核对${input.year}年仍在使用的官方教材目录、单元与课文/快乐读书吧书目：${input.season}对应${input.grade}上册；冬季/春季对应${input.grade}下册；暑期对应本年级下册加升年级上册。courseAlignment只写一段不超过90字的事实性结论，必须明确“几年级、上/下册、第几单元、第几课或快乐读书吧书目”及本讲能力对应；绝对禁止出现“请联网”“模型”“提示词”“课程标准口径”“讲义文字初稿”“根据要求”等元指令。curriculumAlignment同时给出实际检索到的官方来源链接，confirmed:false。learningGoals至少3条，每条只写一个可观察能力，不用第一人称、不用“我/我们”，并且每项独立成行。subtitle必须是一句概括本讲能力重点的短语，例如“读懂人物 · 讲清事情 · 说出道理”；严禁写年级、季节、年份、教材口径、讲义文字初稿或项目名称。oralFramework是学生填写的题干，必须保留足够的填空线，不得把示范答案写进此字段；如需答案写入oralReferenceAnswer。\n\n输出字段必须是：lessonNumber,title,subtitle,technique,courseAlignment,learningGoals(至少3项),curriculumAlignment([{claim,sourceUrl,sourceTitle,confirmed:false}]),parentBusySteps,parentExtendedSteps,conversationTopics([{question,referenceAnswer}]至少4项),readingExcerpt({text,sourceFileId:"${input.sourceId}",sourcePages:[页码],sourceFingerprint:"temporary-fingerprint",corrections:[],approved:false}),closeReadingQuestions,closeReadingAnswers,methodSummary,practice([{prompt,answer,imageSourcePageId?}]),littleTeacherSteps,oralFramework,oralReferenceAnswer?。若练习依赖PDF中的题图，把对应页面ID写入imageSourcePageId；不得生成替代图片。\n\nPDF识别文本如下：\n${source}`;
@@ -162,12 +198,25 @@ export async function generateProjectContent(
     const learningGoals = normalizeLearningGoals(draft.learningGoals);
     const parentBusySteps = normalizeStringList(draft.parentBusySteps);
     const parentExtendedSteps = normalizeStringList(draft.parentExtendedSteps);
+    let courseAlignment = textOf(draft.courseAlignment);
+    let repairedAlignment: { courseAlignment: string; claim: string; sourceUrl: string; sourceTitle: string } | null = null;
+    if (!hasSpecificCourseAlignment(courseAlignment)) {
+      repairedAlignment = await repairCourseAlignment({
+        provider,
+        grade: project.grade,
+        year: project.teachingYear,
+        season: project.season ?? "秋季",
+        title: textOf(draft.title, lessonTitleFromSource(wholeSourceText, index + 1)),
+        source: wholeSourceText
+      });
+      courseAlignment = repairedAlignment.courseAlignment;
+    }
     const content = lessonContentSchema.parse({
       ...draft,
       lessonNumber: index + 1,
       title: textOf(draft.title, lessonTitleFromSource(source.pages.map((page) => page.extractedText).join("\n"), index + 1)),
       technique: textOf(draft.technique, "阅读方法"),
-      courseAlignment: textOf(draft.courseAlignment, "本讲教材对标待生成，请重新生成文字初稿后核对。"),
+      courseAlignment,
       learningGoals: learningGoals.length >= 3 ? learningGoals : ["读懂本讲人物和事情。", "能用课堂方法梳理关键信息。", "能结合文本说出自己的理解。"],
       // A missing parent path must not abort all five lessons. The editor can refine these
       // two visible scaffolds during the first human review.
@@ -177,7 +226,12 @@ export async function generateProjectContent(
       closeReadingAnswers: normalizeStringList(draft.closeReadingAnswers),
       littleTeacherSteps: normalizeStringList(draft.littleTeacherSteps).length ? normalizeStringList(draft.littleTeacherSteps) : ["先说清故事中的人物。", "再按顺序说一说事情。", "最后说出自己的收获。"],
       subtitle: normalizeLessonSubtitle(draft.subtitle, String(draft.technique ?? ""), learningGoals),
-      curriculumAlignment: Array.isArray(alignment) && alignment.length ? alignment.map((item) => ({
+      curriculumAlignment: repairedAlignment ? [{
+        claim: repairedAlignment.claim,
+        sourceUrl: repairedAlignment.sourceUrl,
+        sourceTitle: repairedAlignment.sourceTitle,
+        confirmed: false
+      }] : Array.isArray(alignment) && alignment.length ? alignment.map((item) => ({
         claim: textOf(item.claim, "请人工核对本讲与课程标准的对应关系。"),
         sourceUrl: textOf(item.sourceUrl, "https://www.gov.cn/zhengce/zhengceku/2022-04/21/content_5686335.htm"),
         sourceTitle: textOf(item.sourceTitle, "义务教育语文课程标准（2022年版）"),

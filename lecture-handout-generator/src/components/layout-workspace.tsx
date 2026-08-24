@@ -69,6 +69,23 @@ function bookTitle(value: string) {
   return value.match(/《[^》]+》/u)?.[0] ?? value.replace(/^第\s*\d+\s*讲[：:、\s]*/u, "").trim();
 }
 
+function defaultBodySize(pageIndex: number, lesson?: LessonPreview) {
+  if (!lesson) return 11;
+  const length = pageIndex === 0
+    ? (lesson.courseAlignment?.length ?? 0) + lesson.learningGoals.join("").length
+    : pageIndex === 1
+      ? lesson.conversationTopics.map((item) => item.question.length + item.referenceAnswer.length).reduce((sum, value) => sum + value, 0)
+      : pageIndex === 2
+        ? lesson.readingExcerpt.text.length + lesson.closeReadingQuestions.join("").length
+        : pageIndex === 3
+          ? lesson.methodSummary.length + lesson.practice.map((item) => item.prompt.length).reduce((sum, value) => sum + value, 0)
+          : lesson.littleTeacherSteps.join("").length + lesson.oralFramework.length;
+  if (length > 900) return 8;
+  if (length > 680) return 9;
+  if (length > 480) return 10;
+  return 11;
+}
+
 export function LayoutWorkspace({
   project,
   backgrounds: initialBackgrounds,
@@ -96,6 +113,8 @@ export function LayoutWorkspace({
   const [fontFamily, setFontFamily] = useState((project.layoutConfig as { fontFamily?: string } | null)?.fontFamily ?? "Microsoft YaHei");
   const [headerText, setHeaderText] = useState((project.layoutConfig as { headerText?: string } | null)?.headerText ?? "");
   const [footerText, setFooterText] = useState((project.layoutConfig as { footerText?: string } | null)?.footerText ?? "真读书 · 有深度 · 用得上");
+  const [headerSize, setHeaderSize] = useState((project.layoutConfig as { headerSize?: number } | null)?.headerSize ?? 8);
+  const [footerSize, setFooterSize] = useState((project.layoutConfig as { footerSize?: number } | null)?.footerSize ?? 8);
   const [richPreviewHtml, setRichPreviewHtml] = useState((project.layoutConfig as { richPreviewHtml?: Record<string, string> } | null)?.richPreviewHtml ?? {});
   const [teacherId, setTeacherId] = useState(
     project.teacherId ??
@@ -124,8 +143,8 @@ export function LayoutWorkspace({
   const currentLesson = lessons[lessonIndex];
   const previewKey = `${previewKind}-${currentLesson?.lessonNumber ?? 0}-${pageIndex}`;
   const currentTypography = pageTypography[previewKey] ?? {};
-  const currentBodySize = currentTypography.bodySize ?? fontSize;
-  const currentTitleSize = currentTypography.titleSize ?? Math.max(currentBodySize + 8, 18);
+  const currentBodySize = currentTypography.bodySize ?? Math.min(fontSize, defaultBodySize(pageIndex, currentLesson));
+  const currentTitleSize = currentTypography.titleSize ?? 20;
   const defaultTeacherKey =
     (
       {
@@ -204,7 +223,7 @@ export function LayoutWorkspace({
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           teacherImage: { ...position, assetId: activeAsset?.id },
-          fontFamily, fontSize, pageTypography, noteOwnPage, headerText, footerText, richPreviewHtml: nextRichPreviewHtml,
+          fontFamily, fontSize, pageTypography, noteOwnPage, headerText, footerText, headerSize, footerSize, richPreviewHtml: nextRichPreviewHtml,
         }),
       }),
     ]);
@@ -327,8 +346,20 @@ export function LayoutWorkspace({
               <input value={headerText} maxLength={80} placeholder="留空则不显示" onChange={(event) => setHeaderText(event.target.value)} />
             </label>
             <label>
+              页眉字号
+              <select value={headerSize} onChange={(event) => setHeaderSize(Number(event.target.value))}>
+                {WPS_SIZES.slice(7).map(([label, size]) => <option key={label} value={size}>{label}（{size} 磅）</option>)}
+              </select>
+            </label>
+            <label>
               页脚文字
               <input value={footerText} maxLength={80} onChange={(event) => setFooterText(event.target.value)} />
+            </label>
+            <label>
+              页脚字号
+              <select value={footerSize} onChange={(event) => setFooterSize(Number(event.target.value))}>
+                {WPS_SIZES.slice(7).map(([label, size]) => <option key={label} value={size}>{label}（{size} 磅）</option>)}
+              </select>
             </label>
             <div className="inline-format-tools" aria-label="文字调整">
               <span>文字调整</span>
@@ -390,7 +421,7 @@ export function LayoutWorkspace({
             }}
             style={{ backgroundImage: previewBackground }}
           >
-            {headerText ? <div className="preview-running-header" style={{ fontFamily, fontSize: `${Math.max(8, currentBodySize - 2)}pt` }}>{headerText}</div> : null}
+            {headerText ? <div className="preview-running-header" style={{ fontFamily, fontSize: `${headerSize}pt` }}>{headerText}</div> : null}
             <div
               className="canvas-copy"
               ref={canvasCopy}
@@ -409,11 +440,17 @@ export function LayoutWorkspace({
               ) : previewKind === "parent" ? (
                 <>
                   <h2 style={{ fontSize: `${currentTitleSize}pt` }}>{project.grade}读写综合能力提升</h2>
-                  <p>家长使用手册 · 真读书 · 有深度 · 用得上</p>
+                  <p className="parent-slogan">—— 真读书 · 有深度 · 用得上 ——</p>
+                  <h3>🤝 双师陪伴｜主讲老师＋班主任老师</h3>
+                  <section className="lesson-callout"><p>{teacher?.formalName ?? "主讲"}老师负责课程讲解、阅读方法和表达写作训练；班主任老师负责直播跟课、日常答疑、阶段反馈、薄弱点跟踪和学习规划，两位老师共同陪伴一个孩子。</p></section>
                   <h3>五讲课程带来的能力提升</h3>
                   <p>五讲合起来，孩子练习的是：读懂故事 → 找到证据 → 学会方法 → 说清楚 → 写完整。</p>
+                  <h3>🎯 {project.grade}阶段，最需要关注什么？</h3>
+                  <p>基础：从“会认字”走向“会用字词”；阅读：从“听故事”走向“读懂故事”；表达：从“说一句话”走向“完整表达”。</p>
                   <h3>五讲学习安排</h3>
                   {lessons.map((lesson) => <section key={lesson.lessonNumber}><b>第{lesson.lessonNumber}讲 {lesson.title}</b><p>课堂方法：{lesson.technique}</p><p>课后交流：{lesson.conversationTopics[0]?.question ?? "请孩子复述今天学到的方法。"}</p></section>)}
+                  <h3>💡 家长怎么配合？</h3>
+                  <section className="lesson-callout"><p>正课时间：19:00-19:40。课前10分钟＋课后10分钟由班主任老师统一带领预习、复习，无需家长提前筹备。</p><p>课业紧张时，按第五部分口头框架录1分钟复习视频；学有余力时，完成第四部分书面练习并提交老师批改。</p></section>
                 </>
               ) : previewKind === "answers" ? (
                 <>
@@ -492,7 +529,7 @@ export function LayoutWorkspace({
               )}
             </div>
             {previewKind === "student" && pageIndex === 2 && noteOwnPage ? <section className="note-own-page"><b>📖 笔记</b><p>在此记录阅读发现、好词好句或自己的问题。</p></section> : null}
-            {footerText ? <div className="preview-running-footer" style={{ fontFamily, fontSize: `${Math.max(8, currentBodySize - 2)}pt` }}>{footerText}　·　第{pageIndex + 1}页</div> : null}
+            {footerText ? <div className="preview-running-footer" style={{ fontFamily, fontSize: `${footerSize}pt` }}>{footerText}　·　第{pageIndex + 1}页</div> : null}
             {previewKind === "student" && pageIndex === 3 ? (
               <img
                 className="floating-teacher"

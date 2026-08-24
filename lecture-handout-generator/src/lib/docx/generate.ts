@@ -18,7 +18,9 @@ export type HandoutDocumentInput = {
   teacherFormalName?: string;
   teacherNickname?: string;
   headerText?: string;
+  headerSize?: number;
   footerText?: string;
+  footerSize?: number;
   noteOwnPage?: boolean;
   lessons: LessonContent[];
   pinyinReviews?: Record<number, PinyinUnit[]>;
@@ -75,22 +77,23 @@ function numbered(items: string[]) {
   return items.map((item, index) => body(`${index + 1}. ${item}`));
 }
 
-function footer(text?: string) {
-  return new Footer({ children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [run(`${text ?? "真读书 · 有深度 · 用得上"}  ·  `, { size: 17, color: "A79D96" }), new TextRun({ children: [PageNumber.CURRENT], font: FONT, size: 17, color: "A79D96" })] })] });
+function footer(text?: string, size = 8) {
+  const halfPoint = Math.round(size * 2);
+  return new Footer({ children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [run(`${text ?? "真读书 · 有深度 · 用得上"}  ·  `, { size: halfPoint, color: "A79D96" }), new TextRun({ children: [PageNumber.CURRENT], font: FONT, size: halfPoint, color: "A79D96" })] })] });
 }
 
-function backgroundHeader(image?: ImageAsset, text?: string) {
+function backgroundHeader(image?: ImageAsset, text?: string, size = 8) {
   const children: Paragraph[] = [];
   if (image) children.push(new Paragraph({ children: [new ImageRun({ ...image, transformation: { width: 794, height: 1123 }, floating: { horizontalPosition: { relative: HorizontalPositionRelativeFrom.PAGE, offset: 0 }, verticalPosition: { relative: VerticalPositionRelativeFrom.PAGE, offset: 0 }, behindDocument: true, allowOverlap: true } })] }));
-  if (text) children.push(new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 40 }, children: [run(text, { size: 16, color: "A79D96" })] }));
+  if (text) children.push(new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 40 }, children: [run(text, { size: Math.round(size * 2), color: "A79D96" })] }));
   return children.length ? new Header({ children }) : undefined;
 }
 
 function section(children: Array<Paragraph | Table>, background?: ImageAsset, input?: HandoutDocumentInput): ISectionOptions {
   return {
     properties: { type: SectionType.NEXT_PAGE, page: { margin: { top: 850, right: 850, bottom: 760, left: 850, header: 0, footer: 360 } } },
-    headers: background || input?.headerText ? { default: backgroundHeader(background, input?.headerText) } : undefined,
-    footers: { default: footer(input?.footerText) },
+    headers: background || input?.headerText ? { default: backgroundHeader(background, input?.headerText, input?.headerSize) } : undefined,
+    footers: { default: footer(input?.footerText, input?.footerSize) },
     children
   };
 }
@@ -147,6 +150,23 @@ function studentParentChoiceTable() {
   ], "FFFDF8");
 }
 
+function doubleTeacherTable(input: HandoutDocumentInput) {
+  return calloutTable([
+    (input.teacherFormalName ?? "主讲") + "老师负责课程讲解、阅读方法和表达写作训练；",
+    "班主任老师负责直播跟课、日常答疑、阶段反馈、薄弱点跟踪和学习规划，",
+    "两位老师共同陪伴一个孩子。"
+  ], "FFFDF8");
+}
+
+function parentCooperationTable() {
+  return calloutTable([
+    "上课须知",
+    "正课时间：19:00-19:40。课前10分钟＋课后10分钟由班主任老师统一带领预习、复习，无需家长提前筹备。",
+    "课后指引",
+    "基础巩固：提交本讲笔记。课业紧张：参考讲义【第五部分】口头表达框架，录制1分钟左右复习小视频。学有余力：完成【第四部分】书面练习，发班级群或私发老师获取批改点评。"
+  ], "FFFDF8");
+}
+
 function noteTable() {
   return new Table({ width: { size: 7600, type: WidthType.DXA }, rows: [new TableRow({ children: [new TableCell({ width: { size: 7600, type: WidthType.DXA }, shading: { type: ShadingType.CLEAR, color: "F2E5D9", fill: "FFFCF8" }, children: [
     new Paragraph({ children: [run("📖 笔记", { bold: true, size: 23, color: orange })] }),
@@ -193,14 +213,14 @@ function parentSections(input: HandoutDocumentInput) {
     new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 150 }, children: [run("—— 真读书 · 有深度 · 用得上 ——", { size: 22, color: gray })] }),
     parentTeacherTable(input),
     heading("🤝 双师陪伴｜主讲老师＋班主任老师"),
-    body(`${input.teacherFormalName ? `${input.teacherFormalName}老师` : "主讲老师"}负责课程讲解、阅读方法和表达写作训练；班主任老师负责直播跟课、日常答疑、阶段反馈、薄弱点跟踪和学习规划。两位老师共同陪伴一个孩子。`),
+    doubleTeacherTable(input),
     heading("📚 五讲课程带来的能力提升"), body(capability),
     heading("五讲合起来，孩子练习的是："), body("读懂故事 → 找到证据 → 学会方法 → 说清楚 → 写完整。"),
     heading(`🎯 ${gradeName}阶段，最需要关注什么？`),
     body(`基础：结合${input.teachingYear}年课程学习节奏，从“会认字”走向“会用字词”，让孩子在故事语境中把字词读懂、用上。`),
     body("阅读：从“听故事”走向“读懂故事”，能说清人物、事情、证据和道理。"),
     body("表达：从“说一句话”走向“完整表达”，逐步写清人物、事情、动作、语言、心情和结果。"),
-    heading("💡 家长怎么配合？"), ...numbered(["正课时间为19:00-19:40；课前10分钟和课后10分钟由班主任老师统一带领预习、复习，无需家长提前筹备。", "基础巩固：提交本讲笔记；课业紧张：参考讲义【第五部分】口头表达框架，录制1分钟左右复习小视频。", "学有余力：完成讲义【第四部分】书面练习，发班级群或私发老师获取批改点评。", "忙碌时，让孩子按【我是小老师】口头框架讲一遍故事；学有余力时，完成【真题带练】书面练习。"])
+    heading("💡 家长怎么配合？"), parentCooperationTable()
   ], pickBackground(input, "PARENT_MANUAL"), input);
   const schedule = section([
     ...title("五讲学习安排", "每讲学什么 · 家长怎么陪"),
@@ -227,7 +247,7 @@ function answerSections(input: HandoutDocumentInput) {
     ...title(`第${lesson.lessonNumber}讲参考答案`, lesson.title),
     body("使用说明：客观题给出明确答案；开放题提供一种完整示例，合理、有依据、表达通顺即可，不要求与示例完全一致。"),
     heading("一、阅读与方法题"), ...lesson.closeReadingQuestions.flatMap((question, index) => [body(question, true), body(lesson.closeReadingAnswers[index] ?? "参考：请结合原文中的词句或具体情节作答。")]),
-    heading("二、真题带练／书面练习"), ...lesson.practice.flatMap((item, index) => [body(`${index + 1}. ${item.prompt}`, true), body(`示例：${item.answer}`)]),
+    heading("二、真题带练／书面练习"), ...lesson.practice.flatMap((item, index) => [body(`${index + 1}. ${item.prompt}\n【参考作答】${item.answer}`, true)]),
     heading("三、“我是小老师”口头表达示例"), body((lesson as LessonContent & { oralReferenceAnswer?: string }).oralReferenceAnswer ?? lesson.oralFramework), body("★ 开放题答案不唯一，重点看是否使用本讲方法。")
   ], pickBackground(input, "SIMPLE"), input));
 }

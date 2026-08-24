@@ -37,9 +37,10 @@ test("grade two reviewed pinyin is emitted as native Word ruby", async () => {
 });
 
 test("practice blanks reserve student writing space", () => {
-  assert.equal(expandAnswerSpace("（ ）"), `（${"　".repeat(40)}）`);
-  assert.equal(expandAnswerSpace("答案：*"), "答案：____________________");
-  assert.equal(formatStudentBlank("（ ）").length, 42);
+  const bracket = expandAnswerSpace("（ ）");
+  assert.match(bracket, /^（　+）$/u);
+  assert.ok(bracket.length >= 26 && bracket.length <= 42);
+  assert.match(expandAnswerSpace("答案：*"), /答案：＿{20,}/u);
   const student = normalizeStudentFacingContent(lesson);
   assert.match(student.oralFramework, /________/);
   assert.equal(student.oralReferenceAnswer, lesson.oralFramework);

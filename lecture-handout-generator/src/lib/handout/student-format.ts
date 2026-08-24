@@ -1,11 +1,12 @@
 import type { LessonContent } from "./content-schema";
 
-const PAREN_SPACE = "　".repeat(40);
-const UNDERLINE_SPACE = "____________________";
+// A4 页面上的一个括号空格要可写、也不能把右括号挤到下一行。
+const PAREN_SPACE = "　".repeat(24);
+const UNDERLINE_SPACE = "＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿";
 
 export function formatStudentBlank(text: string) {
   return text
-    .replace(/_{1,19}/g, UNDERLINE_SPACE)
+    .replace(/_{1,}/g, UNDERLINE_SPACE)
     .replace(/[（(]\s*[）)]/g, `（${PAREN_SPACE}）`)
     .replace(/(^|[：:\s])\*(?=$|[\s，。；])/g, `$1${UNDERLINE_SPACE}`);
 }
