@@ -183,7 +183,7 @@ export async function generateProjectContent(projectId: string) {
     });
     const lesson = await db.lesson.upsert({
       where: { projectId_lessonNumber: { projectId: project.id, lessonNumber: index + 1 } },
-      create: { projectId: project.id, lessonNumber: index + 1, title: content.title, subtitle: content.subtitle, technique: content.technique, structuredContent: content, readingExcerpt: content.readingExcerpt.text, readingExcerptSource: content.readingExcerpt },
+      create: { projectId: project.id, lessonNumber: index + 1, title: content.title, subtitle: content.subtitle, technique: content.technique, structuredContent: content, readingExcerpt: content.readingExcerpt.text, readingExcerptSource: content.readingExcerpt, status: "TEXT_REVIEW" },
       update: { title: content.title, subtitle: content.subtitle, technique: content.technique, structuredContent: content, readingExcerpt: content.readingExcerpt.text, readingExcerptSource: content.readingExcerpt, status: "TEXT_REVIEW", textApprovedAt: null }
     });
     lessons.push(lesson.id);
