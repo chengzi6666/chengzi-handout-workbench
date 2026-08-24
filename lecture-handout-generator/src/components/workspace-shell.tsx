@@ -36,6 +36,7 @@ export function WorkspaceShell({ initialProjects, user }: WorkspaceShellProps) {
     Array<{ id: string; originalName: string; size: number }>
   >([]);
   const [uploading, setUploading] = useState(false);
+  const [draggingFiles, setDraggingFiles] = useState(false);
   const [uploadMessage, setUploadMessage] = useState("");
   const [processing, setProcessing] = useState(false);
   const [outputMessage, setOutputMessage] = useState("");
@@ -437,6 +438,7 @@ export function WorkspaceShell({ initialProjects, user }: WorkspaceShellProps) {
 
   async function uploadPdfs(files: FileList | null) {
     if (!files?.length || !selectedId) return;
+    setDraggingFiles(false);
     setUploading(true);
     setUploadMessage("");
     let uploaded = 0;
@@ -690,7 +692,26 @@ export function WorkspaceShell({ initialProjects, user }: WorkspaceShellProps) {
                   <p>支持 PDF 或 DOCX，一次可上传多讲</p>
                 </div>
               </div>
-              <label className="dropzone">
+              <label
+                className={`dropzone${draggingFiles ? " is-dragging" : ""}${uploading || !selectedId ? " is-disabled" : ""}`}
+                onDragEnter={(event) => {
+                  event.preventDefault();
+                  if (!uploading && selectedId) setDraggingFiles(true);
+                }}
+                onDragOver={(event) => {
+                  event.preventDefault();
+                  event.dataTransfer.dropEffect = "copy";
+                }}
+                onDragLeave={(event) => {
+                  const nextTarget = event.relatedTarget as Node | null;
+                  if (!nextTarget || !event.currentTarget.contains(nextTarget)) setDraggingFiles(false);
+                }}
+                onDrop={(event) => {
+                  event.preventDefault();
+                  setDraggingFiles(false);
+                  if (!uploading && selectedId) void uploadPdfs(event.dataTransfer.files);
+                }}
+              >
                 {uploading ? (
                   <Loader2 className="spin" size={30} />
                 ) : (

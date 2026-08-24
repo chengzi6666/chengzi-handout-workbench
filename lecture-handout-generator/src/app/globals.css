@@ -91,6 +91,8 @@ button { cursor: pointer; }
 .panel-title p { margin-top: 3px; color: #9b938c; font-size: 12px; }
 .dropzone { min-height: 173px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 7px; border: 1.5px dashed #f4a47c; border-radius: 13px; color: #9a5b3d; background: #fffaf7; cursor: pointer; }
 .dropzone:hover { background: #fff5ef; }
+.dropzone.is-dragging { background: #fff0e7; border-color: var(--orange); box-shadow: 0 0 0 4px rgba(255, 102, 45, .16); transform: scale(1.01); }
+.dropzone.is-disabled { cursor: not-allowed; opacity: .65; }
 .dropzone svg { color: var(--orange); }
 .dropzone strong { font-size: 15px; }
 .dropzone span { color: #a49c95; font-size: 12px; }
@@ -276,6 +278,7 @@ button { cursor: pointer; }
 .json-editor { width: 100%; height: calc(100vh - 260px); margin: 18px 0; padding: 18px; border: 1px solid #ddd5ce; border-radius: 12px; outline: none; resize: none; color: #3e3834; background: #fbfaf8; font: 13px/1.75 Consolas, monospace; }
 .review-actions span { flex: 1; color: #846b58; font-size: 12px; }
 .question-upload { display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; }
+.question-upload.is-dragging { padding: 4px; border-radius: 8px; background: #fff0e7; box-shadow: 0 0 0 2px rgba(255, 102, 45, .18); }
 .question-upload span { color: #6d5c51; font-size: 12px; }
 .question-upload select { height: 34px; min-width: 60px; padding: 0 4px; border: 1px solid #ded4cc; border-radius: 7px; color: #493c34; background: #fff; font-size: 12px; }
 .question-upload .secondary-button { height: 34px; padding: 0 10px; font-size: 12px; }
@@ -291,6 +294,7 @@ button { cursor: pointer; }
 .asset-panel h2, .export-panel h2 { margin: 0 0 5px; font-size: 14px; }
 .asset-panel > p, .export-panel > p { margin: 0 0 13px; color: #8a817a; font-size: 10px; line-height: 1.6; }
 .asset-upload { margin-top: 8px; padding: 10px; display: grid; gap: 4px; border: 1px dashed #dfd5cc; border-radius: 9px; cursor: pointer; }
+.asset-upload.is-dragging { border-color: var(--orange); background: #fff2eb; box-shadow: 0 0 0 3px rgba(255, 102, 45, .13); }
 .asset-upload span { display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 700; }
 .asset-upload em { color: #a08778; font-size: 9px; font-style: normal; }
 .asset-upload input { display: none; }

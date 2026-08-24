@@ -43,6 +43,7 @@ export function ReviewWorkspace({
   );
   const [message, setMessage] = useState("");
   const [questionIndex, setQuestionIndex] = useState(0);
+  const [draggingQuestionImage, setDraggingQuestionImage] = useState(false);
   const questionImageInput = useRef<HTMLInputElement>(null);
   const selected = useMemo(
     () => lessons.find((lesson) => lesson.id === selectedId),
@@ -173,7 +174,20 @@ export function ReviewWorkspace({
                 这里是对外展示的中文内容；阅读文段只能纠正识别错误，不能压缩改写。
               </p>
             </div>
-          <div className="question-upload">
+          <div
+            className={`question-upload${draggingQuestionImage ? " is-dragging" : ""}`}
+            onDragEnter={(event) => { event.preventDefault(); setDraggingQuestionImage(true); }}
+            onDragOver={(event) => { event.preventDefault(); event.dataTransfer.dropEffect = "copy"; }}
+            onDragLeave={(event) => {
+              const nextTarget = event.relatedTarget as Node | null;
+              if (!nextTarget || !event.currentTarget.contains(nextTarget)) setDraggingQuestionImage(false);
+            }}
+            onDrop={(event) => {
+              event.preventDefault();
+              setDraggingQuestionImage(false);
+              void uploadQuestionImage(event.dataTransfer.files);
+            }}
+          >
             <span>放入真题带练第</span>
             <select aria-label="选择真题带练题号" value={questionIndex} onChange={(event) => setQuestionIndex(Number(event.target.value))}>{draft.practice.map((_, index) => <option value={index} key={index}>{index + 1} 题</option>)}</select>
             <button type="button" className="secondary-button" onClick={() => questionImageInput.current?.click()}>上传人工替代题图</button>

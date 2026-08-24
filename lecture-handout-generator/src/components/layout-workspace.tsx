@@ -141,6 +141,7 @@ export function LayoutWorkspace({
       "",
   );
   const [backgrounds, setBackgrounds] = useState(initialBackgrounds);
+  const [draggingBackgroundRole, setDraggingBackgroundRole] = useState<string | null>(null);
   const [message, setMessage] = useState("");
   const [downloading, setDownloading] = useState<string | null>(null);
   const [pageIndex, setPageIndex] = useState(0);
@@ -302,7 +303,21 @@ export function LayoutWorkspace({
           <h2>背景图片</h2>
           <p>系统会自动套用默认美化背景；上传图片仅用于覆盖对应页面。</p>
           {roles.map(([role, label]) => (
-            <label className="asset-upload" key={role}>
+            <label
+              className={`asset-upload${draggingBackgroundRole === role ? " is-dragging" : ""}`}
+              key={role}
+              onDragEnter={(event) => { event.preventDefault(); setDraggingBackgroundRole(role); }}
+              onDragOver={(event) => { event.preventDefault(); event.dataTransfer.dropEffect = "copy"; }}
+              onDragLeave={(event) => {
+                const nextTarget = event.relatedTarget as Node | null;
+                if (!nextTarget || !event.currentTarget.contains(nextTarget)) setDraggingBackgroundRole(null);
+              }}
+              onDrop={(event) => {
+                event.preventDefault();
+                setDraggingBackgroundRole(null);
+                void upload(role, event.dataTransfer.files);
+              }}
+            >
               <span>
                 <ImagePlus size={15} />
                 {label}
