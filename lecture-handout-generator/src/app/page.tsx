@@ -24,8 +24,13 @@ export default async function HomePage() {
       { id: "demo-01", name: "2026秋季·0升1五讲讲义", grade: "0升1", lessonCount: 5, teachingYear: 2026, season: "秋季", teachingYearConfirmed: true, outputKinds: ["lesson_student", "combined_student", "parent_manual"], status: "layout_review", pinned: true, updatedAt: "今天" },
       { id: "demo-02", name: "二年级读写课·拼音审核", grade: "1升2", lessonCount: 5, teachingYear: 2026, season: "秋季", teachingYearConfirmed: true, outputKinds: ["lesson_student", "combined_answers"], status: "text_review", pinned: false, updatedAt: "昨天" }
     ];
-    return <WorkspaceShell initialProjects={demoProjects} user={{ employeeNumber: user.employeeNumber, name: user.name }} />;
+    return <WorkspaceShell initialProjects={demoProjects} user={{ employeeNumber: user.employeeNumber, name: user.name, activeModel: "GPT-5.4" }} />;
   }
+  const activeProvider = await db.aiProviderConfig.findFirst({
+    where: { enabled: true },
+    orderBy: [{ isDefault: "desc" }, { updatedAt: "desc" }],
+    select: { displayName: true, model: true },
+  });
   const rows = await db.project.findMany({
     where: { ownerId: user.id, deletedAt: null },
     include: { outputs: true },
@@ -44,5 +49,9 @@ export default async function HomePage() {
     pinned: project.pinned,
     updatedAt: new Intl.DateTimeFormat("zh-CN", { month: "numeric", day: "numeric" }).format(project.updatedAt)
   }));
-  return <WorkspaceShell initialProjects={projects} user={{ employeeNumber: user.employeeNumber, name: user.name }} />;
+  return <WorkspaceShell initialProjects={projects} user={{
+    employeeNumber: user.employeeNumber,
+    name: user.name,
+    activeModel: activeProvider?.displayName || activeProvider?.model || "未配置模型",
+  }} />;
 }

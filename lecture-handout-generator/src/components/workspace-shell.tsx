@@ -22,7 +22,7 @@ import {
 
 interface WorkspaceShellProps {
   initialProjects: HandoutProject[];
-  user: { employeeNumber: string; name: string };
+  user: { employeeNumber: string; name: string; activeModel: string };
 }
 
 export function WorkspaceShell({ initialProjects, user }: WorkspaceShellProps) {
@@ -658,7 +658,7 @@ export function WorkspaceShell({ initialProjects, user }: WorkspaceShellProps) {
             >
               <Sparkles size={16} />
               <span>当前模型</span>
-              <strong>GPT-5.3 Codex</strong>
+              <strong>{user.activeModel}</strong>
             </div>
             <button
               className="profile-button"
