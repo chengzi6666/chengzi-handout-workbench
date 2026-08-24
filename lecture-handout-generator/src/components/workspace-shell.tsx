@@ -47,6 +47,9 @@ export function WorkspaceShell({ initialProjects, user }: WorkspaceShellProps) {
     String(new Date().getFullYear()),
   );
   const [createProjectMessage, setCreateProjectMessage] = useState("");
+  const [trashOpen, setTrashOpen] = useState(false);
+  const [trashProjects, setTrashProjects] = useState<Array<{ id: string; name: string; grade: string; lessonCount: number; deletedAt: string }>>([]);
+  const [trashMessage, setTrashMessage] = useState("");
   const [settingsYear, setSettingsYear] = useState("");
   const [settingsMessage, setSettingsMessage] = useState("");
   const autoNavigateToReviewFor = useRef<string | null>(null);
@@ -283,6 +286,61 @@ export function WorkspaceShell({ initialProjects, user }: WorkspaceShellProps) {
       setProjects((items) =>
         items.map((item) => (item.id === id ? previous : item)),
       );
+  }
+
+  async function moveProjectToTrash(id: string) {
+    const project = projects.find((item) => item.id === id);
+    if (!project) return;
+    if (!window.confirm(`确定将“${project.name}”移入回收站吗？\n\n项目内容会被保留，可在回收站恢复。正在进行的解析任务会停止。`)) return;
+    const response = await fetch(`/api/projects/${id}`, { method: "DELETE" });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      window.alert(payload.error ?? "移入回收站失败，请稍后重试。");
+      return;
+    }
+    const remaining = projects.filter((item) => item.id !== id);
+    setProjects(remaining);
+    if (selectedId === id) setSelectedId(remaining[0]?.id ?? "");
+    setProcessMessage(payload.message ?? "项目已移入回收站。");
+  }
+
+  async function openTrash() {
+    setTrashOpen(true);
+    setTrashMessage("");
+    const response = await fetch("/api/projects/trash");
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      setTrashMessage(payload.error ?? "暂时无法读取回收站。");
+      return;
+    }
+    setTrashProjects(payload.projects ?? []);
+  }
+
+  async function recycleAction(project: { id: string; name: string }, action: "restore" | "purge") {
+    if (action === "purge" && !window.confirm(`彻底删除“${project.name}”吗？\n\n该操作不可恢复，项目的主讲文件和已导出文件都会一并删除。`)) return;
+    const response = await fetch("/api/projects/trash", {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ projectId: project.id, action })
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      setTrashMessage(payload.error ?? "操作失败，请稍后重试。");
+      return;
+    }
+    setTrashProjects((items) => items.filter((item) => item.id !== project.id));
+    if (action === "restore") {
+      const restored = payload.project;
+      const next: HandoutProject = {
+        id: restored.id, name: restored.name, grade: restored.grade, lessonCount: restored.lessonCount,
+        teachingYear: restored.teachingYear, teachingYearConfirmed: Boolean(restored.teachingYearConfirmedAt),
+        outputKinds: ["lesson_student", "combined_student"], status: "draft", pinned: false, updatedAt: "刚刚"
+      };
+      setProjects((items) => [next, ...items]);
+      setSelectedId(next.id);
+      setTrashOpen(false);
+    }
+    setTrashMessage(payload.message ?? "操作完成。");
   }
 
   function openCreateProject() {
@@ -576,6 +634,8 @@ export function WorkspaceShell({ initialProjects, user }: WorkspaceShellProps) {
         onSelect={setSelectedId}
         onTogglePinned={togglePinned}
         onRename={renameProject}
+        onDelete={moveProjectToTrash}
+        onOpenTrash={openTrash}
         onCreate={openCreateProject}
       />
 
@@ -959,6 +1019,13 @@ export function WorkspaceShell({ initialProjects, user }: WorkspaceShellProps) {
           </div>
         )}
       </section>
+      {trashOpen && <div className="modal-backdrop" role="presentation" onMouseDown={() => setTrashOpen(false)}>
+        <section className="recycle-bin-modal" role="dialog" aria-modal="true" aria-label="项目回收站" onMouseDown={(event) => event.stopPropagation()}>
+          <div className="recycle-bin-header"><div><span className="step-badge">项目管理</span><h2>项目回收站</h2><p>移入回收站的项目会保留内容；恢复后可继续编辑。</p></div><button className="secondary-button" onClick={() => setTrashOpen(false)}>关闭</button></div>
+          {trashMessage && <p className="recycle-bin-message">{trashMessage}</p>}
+          {trashProjects.length === 0 ? <div className="recycle-empty"><Trash2 size={28} /><strong>回收站为空</strong><span>删除的项目会暂存在这里。</span></div> : <div className="recycle-list">{trashProjects.map((project) => <div className="recycle-item" key={project.id}><div><strong>{project.name}</strong><span>{project.grade} · {project.lessonCount}讲 · 删除于 {new Intl.DateTimeFormat("zh-CN", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" }).format(new Date(project.deletedAt))}</span></div><div className="recycle-actions"><button className="secondary-button" onClick={() => void recycleAction(project, "restore")}>恢复项目</button><button className="danger-button" onClick={() => void recycleAction(project, "purge")}>彻底删除</button></div></div>)}</div>}
+        </section>
+      </div>}
     </main>
   );
 }

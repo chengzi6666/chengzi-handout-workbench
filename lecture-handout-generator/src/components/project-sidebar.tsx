@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { FileText, MoreHorizontal, PanelLeftClose, Pencil, Pin, Plus, Search, Settings, SlidersHorizontal } from "lucide-react";
+import { ArchiveRestore, FileText, MoreHorizontal, PanelLeftClose, Pencil, Pin, Plus, Search, Settings, SlidersHorizontal, Trash2 } from "lucide-react";
 import type { HandoutProject } from "@/lib/domain";
 
 interface ProjectSidebarProps {
@@ -10,10 +10,12 @@ interface ProjectSidebarProps {
   onSelect(id: string): void;
   onTogglePinned(id: string): void;
   onRename(id: string, name: string): void;
+  onDelete(id: string): void;
+  onOpenTrash(): void;
   onCreate(): void;
 }
 
-export function ProjectSidebar({ projects, selectedId, onSelect, onTogglePinned, onRename, onCreate }: ProjectSidebarProps) {
+export function ProjectSidebar({ projects, selectedId, onSelect, onTogglePinned, onRename, onDelete, onOpenTrash, onCreate }: ProjectSidebarProps) {
   const [query, setQuery] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const filtered = useMemo(() => projects
@@ -39,12 +41,12 @@ export function ProjectSidebar({ projects, selectedId, onSelect, onTogglePinned,
             {project.pinned && <Pin className="pinned" size={13} fill="currentColor" />}
             <details className="project-menu" onClick={(event) => event.stopPropagation()}>
               <summary aria-label="项目菜单"><MoreHorizontal size={16} /></summary>
-              <div><button onClick={() => onTogglePinned(project.id)}><Pin size={14} />{project.pinned ? "取消置顶" : "置顶项目"}</button><button onClick={() => setEditingId(project.id)}><Pencil size={14} />修改名称</button></div>
+              <div><button onClick={() => onTogglePinned(project.id)}><Pin size={14} />{project.pinned ? "取消置顶" : "置顶项目"}</button><button onClick={() => setEditingId(project.id)}><Pencil size={14} />修改名称</button><button className="danger-menu-item" onClick={() => onDelete(project.id)}><Trash2 size={14} />移入回收站</button></div>
             </details>
           </div>
         ))}
       </nav>
-      <div className="sidebar-footer"><p>系统设置</p><button onClick={() => { window.location.href = "/settings/teachers"; }}><Settings size={18} /><span><strong>教师资料库</strong><small>姓名、昵称、介绍与头像</small></span></button><button onClick={() => { window.location.href = "/settings/models"; }}><SlidersHorizontal size={18} /><span><strong>模型与接口</strong><small>配置 Token Plan Key</small></span></button></div>
+      <div className="sidebar-footer"><p>系统设置</p><button onClick={onOpenTrash}><ArchiveRestore size={18} /><span><strong>项目回收站</strong><small>恢复或彻底删除项目</small></span></button><button onClick={() => { window.location.href = "/settings/teachers"; }}><Settings size={18} /><span><strong>教师资料库</strong><small>姓名、昵称、介绍与头像</small></span></button><button onClick={() => { window.location.href = "/settings/models"; }}><SlidersHorizontal size={18} /><span><strong>模型与接口</strong><small>配置 Token Plan Key</small></span></button></div>
     </aside>
   );
 }

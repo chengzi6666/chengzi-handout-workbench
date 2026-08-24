@@ -27,7 +27,7 @@ export default async function HomePage() {
     return <WorkspaceShell initialProjects={demoProjects} user={{ employeeNumber: user.employeeNumber, name: user.name }} />;
   }
   const rows = await db.project.findMany({
-    where: { ownerId: user.id },
+    where: { ownerId: user.id, deletedAt: null },
     include: { outputs: true },
     orderBy: [{ pinned: "desc" }, { updatedAt: "desc" }]
   });

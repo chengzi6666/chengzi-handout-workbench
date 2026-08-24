@@ -103,6 +103,7 @@ model Project {
   teacherId        String?
   backgroundPackId String?
   layoutConfig     Json?
+  deletedAt        DateTime?
   createdAt        DateTime        @default(now())
   updatedAt        DateTime        @updatedAt
   ownerId          String
@@ -118,6 +119,7 @@ model Project {
   flipbooks         PublishedFlipbook[]
 
   @@index([ownerId, pinned, updatedAt])
+  @@index([ownerId, deletedAt])
 }
 
 model CurriculumReference {

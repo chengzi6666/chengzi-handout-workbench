@@ -15,7 +15,7 @@ export async function GET() {
   const session = await readSession();
   if (!session) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const projects = await db.project.findMany({
-    where: { ownerId: session.userId },
+    where: { ownerId: session.userId, deletedAt: null },
     orderBy: [{ pinned: "desc" }, { updatedAt: "desc" }]
   });
   return NextResponse.json({ projects });
@@ -40,4 +40,3 @@ export async function POST(request: Request) {
   });
   return NextResponse.json({ project }, { status: 201 });
 }
-

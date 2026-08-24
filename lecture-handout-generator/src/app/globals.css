@@ -125,6 +125,24 @@ button { cursor: pointer; }
 .primary-button { border: 0; color: #fff; background: var(--orange); }
 .primary-button:disabled { opacity: .45; cursor: not-allowed; }
 .secondary-button { border: 1px solid var(--line); color: #625b55; background: #fff; }
+.danger-menu-item { color: #c63c2d !important; }
+.modal-backdrop { position: fixed; inset: 0; z-index: 40; display: grid; place-items: center; padding: 24px; background: rgba(49, 39, 31, .42); }
+.recycle-bin-modal { width: min(760px, 100%); max-height: min(680px, calc(100vh - 48px)); overflow: auto; border: 1px solid #eadbd2; border-radius: 18px; padding: 26px; background: #fffdfa; box-shadow: 0 22px 70px rgba(47, 31, 20, .26); }
+.recycle-bin-header { display: flex; justify-content: space-between; gap: 20px; align-items: flex-start; border-bottom: 1px solid #f1e8e1; padding-bottom: 18px; }
+.recycle-bin-header h2 { margin: 8px 0 6px; font-size: 23px; color: #2e2722; }
+.recycle-bin-header p { margin: 0; color: #857b73; font-size: 13px; }
+.recycle-bin-message { margin: 16px 0 0; border-radius: 9px; padding: 10px 12px; background: #eef9f3; color: #19764e; font-size: 13px; }
+.recycle-list { display: grid; gap: 10px; margin-top: 18px; }
+.recycle-item { display: flex; justify-content: space-between; align-items: center; gap: 18px; padding: 15px; border: 1px solid #eee3db; border-radius: 12px; background: #fff; }
+.recycle-item > div:first-child { display: grid; min-width: 0; gap: 5px; }
+.recycle-item strong { overflow: hidden; color: #3b312b; font-size: 14px; text-overflow: ellipsis; white-space: nowrap; }
+.recycle-item span { color: #958980; font-size: 12px; }
+.recycle-actions { display: flex; flex: none; gap: 8px; }
+.danger-button { height: 44px; padding: 0 15px; border: 1px solid #f0b8b0; border-radius: 10px; color: #bb382c; background: #fff4f2; font-size: 13px; font-weight: 700; }
+.recycle-empty { min-height: 220px; display: grid; place-content: center; justify-items: center; gap: 10px; color: #9c9088; }
+.recycle-empty svg { color: #ff6b2c; }
+.recycle-empty strong { color: #50453e; }
+@media (max-width: 640px) { .recycle-item, .recycle-bin-header { align-items: stretch; flex-direction: column; } .recycle-actions { width: 100%; } .recycle-actions button { flex: 1; justify-content: center; } }
 
 @media (max-width: 960px) {
   .app-shell { grid-template-columns: 230px minmax(0, 1fr); }
