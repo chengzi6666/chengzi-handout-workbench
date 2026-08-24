@@ -4,7 +4,7 @@ import { db } from "@/lib/db";
 import { readSession } from "@/lib/auth/session";
 import { lessonContentSchema, requiresPinyinReview } from "@/lib/handout/content-schema";
 
-const patchSchema = z.object({ content: lessonContentSchema.optional(), approveText: z.boolean().optional(), approvePinyin: z.boolean().optional() });
+const patchSchema = z.object({ content: lessonContentSchema.optional(), approveText: z.boolean().optional(), approvePinyin: z.boolean().optional(), revokeTextApproval: z.boolean().optional() });
 
 export async function PATCH(request: Request, context: { params: Promise<{ id: string }> }) {
   const session = await readSession();
@@ -24,11 +24,13 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
     readingExcerpt: content.readingExcerpt.text,
     readingExcerptSource: content.readingExcerpt,
     ...(parsed.data.approveText ? { textApprovedAt: new Date(), status: "APPROVED" } : {}),
+    ...(parsed.data.revokeTextApproval ? { textApprovedAt: null, status: "TEXT_REVIEW" } : {}),
     ...(parsed.data.approvePinyin ? { pinyinApprovedAt: new Date() } : {})
   } });
   if (parsed.data.approveText) {
     const pending = await db.lesson.count({ where: { projectId: lesson.projectId, textApprovedAt: null } });
     if (pending === 0) await db.project.update({ where: { id: lesson.projectId }, data: { status: requiresPinyinReview(lesson.project.grade) ? "PINYIN_REVIEW" : "LAYOUT_REVIEW" } });
   }
+  if (parsed.data.revokeTextApproval) await db.project.update({ where: { id: lesson.projectId }, data: { status: "TEXT_REVIEW" } });
   return NextResponse.json({ lesson: updated });
 }

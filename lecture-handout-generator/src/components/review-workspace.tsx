@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { ArrowLeft, CheckCircle2, FileCheck2, RefreshCw, Save } from "lucide-react";
+import { ArrowLeft, CheckCircle2, RefreshCw, RotateCcw, Save } from "lucide-react";
 import type { LessonContent } from "@/lib/handout/content-schema";
 import { normalizeLessonSubtitle } from "@/lib/handout/subtitle";
 
@@ -57,12 +57,18 @@ export function ReviewWorkspace({
     setDraft(normalizedCopy(lesson.content));
     setMessage("");
   };
-  async function save(approve = false) {
+  async function save(approve = false, revoke = false) {
     if (!selected) return;
+    const contentForSave = copy(draft);
+    // “通过本讲文字审核”就是唯一的最终确认动作：同时确认原文来源和课程对标。
+    if (approve) {
+      contentForSave.readingExcerpt.approved = true;
+      contentForSave.curriculumAlignment.forEach((item) => { item.confirmed = true; });
+    }
     const response = await fetch(`/api/lessons/${selected.id}`, {
       method: "PATCH",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ content: draft, approveText: approve }),
+      body: JSON.stringify({ content: contentForSave, approveText: approve, revokeTextApproval: revoke }),
     });
     const payload = await response.json();
     if (!response.ok) return setMessage(payload.error ?? "保存失败");
@@ -71,8 +77,8 @@ export function ReviewWorkspace({
           ? {
               ...item,
               title: draft.title,
-              content: draft,
-              textApproved: approve || item.textApproved,
+              content: contentForSave,
+              textApproved: revoke ? false : approve || item.textApproved,
             }
           : item,
       );
@@ -81,16 +87,11 @@ export function ReviewWorkspace({
       window.location.href = project.grade === "1升2" ? `/projects/${project.id}/pinyin` : `/projects/${project.id}/layout`;
       return;
     }
-    setMessage(approve ? "本讲文字审核已通过，请继续审核下一讲" : "已保存文字修改");
-  }
-  function confirmEvidence() {
-    update((content) => {
-      content.readingExcerpt.approved = true;
-      content.curriculumAlignment.forEach((item) => {
-        item.confirmed = true;
-      });
-    });
-    setMessage("已确认阅读原文和对标来源，保存后即可通过审核");
+    if (approve) {
+      const next = nextLessons.find((item) => item.lessonNumber === selected.lessonNumber + 1 && !item.textApproved);
+      if (next) { select(next); setMessage(`第${selected.lessonNumber}讲已通过，已进入第${next.lessonNumber}讲审核。`); return; }
+    }
+    setMessage(revoke ? "已撤回本讲文字审核，可继续修改后重新通过。" : approve ? "本讲文字审核已通过" : "已保存文字修改");
   }
   async function uploadQuestionImage(files: FileList | null) {
     const file = files?.[0];
@@ -174,9 +175,6 @@ export function ReviewWorkspace({
                 }
               />
             </label>
-            <button className="secondary-button" onClick={confirmEvidence}>
-              <FileCheck2 size={16} /> 确认原文与来源
-            </button>
             {lessons.length < project.lessonCount && <button className="secondary-button" onClick={() => void regenerateAllLessons()}><RefreshCw size={16} /> 从合订文件重建{project.lessonCount}讲</button>}
           </div>
           <div className="content-editor">
@@ -358,11 +356,10 @@ export function ReviewWorkspace({
             </button>
             <button
               className="primary-button"
-              onClick={() => void save(true)}
-              disabled={selected.textApproved}
+              onClick={() => void save(selected.textApproved ? false : true, selected.textApproved)}
             >
-              <CheckCircle2 size={16} />{" "}
-              {selected.textApproved ? "已审核" : "通过本讲文字审核"}
+              {selected.textApproved ? <RotateCcw size={16} /> : <CheckCircle2 size={16} />}{" "}
+              {selected.textApproved ? "撤回本讲文字审核" : "通过本讲文字审核"}
             </button>
           </div>
         </section>

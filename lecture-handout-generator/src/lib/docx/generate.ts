@@ -1,6 +1,6 @@
 import {
   AlignmentType, Document, Footer, Header, HorizontalPositionRelativeFrom, ImageRun, PageNumber, Paragraph, Packer,
-  SectionType, TextRun, VerticalPositionRelativeFrom, type ISectionOptions
+  SectionType, ShadingType, Table, TableCell, TableRow, TextRun, VerticalPositionRelativeFrom, WidthType, type ISectionOptions
 } from "docx";
 import JSZip from "jszip";
 import type { LessonContent } from "@/lib/handout/content-schema";
@@ -46,7 +46,15 @@ function heading(text: string) {
 }
 
 function body(text: string, bold = false) {
-  return new Paragraph({ spacing: { after: 100, line: 360 }, children: [run(text, { bold })] });
+  return new Paragraph({ spacing: { after: 100, line: 360 }, children: [run(expandAnswerSpace(text), { bold })] });
+}
+
+// 题目中的空括号和占位下划线必须给孩子留下可书写的空间，而不是只留两个字符。
+export function expandAnswerSpace(text: string) {
+  return text
+    .replace(/_{1,19}/g, "____________________")
+    .replace(/[（(]\s*[）)]/g, `（${"　".repeat(40)}）`)
+    .replace(/(^|[：:\s])\*(?=$|[\s，。；])/g, "$1____________________");
 }
 
 function numbered(items: string[]) {
@@ -62,7 +70,7 @@ function backgroundHeader(image?: ImageAsset) {
   return new Header({ children: [new Paragraph({ children: [new ImageRun({ ...image, transformation: { width: 794, height: 1123 }, floating: { horizontalPosition: { relative: HorizontalPositionRelativeFrom.PAGE, offset: 0 }, verticalPosition: { relative: VerticalPositionRelativeFrom.PAGE, offset: 0 }, behindDocument: true, allowOverlap: true } })] })] });
 }
 
-function section(children: Paragraph[], background?: ImageAsset): ISectionOptions {
+function section(children: Array<Paragraph | Table>, background?: ImageAsset): ISectionOptions {
   return {
     properties: { type: SectionType.NEXT_PAGE, page: { margin: { top: 850, right: 850, bottom: 760, left: 850, header: 0, footer: 360 } } },
     headers: background ? { default: backgroundHeader(background) } : undefined,
@@ -79,9 +87,24 @@ function teacherParagraph(input: HandoutDocumentInput) {
   return [new Paragraph({ children: [new ImageRun({ ...input.teacherImage, transformation: { width: Math.round(794 * pos.width / 100), height: Math.round(1123 * pos.height / 100) }, floating: { horizontalPosition: { relative: HorizontalPositionRelativeFrom.PAGE, offset: Math.round(794 * pos.x / 100 * 9525) }, verticalPosition: { relative: VerticalPositionRelativeFrom.PAGE, offset: Math.round(1123 * pos.y / 100 * 9525) }, behindDocument: false, allowOverlap: true } })] })];
 }
 
-function parentTeacherParagraph(input: HandoutDocumentInput) {
-  if (!input.teacherPortrait) return [];
-  return [new Paragraph({ children: [new ImageRun({ ...input.teacherPortrait, transformation: { width: 110, height: 110 }, floating: { horizontalPosition: { relative: HorizontalPositionRelativeFrom.PAGE, offset: 5_650_000 }, verticalPosition: { relative: VerticalPositionRelativeFrom.PAGE, offset: 1_000_000 }, behindDocument: false, allowOverlap: true } })] })];
+function parentTeacherTable(input: HandoutDocumentInput) {
+  const image = input.teacherPortrait ? [new Paragraph({ alignment: AlignmentType.CENTER, children: [new ImageRun({ ...input.teacherPortrait, transformation: { width: 130, height: 130 } })] })] : [body("主讲老师")];
+  const introduction = teacherIntroduction(input.teacherFormalName);
+  return new Table({ width: { size: 7600, type: WidthType.DXA }, rows: [new TableRow({ children: [
+    new TableCell({ width: { size: 1900, type: WidthType.DXA }, shading: { type: ShadingType.CLEAR, color: "F5F0EA", fill: "FFF8F2" }, children: image }),
+    new TableCell({ width: { size: 5700, type: WidthType.DXA }, shading: { type: ShadingType.CLEAR, color: "F5F0EA", fill: "FFF8F2" }, children: introduction.split("\n").map((line, i) => new Paragraph({ spacing: { after: i ? 0 : 80 }, children: [run(line, { bold: i === 0, size: i === 0 ? 24 : 21, color: i === 0 ? orange : "4D423A" })] })) })
+  ] })] });
+}
+
+function teacherIntroduction(name?: string) {
+  const records: Record<string, string> = {
+    "吴晨晨": "吴晨晨老师｜主讲老师\n毕业于加拿大英属哥伦比亚大学；国内和国际教师资格双认证。课堂注重用故事和方法帮助孩子建立阅读兴趣与表达自信。",
+    "高远": "高远老师｜主讲老师\n学而思网校读写课程主讲老师，毕业于哈佛大学，拥有4年语文读写教学经验；研究方向为儿童语言与读写能力发展。",
+    "张驰": "张驰老师｜主讲老师\n毕业于北京大学，北京大学中文系本科；获发展与教育心理学硕士。学而思小学语文教师培训负责人。",
+    "唐润然": "唐润然老师｜主讲老师\n复旦大学硕士，深耕小学语文读写教学9年+；注重“授人以渔”，帮助孩子形成自己的学习方法和自主学习习惯。",
+    "陈超": "陈超老师｜主讲老师\n北京大学中文系本科、古代文学专业硕士；13年教学经验，曾任学而思培优语文负责人，负责多套语文产品研发。",
+  };
+  return records[name ?? ""] ?? "主讲老师｜负责阅读方法、表达写作和课堂互动引导。";
 }
 
 function practiceImage(input: HandoutDocumentInput, pageId?: string, fileId?: string) {
@@ -117,16 +140,21 @@ function lessonSections(lesson: LessonContent, input: HandoutDocumentInput) {
 }
 
 function parentSections(input: HandoutDocumentInput) {
+  const gradeName = input.grade.replace("升", "年级升").replace(/^0年级升1$/, "一年级").replace(/^(\d)年级升(\d)$/, "$2年级");
+  const capability = input.lessons.map((lesson) => `第${lesson.lessonNumber}讲《${lesson.title}》：${lesson.subtitle || lesson.technique}`).join("；");
   const overview = section([
-    ...title(`${input.grade}读写综合能力提升`, "家长使用手册  ·  真读书 · 有深度 · 用得上"),
-    ...parentTeacherParagraph(input),
-    heading("双师陪伴"), body(`主讲老师：${input.teacherFormalName ? `${input.teacherFormalName}老师` : "以项目绑定主讲老师为准"}。本手册配合${input.teachingYear}年${input.projectName}使用，帮助家长了解课程目标、陪学方式与课后沟通重点。`),
-    heading("五讲课程带来的能力提升"), body("五讲合起来，孩子练习的是：读懂故事 → 找到证据 → 学会方法 → 说清楚 → 写完整。"),
-    heading(`${input.grade}阶段，最需要关注什么？`),
-    body("基础：从“会认字”走向“会用字词”。阅读中看见、理解并能在表达中使用，是低年级语文能力的关键起点。"),
-    body("阅读：从“听故事”走向“读懂故事”。家长可追问人物、事情、证据和道理，帮助孩子把感受说清楚。"),
-    body("表达：从“说一句话”走向“完整表达”。先把人物、事情、动作、语言、心情和结果说完整，再落到笔头。"),
-    heading("家长怎么配合？"), ...numbered(["课前只做轻量预热，不提前讲答案，让孩子保留课堂发现感。", "课后先请孩子复述课堂方法，再完成讲义中的交流话题。", "参考答案用于追问与校准，不要求孩子逐字复述。", "阅读文段以主讲文件原文为准，不随意删改。"])
+    new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 80, after: 60 }, children: [run("家长使用手册", { bold: true, size: 36, color: orange })] }),
+    new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 150 }, children: [run("—— 真读书 · 有深度 · 用得上 ——", { size: 22, color: gray })] }),
+    parentTeacherTable(input),
+    heading("🤝 双师陪伴｜主讲老师＋班主任老师"),
+    body(`${input.teacherFormalName ? `${input.teacherFormalName}老师` : "主讲老师"}负责课程讲解、阅读方法和表达写作训练；班主任老师负责直播跟课、日常答疑、阶段反馈、薄弱点跟踪和学习规划。两位老师共同陪伴一个孩子。`),
+    heading("📚 五讲课程带来的能力提升"), body(capability),
+    heading("五讲合起来，孩子练习的是："), body("读懂故事 → 找到证据 → 学会方法 → 说清楚 → 写完整。"),
+    heading(`🎯 ${gradeName}阶段，最需要关注什么？`),
+    body(`基础：结合${input.teachingYear}年课程学习节奏，从“会认字”走向“会用字词”，让孩子在故事语境中把字词读懂、用上。`),
+    body("阅读：从“听故事”走向“读懂故事”，能说清人物、事情、证据和道理。"),
+    body("表达：从“说一句话”走向“完整表达”，逐步写清人物、事情、动作、语言、心情和结果。"),
+    heading("💡 家长怎么配合？"), ...numbered(["正课时间为19:00-19:40；课前10分钟和课后10分钟由班主任老师统一带领预习、复习，无需家长提前筹备。", "基础巩固：提交本讲笔记；课业紧张：参考讲义【第五部分】口头表达框架，录制1分钟左右复习小视频。", "学有余力：完成讲义【第四部分】书面练习，发班级群或私发老师获取批改点评。", "忙碌时，让孩子按【我是小老师】口头框架讲一遍故事；学有余力时，完成【真题带练】书面练习。"])
   ], pickBackground(input, "PARENT_MANUAL"));
   const schedule = section([
     ...title("五讲学习安排", "每讲学什么 · 家长怎么陪"),
