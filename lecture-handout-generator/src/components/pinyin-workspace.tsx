@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { ArrowLeft, CheckCircle2, Loader2 } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Loader2, RotateCcw } from "lucide-react";
 import type { PinyinUnit } from "@/lib/handout/pinyin";
 
 type LessonItem = {
@@ -29,7 +29,10 @@ export function PinyinWorkspace({
     setMessage("");
     fetch(`/api/lessons/${selectedId}/pinyin`).then(async (response) => {
       const payload = await response.json();
-      if (response.ok) setUnits(payload.units);
+      if (response.ok) {
+        setUnits(payload.units);
+        setLessons((items) => items.map((item) => item.id === selectedId ? { ...item, approved: Boolean(payload.approved) } : item));
+      }
       else setMessage(payload.error ?? "读取失败");
       setLoading(false);
     });
@@ -48,8 +51,26 @@ export function PinyinWorkspace({
     const nextLessons = lessons.map((item) => item.id === selectedId ? { ...item, approved: true } : item);
     setLessons(nextLessons);
     if (nextLessons.every((item) => item.approved)) { window.location.href = `/projects/${project.id}/layout`; return; }
-    setMessage("拼音已人工审核并保存，请继续审核下一讲");
+    const currentIndex = nextLessons.findIndex((item) => item.id === selectedId);
+    const next = nextLessons.slice(currentIndex + 1).find((item) => !item.approved) ?? nextLessons.find((item) => !item.approved);
+    if (next) setSelectedId(next.id);
+    setMessage("已保存，已自动进入下一讲拼音审核");
   }
+  async function revoke() {
+    const response = await fetch(`/api/lessons/${selectedId}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ revokePinyinApproval: true }),
+    });
+    const payload = await response.json();
+    if (!response.ok) {
+      setMessage(payload.error ?? "撤回失败");
+      return;
+    }
+    setLessons((items) => items.map((item) => item.id === selectedId ? { ...item, approved: false } : item));
+    setMessage("已撤回本讲拼音审核，可以继续修改");
+  }
+  const currentLesson = lessons.find((item) => item.id === selectedId);
   return (
     <main className="review-page">
       <header className="review-header">
@@ -118,10 +139,11 @@ export function PinyinWorkspace({
             <span>{message}</span>
             <button
               className="primary-button"
-              onClick={() => void approve()}
+              onClick={() => void (currentLesson?.approved ? revoke() : approve())}
               disabled={loading || units.length === 0}
             >
-              <CheckCircle2 size={16} /> 完成拼音审核
+              {currentLesson?.approved ? <RotateCcw size={16} /> : <CheckCircle2 size={16} />}
+              {currentLesson?.approved ? "撤回完成拼音审核" : "完成拼音审核"}
             </button>
           </div>
         </section>

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useRef, useState } from "react";
-import { ArrowLeft, Download, ImagePlus, Save } from "lucide-react";
+import { ArrowLeft, Bold, Download, Highlighter, ImagePlus, Italic, Save, Underline } from "lucide-react";
 
 const roles = [
   ["SIMPLE", "简单模式·全文"],
@@ -80,6 +80,7 @@ export function LayoutWorkspace({
   const [position, setPosition] = useState<Position>(initial);
   const [fontSize, setFontSize] = useState((project.layoutConfig as { fontSize?: number } | null)?.fontSize ?? 11);
   const [fontFamily, setFontFamily] = useState((project.layoutConfig as { fontFamily?: string } | null)?.fontFamily ?? "Microsoft YaHei");
+  const [richPreviewHtml, setRichPreviewHtml] = useState((project.layoutConfig as { richPreviewHtml?: Record<string, string> } | null)?.richPreviewHtml ?? {});
   const [teacherId, setTeacherId] = useState(
     project.teacherId ??
       teachers.find((teacher) => teacher.grade === project.grade)?.id ??
@@ -92,6 +93,7 @@ export function LayoutWorkspace({
   const [lessonIndex, setLessonIndex] = useState(0);
   const [previewKind, setPreviewKind] = useState<"student" | "answers" | "parent">("student");
   const canvas = useRef<HTMLDivElement>(null);
+  const canvasCopy = useRef<HTMLDivElement>(null);
   const dragging = useRef(false);
   const teacher = teachers.find((item) => item.id === teacherId);
   const expressions =
@@ -104,6 +106,7 @@ export function LayoutWorkspace({
   );
   const currentRole = pageRoles[pageIndex];
   const currentLesson = lessons[lessonIndex];
+  const previewKey = `${previewKind}-${currentLesson?.lessonNumber ?? 0}-${pageIndex}`;
   const defaultTeacherKey =
     (
       {
@@ -167,6 +170,10 @@ export function LayoutWorkspace({
     }));
   }
   async function save() {
+    const nextRichPreviewHtml = canvasCopy.current
+      ? { ...richPreviewHtml, [previewKey]: canvasCopy.current.innerHTML }
+      : richPreviewHtml;
+    setRichPreviewHtml(nextRichPreviewHtml);
     const [projectResponse, layoutResponse] = await Promise.all([
       fetch(`/api/projects/${project.id}`, {
         method: "PATCH",
@@ -178,7 +185,7 @@ export function LayoutWorkspace({
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           teacherImage: { ...position, assetId: activeAsset?.id },
-          fontFamily, fontSize,
+          fontFamily, fontSize, richPreviewHtml: nextRichPreviewHtml,
         }),
       }),
     ]);
@@ -187,6 +194,15 @@ export function LayoutWorkspace({
         ? "版式审核结果已保存"
         : "保存失败",
     );
+  }
+  function formatSelection(command: "bold" | "italic" | "underline" | "hiliteColor") {
+    const selection = window.getSelection();
+    if (!selection?.rangeCount || selection.isCollapsed || !canvasCopy.current?.contains(selection.anchorNode)) {
+      setMessage("请先在预览正文中用鼠标选中要调整的文字");
+      return;
+    }
+    document.execCommand(command, false, command === "hiliteColor" ? "#FFE08A" : undefined);
+    setMessage("已应用到选中文字；点击“保存版式审核”后保存本次版式设置");
   }
   return (
     <main className="review-page">
@@ -272,6 +288,13 @@ export function LayoutWorkspace({
                 {[10, 11, 12, 13, 14, 15, 16, 17, 18].map((size) => <option key={size} value={size}>{size} 号</option>)}
               </select>
             </label>
+            <div className="inline-format-tools" aria-label="文字调整">
+              <span>文字调整</span>
+              <button type="button" title="加粗选中文字" onMouseDown={(event) => event.preventDefault()} onClick={() => formatSelection("bold")}><Bold size={15} /></button>
+              <button type="button" title="斜体选中文字" onMouseDown={(event) => event.preventDefault()} onClick={() => formatSelection("italic")}><Italic size={15} /></button>
+              <button type="button" title="为选中文字加下划线" onMouseDown={(event) => event.preventDefault()} onClick={() => formatSelection("underline")}><Underline size={15} /></button>
+              <button type="button" title="高光选中文字" onMouseDown={(event) => event.preventDefault()} onClick={() => formatSelection("hiliteColor")}><Highlighter size={15} /></button>
+            </div>
             {previewKind === "student" && pageIndex === 3 && (
               <>
                 <label>
@@ -323,8 +346,17 @@ export function LayoutWorkspace({
             }}
             style={{ backgroundImage: previewBackground }}
           >
-            <div className="canvas-copy" style={{ fontFamily, fontSize: `${fontSize}pt` }}>
-              {!currentLesson ? (
+            <div
+              className="canvas-copy"
+              ref={canvasCopy}
+              contentEditable
+              suppressContentEditableWarning
+              style={{ fontFamily, fontSize: `${fontSize}pt` }}
+              onInput={() => setMessage("文字已调整；保存版式审核后继续导出")}
+            >
+              {richPreviewHtml[previewKey] ? (
+                <div dangerouslySetInnerHTML={{ __html: richPreviewHtml[previewKey] }} />
+              ) : !currentLesson ? (
                 <>
                   <h2>尚无已审核内容</h2>
                   <p>完成文字审核后，这里会自动显示真实讲义。</p>

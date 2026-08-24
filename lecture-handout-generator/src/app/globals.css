@@ -295,11 +295,15 @@ button { cursor: pointer; }
 .layout-toolbar { margin-bottom: 12px; display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; }
 .layout-toolbar label { display: grid; gap: 5px; color: #716861; font-size: 12px; font-weight: 700; }
 .layout-toolbar select { height: 38px; padding: 0 10px; border: 1px solid var(--line); border-radius: 8px; background: #fff; font-size: 14px; }
+.inline-format-tools { display: flex; align-items: center; gap: 5px; min-height: 38px; padding: 4px 6px; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
+.inline-format-tools span { margin-right: 2px; color: #716861; font-size: 12px; font-weight: 700; }
+.inline-format-tools button { display: grid; width: 29px; height: 29px; place-items: center; border: 0; border-radius: 6px; color: #5f5148; background: #fff7f1; cursor: pointer; }
+.inline-format-tools button:hover { color: #fff; background: var(--orange); }
 .preview-kind-tabs, .lesson-tabs, .page-tabs { display: flex; gap: 6px; flex-wrap: wrap; }
 .preview-kind-tabs button, .lesson-tabs button, .page-tabs button { min-height: 36px; padding: 0 12px; border: 1px solid #e4cbbb; border-radius: 18px; color: #7d5d4e; background: #fff; font-size: 13px; cursor: pointer; }
 .preview-kind-tabs button.active, .lesson-tabs button.active, .page-tabs button.active { color: #fff; border-color: #f06f36; background: #ff6b2d; }
 .page-canvas { position: relative; aspect-ratio: 210 / 297; max-height: calc(100vh - 250px); margin: auto; overflow: hidden; border: 1px solid #d8d0c9; box-shadow: 0 10px 30px #7e6c5a25; background: #fff center/100% 100% no-repeat; }
-.canvas-copy { padding: 11% 10%; color: #453d38; }
+.canvas-copy { min-height: 100%; padding: 11% 10%; color: #453d38; outline: none; cursor: text; }
 .page-tabs { display: flex; flex: 1 1 100%; gap: 6px; margin-bottom: 8px; overflow-x: auto; }
 .page-tabs button { flex: 1 0 auto; padding: 7px 10px; border: 1px solid #ead8cc; border-radius: 999px; color: #755d4d; background: #fff; font-size: 11px; cursor: pointer; }
 .page-tabs button.active { color: #fff; border-color: var(--orange); background: var(--orange); }
