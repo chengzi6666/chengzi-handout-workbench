@@ -611,11 +611,13 @@ export function LayoutWorkspace({
             <button
               type="button"
               key={kind}
-              disabled={downloading !== null}
+              className={`export-action ${kind === "combined_student" ? "export-action-primary" : ""}`}
+              disabled={downloading === kind}
               onClick={() => void download(kind)}
             >
               <Download size={15} />
-              {downloading === kind ? "正在生成…" : label}
+              <span>{downloading === kind ? "正在生成 Word…" : label}</span>
+              {downloading === kind ? <i aria-label="正在生成" /> : null}
             </button>
           ))}
           <Link

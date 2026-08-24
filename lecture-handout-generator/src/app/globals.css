@@ -345,8 +345,22 @@ button { cursor: pointer; }
 .wechat-card-preview strong { font-size: 17px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .wechat-card-preview p, .wechat-card-preview small { margin: 0; color: #806d63; line-height: 1.45; }
 .teacher-placeholder { display: grid; place-items: center; border: 2px dashed #f3a37d; color: #b47052; background: #fff3ebbb; font-size: 10px; text-align: center; }
-.export-panel a { margin-top: 8px; padding: 10px; display: flex; align-items: center; gap: 7px; border-radius: 8px; color: #fff; background: var(--orange); font-size: 10px; font-weight: 700; }
-.export-note { margin-top: 15px !important; }
+.export-panel { position: sticky; top: 16px; padding: 15px; box-shadow: 0 10px 28px #9a6b4a12; }
+.export-panel h2 { display: flex; align-items: center; gap: 7px; font-size: 16px; color: #3d312b; }
+.export-panel h2::before { content: "↓"; display: grid; width: 22px; height: 22px; place-items: center; border-radius: 7px; color: #fff; background: linear-gradient(135deg, #ff8a55, #f2612a); font-size: 16px; }
+.export-action { position: relative; width: 100%; min-height: 42px; margin: 8px 0 0; padding: 0 11px; display: flex; align-items: center; gap: 9px; border: 1px solid #efd8ca; border-radius: 10px; color: #754b38; background: #fffaf7; font: 700 12px "Microsoft YaHei", sans-serif; text-align: left; cursor: pointer; transition: transform .16s ease, border-color .16s ease, box-shadow .16s ease, background .16s ease; }
+.export-action:hover { transform: translateY(-1px); border-color: #f28c60; background: #fff5ef; box-shadow: 0 6px 14px #df714520; }
+.export-action svg { flex: 0 0 auto; color: #e96c38; }
+.export-action span { flex: 1; line-height: 1.35; }
+.export-action-primary { border-color: #f47742; color: #fff; background: linear-gradient(135deg, #ff7b40, #f35e29); box-shadow: 0 7px 14px #e9703a30; }
+.export-action-primary svg { color: #fff; }
+.export-action:disabled { cursor: wait; opacity: 1; color: #8b6552; background: #fff3ea; border-color: #f3cbb8; box-shadow: none; transform: none; }
+.export-action:disabled svg { color: #e77948; }
+.export-action i { width: 13px; height: 13px; flex: 0 0 13px; border: 2px solid #f6c2a7; border-top-color: #eb6530; border-radius: 50%; animation: export-spin .7s linear infinite; }
+@keyframes export-spin { to { transform: rotate(360deg); } }
+.export-panel a.publish-button { margin-top: 13px; min-height: 40px; padding: 10px 11px; display: flex; align-items: center; justify-content: center; border: 1px solid #efc6b4; border-radius: 10px; color: #b6532a; background: #fff7f2; font-size: 12px; font-weight: 800; text-decoration: none; transition: background .16s ease; }
+.export-panel a.publish-button:hover { background: #ffeadf; }
+.export-note { padding-top: 10px; border-top: 1px dashed #e9d7cc; margin-top: 13px !important; }
 @media (max-width: 1100px) { .layout-studio { grid-template-columns: 210px 1fr; } .export-panel { grid-column: 1 / -1; } }
 .publish-button { width: 100%; margin-top: 14px; padding: 10px; border: 1px solid var(--orange); border-radius: 8px; color: var(--orange-dark); background: #fff5ef; font-size: 10px; font-weight: 700; text-align: center; text-decoration: none; }
 .flipbook-preview-bar { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 10px max(20px, calc((100% - 1100px) / 2)); color: #7a522f; background: #fff3dc; border-bottom: 1px solid #e7c590; font-size: 13px; }
