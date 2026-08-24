@@ -774,8 +774,8 @@ export function WorkspaceShell({ initialProjects, user }: WorkspaceShellProps) {
             <div className="panel-title">
               <span>03</span>
               <div>
-                <h3>生成与双重审核</h3>
-                <p>所有步骤均可保存并稍后继续</p>
+                <h3>生成与审核流程</h3>
+                <p>解析完成后自动生成初稿；每一步通过后直接进入下一步</p>
               </div>
             </div>
             <div className="workflow-steps">
@@ -787,11 +787,11 @@ export function WorkspaceShell({ initialProjects, user }: WorkspaceShellProps) {
                 }
               >
                 <b>1</b>
-                <strong>{processing ? "正在解析" : "解析主讲文件"}</strong>
-                <span>
-                  {sourceFiles.length === 0
-                    ? "请先上传 PDF 或 DOCX"
-                    : "点击开始，完成后自动生成初稿"}
+                  <strong>{processing ? "正在生成初稿" : "开始生成讲义"}</strong>
+                  <span>
+                    {sourceFiles.length === 0
+                      ? "请先上传 PDF 或 DOCX"
+                    : "解析主讲文件后自动写出初稿"}
                 </span>
               </button>
               {selected ? (
@@ -805,7 +805,7 @@ export function WorkspaceShell({ initialProjects, user }: WorkspaceShellProps) {
                 >
                   <b>2</b>
                   <strong>{generating ? "正在生成初稿" : "文字审核"}</strong>
-                  <span>核对原文与答案</span>
+                  <span>核对原文、题目与参考答案</span>
                 </Link>
               ) : (
                 <span className="workflow-step disabled">
@@ -820,30 +820,14 @@ export function WorkspaceShell({ initialProjects, user }: WorkspaceShellProps) {
                   href={`/projects/${selected.id}/layout`}
                 >
                   <b>3</b>
-                  <strong>设计排版</strong>
-                  <span>微软雅黑与背景</span>
+                  <strong>版式审核</strong>
+                  <span>背景、字号、图片与预览一次完成</span>
                 </Link>
               ) : (
                 <span className="workflow-step disabled">
                   <b>3</b>
-                  <strong>设计排版</strong>
+                  <strong>版式审核</strong>
                   <span>文字审核后进行</span>
-                </span>
-              )}
-              {selected ? (
-                <Link
-                  className="workflow-step"
-                  href={`/projects/${selected.id}/layout#format`}
-                >
-                  <b>4</b>
-                  <strong>格式审核</strong>
-                  <span>字号、字体与版面检查</span>
-                </Link>
-              ) : (
-                <span className="workflow-step disabled">
-                  <b>4</b>
-                  <strong>格式审核</strong>
-                  <span>确认版式效果</span>
                 </span>
               )}
               {selected ? (
@@ -851,13 +835,13 @@ export function WorkspaceShell({ initialProjects, user }: WorkspaceShellProps) {
                   className="workflow-step"
                   href={`/projects/${selected.id}/layout#export`}
                 >
-                  <b>5</b>
+                  <b>4</b>
                   <strong>导出与分享</strong>
                   <span>生成Word与翻页书预览</span>
                 </Link>
               ) : (
                 <span className="workflow-step disabled">
-                  <b>5</b>
+                  <b>4</b>
                   <strong>导出与分享</strong>
                   <span>完成后下载 DOCX</span>
                 </span>

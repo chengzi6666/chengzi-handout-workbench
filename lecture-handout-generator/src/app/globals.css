@@ -115,7 +115,7 @@ button { cursor: pointer; }
 .output-option strong { font-size: 14px; }
 .output-option small { margin-top: 4px; color: #99918a; font-size: 11px; }
 .workflow-panel { margin-top: 18px; }
-.workflow-steps { display: grid; grid-template-columns: repeat(5, 1fr); gap: 9px; }
+.workflow-steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 9px; }
 .workflow-step { min-height: 118px; position: relative; overflow: hidden; padding: 18px 16px; border: 1px solid #eee8e2; border-radius: 14px; background: linear-gradient(145deg, #fff, #fcfaf8); text-align: left; color: inherit; text-decoration: none; cursor: pointer; transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease; }
 .workflow-step::after { content: ""; position: absolute; width: 82px; height: 82px; right: -30px; bottom: -42px; border-radius: 50%; background: #ffeadf; opacity: .6; }
 .workflow-step:hover:not(:disabled):not(.disabled) { transform: translateY(-3px); border-color: #ff9b6b; box-shadow: 0 12px 25px #e16a3430; }
