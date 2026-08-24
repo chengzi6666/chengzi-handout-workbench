@@ -20,6 +20,11 @@ function previewPractice<T extends { imageSourceFileId?: string }>(items: T[]) {
   }));
 }
 
+function pageBackground(project: { backgroundPack: { assets: Array<{ id: string; role: string }> } | null }, role: string) {
+  const asset = project.backgroundPack?.assets.find((item) => item.role === role) ?? project.backgroundPack?.assets.find((item) => item.role === "SIMPLE");
+  return asset ? `/api/assets/background/${asset.id}` : `/handout-backgrounds/${role === "READING" ? "mint-school.png" : role === "CONVERSATION" || role === "LITTLE_TEACHER" ? "blush-school.png" : "butter-school.png"}`;
+}
+
 export default async function FlipbookPreviewPage({
   params,
 }: {
@@ -42,9 +47,9 @@ export default async function FlipbookPreviewPage({
         title: `第${savedLesson.lessonNumber}讲 ${lesson.title}`,
         subtitle: lesson.subtitle ?? "",
         body: lesson.learningGoals,
-        technique: lesson.technique, richHtml: richPage(project.layoutConfig, savedLesson.lessonNumber, 0),
+        technique: lesson.technique, richHtml: richPage(project.layoutConfig, savedLesson.lessonNumber, 0), backgroundSrc: pageBackground(project, "LESSON_HOME"),
       },
-      { collection: "student", kind: "conversation", title: "课后交流话题", topics: lesson.conversationTopics, richHtml: richPage(project.layoutConfig, savedLesson.lessonNumber, 1) },
+      { collection: "student", kind: "conversation", title: "课后交流话题", topics: lesson.conversationTopics, richHtml: richPage(project.layoutConfig, savedLesson.lessonNumber, 1), backgroundSrc: pageBackground(project, "CONVERSATION") },
       {
         collection: "student", kind: "reading",
         title: "阅读文段",
@@ -53,31 +58,31 @@ export default async function FlipbookPreviewPage({
           const saved = savedLesson.pinyinReview as Array<{ char: string; pinyin: string }> | null;
           try { return saved ? validatePinyinReview(lesson.readingExcerpt.text, saved) : createPinyinReview(lesson.readingExcerpt.text); } catch { return createPinyinReview(lesson.readingExcerpt.text); }
         })() : undefined,
-        practice: lesson.closeReadingQuestions, richHtml: richPage(project.layoutConfig, savedLesson.lessonNumber, 2),
+        practice: lesson.closeReadingQuestions, richHtml: richPage(project.layoutConfig, savedLesson.lessonNumber, 2), backgroundSrc: pageBackground(project, "READING"),
       },
       {
         collection: "student", kind: "practice",
         title: "课堂方法与真题带练",
         method: lesson.methodSummary,
-        practice: previewPractice(lesson.practice), richHtml: richPage(project.layoutConfig, savedLesson.lessonNumber, 3),
+        practice: previewPractice(lesson.practice), richHtml: richPage(project.layoutConfig, savedLesson.lessonNumber, 3), backgroundSrc: pageBackground(project, "PRACTICE"),
       },
       {
         collection: "student", kind: "teacher",
         title: "我是小老师",
         steps: lesson.littleTeacherSteps,
-        framework: lesson.oralFramework, richHtml: richPage(project.layoutConfig, savedLesson.lessonNumber, 4),
+        framework: lesson.oralFramework, richHtml: richPage(project.layoutConfig, savedLesson.lessonNumber, 4), backgroundSrc: pageBackground(project, "LITTLE_TEACHER"),
       },
     ];
   });
   const parentPages = [
-    { collection: "parent", kind: "parent", title: "家长使用手册", subtitle: "—— 真读书 · 有深度 · 用得上 ——", body: ["双师陪伴：主讲老师负责课程讲解、阅读方法和表达写作训练；班主任老师负责直播跟课、答疑、反馈和学习规划。", "五讲合起来，孩子练习的是：读懂故事 → 找到证据 → 学会方法 → 说清楚 → 写完整。"] },
-    { collection: "parent", kind: "parent", title: "五讲学习安排", body: project.lessons.map((savedLesson) => { const lesson = lessonContentSchema.parse(savedLesson.structuredContent); return `第${savedLesson.lessonNumber}讲《${lesson.title}》：${lesson.subtitle ?? lesson.technique}`; }) }
+    { collection: "parent", kind: "parent", title: "家长使用手册", subtitle: "—— 真读书 · 有深度 · 用得上 ——", backgroundSrc: pageBackground(project, "PARENT_MANUAL"), body: ["双师陪伴：主讲老师负责课程讲解、阅读方法和表达写作训练；班主任老师负责直播跟课、答疑、反馈和学习规划。", "五讲合起来，孩子练习的是：读懂故事 → 找到证据 → 学会方法 → 说清楚 → 写完整。"] },
+    { collection: "parent", kind: "parent", title: "五讲学习安排", backgroundSrc: pageBackground(project, "PARENT_MANUAL"), body: project.lessons.map((savedLesson) => { const lesson = lessonContentSchema.parse(savedLesson.structuredContent); return `第${savedLesson.lessonNumber}讲《${lesson.title}》：${lesson.subtitle ?? lesson.technique}`; }) }
   ];
   const answerPages = project.lessons.flatMap((savedLesson) => {
     const lesson = lessonContentSchema.parse(savedLesson.structuredContent);
     return [
-      { collection: "answers", kind: "answer", title: `第${savedLesson.lessonNumber}讲参考答案`, topics: lesson.conversationTopics },
-      { collection: "answers", kind: "answer", title: "真题带练参考", practice: previewPractice(lesson.practice) }
+      { collection: "answers", kind: "answer", title: `第${savedLesson.lessonNumber}讲参考答案`, topics: lesson.conversationTopics, backgroundSrc: pageBackground(project, "SIMPLE") },
+      { collection: "answers", kind: "answer", title: "真题带练参考", practice: previewPractice(lesson.practice), backgroundSrc: pageBackground(project, "SIMPLE") }
     ];
   });
   const pages = [...parentPages, ...studentPages, ...answerPages];
