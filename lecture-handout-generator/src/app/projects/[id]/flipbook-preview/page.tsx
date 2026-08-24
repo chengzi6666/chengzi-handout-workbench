@@ -13,6 +13,11 @@ function richPage(layoutConfig: unknown, lessonNumber: number, pageIndex: number
   return config?.richPreviewHtml?.[`student-${lessonNumber}-${pageIndex}`];
 }
 
+function pageChrome(layoutConfig: unknown) {
+  const config = layoutConfig as { headerText?: string; footerText?: string } | null;
+  return { headerText: config?.headerText ?? "", footerText: config?.footerText ?? "" };
+}
+
 function previewPractice<T extends { imageSourceFileId?: string }>(items: T[]) {
   return items.map((item) => ({
     ...item,
@@ -88,7 +93,8 @@ export default async function FlipbookPreviewPage({
       { collection: "answers", kind: "answer", title: "真题带练参考", practice: previewPractice(lesson.practice), backgroundSrc: pageBackground(project, "SIMPLE") }
     ];
   });
-  const pages = [...parentPages, ...studentPages, ...answerPages];
+  const chrome = pageChrome(project.layoutConfig);
+  const pages = [...parentPages, ...studentPages, ...answerPages].map((page) => ({ ...page, ...chrome }));
 
   return (
     <>
@@ -103,6 +109,8 @@ export default async function FlipbookPreviewPage({
         projectId={project.id}
         coverSrc={project.backgroundPack?.assets.find((asset) => asset.role === "COVER") ? `/api/assets/background/${project.backgroundPack?.assets.find((asset) => asset.role === "COVER")?.id}` : undefined}
         shareCoverSrc={project.backgroundPack?.assets.find((asset) => asset.role === "WECHAT_SHARE") ? `/api/assets/background/${project.backgroundPack?.assets.find((asset) => asset.role === "WECHAT_SHARE")?.id}` : undefined}
+        headerText={chrome.headerText}
+        footerText={chrome.footerText}
       />
     </>
   );

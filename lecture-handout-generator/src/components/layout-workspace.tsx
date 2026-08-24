@@ -589,7 +589,6 @@ export function LayoutWorkspace({
                         </b>
                       </p>
                       {item.imageSourceFileId ? <img className="practice-question-image" src={`/api/assets/source-file/${item.imageSourceFileId}`} alt={`真题带练第${index + 1}题题图`} /> : null}
-                      <p>我的作答：＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿</p>
                     </section>
                   ))}
                 </>

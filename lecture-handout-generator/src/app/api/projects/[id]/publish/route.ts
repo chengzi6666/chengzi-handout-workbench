@@ -20,6 +20,11 @@ function richPage(layoutConfig: unknown, lessonNumber: number, pageIndex: number
   return config?.richPreviewHtml?.[`student-${lessonNumber}-${pageIndex}`];
 }
 
+function pageChrome(layoutConfig: unknown) {
+  const config = layoutConfig as { headerText?: string; footerText?: string } | null;
+  return { headerText: config?.headerText ?? "", footerText: config?.footerText ?? "" };
+}
+
 export async function POST(_request: Request, context: { params: Promise<{ id: string }> }) {
   const session = await readSession(); if (!session) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const parsed = publishSchema.safeParse(await _request.json().catch(() => null));
@@ -46,7 +51,8 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
     { collection: "answers", kind: "answer", title: `第${lesson.lessonNumber}讲参考答案`, topics: lesson.conversationTopics, backgroundSrc: background("SIMPLE") },
     { collection: "answers", kind: "answer", title: "真题带练参考", practice: publicPractice(lesson.practice, slug), backgroundSrc: background("SIMPLE") }
   ]);
-  const content = [...(parsed.data.includes.includes("parent") ? parent : []), ...(parsed.data.includes.includes("student") ? student : []), ...(parsed.data.includes.includes("answers") ? answers : [])];
+  const chrome = pageChrome(project.layoutConfig);
+  const content = [...(parsed.data.includes.includes("parent") ? parent : []), ...(parsed.data.includes.includes("student") ? student : []), ...(parsed.data.includes.includes("answers") ? answers : [])].map((page) => ({ ...page, ...chrome }));
   const flipbook = latest ? await db.publishedFlipbook.update({ where: { id: latest.id }, data: { title: project.name, description: `${project.grade}五讲读写课程电子讲义`, content } }) : await db.publishedFlipbook.create({ data: { projectId: project.id, slug, title: project.name, description: `${project.grade}五讲读写课程电子讲义`, content } });
   const origin = process.env.PUBLIC_APP_URL?.replace(/\/$/, "") ?? new URL(_request.url).origin;
   return NextResponse.json({ url: `${origin}/book/${flipbook.slug}` });

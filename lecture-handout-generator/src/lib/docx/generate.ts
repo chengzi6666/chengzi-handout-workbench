@@ -216,7 +216,7 @@ function lessonSections(lesson: LessonContent, input: HandoutDocumentInput) {
   ], pickBackground(input, "READING"), input) : null;
   const p4 = section([
     ...title(`🌟 四、${input.teacherNickname ?? "主讲"}老师课堂 · 真题带练`), heading("本讲方法"), body(lesson.methodSummary), heading("练一练"),
-    ...lesson.practice.flatMap((item, index) => [body(`${index + 1}. ${item.prompt}`, true), ...practiceImage(input, item.imageSourcePageId, item.imageSourceFileId), body("我的作答：＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿")]), ...teacherParagraph(input)
+    ...lesson.practice.flatMap((item, index) => [body(`${index + 1}. ${item.prompt}`, true), ...practiceImage(input, item.imageSourcePageId, item.imageSourceFileId)]), ...teacherParagraph(input)
   ], pickBackground(input, "PRACTICE"), input);
   const p5 = section([
     ...title("🎤 五、我是小老师"), heading("🎯 作答步骤"), ...numbered(lesson.littleTeacherSteps), heading("🎤 口头表达示范框架"), body(studentOralFramework(lesson))
