@@ -56,22 +56,33 @@ export class OpenAiCompatibleProvider implements AiProvider {
 
   private async request(input: GenerateTextInput, userMessage: unknown): Promise<GenerateTextResult> {
     const endpoint = `${this.options.baseUrl.replace(/\/$/, "")}/chat/completions`;
-    const response = await fetch(endpoint, {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        ...(this.options.useTokenHeader ? { token: this.options.apiKey } : { authorization: `Bearer ${this.options.apiKey}` }),
-        ...this.options.extraHeaders
-      },
-      body: JSON.stringify({
-        model: this.options.model,
-        temperature: input.temperature ?? 0.2,
-        messages: [
-          { role: "system", content: input.systemPrompt },
-          userMessage
-        ]
-      })
-    });
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 90_000);
+    let response: Response;
+    try {
+      response = await fetch(endpoint, {
+        method: "POST",
+        signal: controller.signal,
+        headers: {
+          "content-type": "application/json",
+          ...(this.options.useTokenHeader ? { token: this.options.apiKey } : { authorization: `Bearer ${this.options.apiKey}` }),
+          ...this.options.extraHeaders
+        },
+        body: JSON.stringify({
+          model: this.options.model,
+          temperature: input.temperature ?? 0.2,
+          messages: [
+            { role: "system", content: input.systemPrompt },
+            userMessage
+          ]
+        })
+      });
+    } catch (error) {
+      if (controller.signal.aborted) throw new Error(`AI provider ${this.displayName} 请求超时（90秒），请重试或更换模型`);
+      throw error;
+    } finally {
+      clearTimeout(timeout);
+    }
 
     if (!response.ok) {
       throw new Error(`AI provider ${this.displayName} returned ${response.status}`);
