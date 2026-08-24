@@ -69,6 +69,12 @@ function bookTitle(value: string) {
   return value.match(/《[^》]+》/u)?.[0] ?? value.replace(/^第\s*\d+\s*讲[：:、\s]*/u, "").trim();
 }
 
+function visibleCourseAlignment(value?: string) {
+  return value && /(?:[一二三四五六]|[1-6])年级.{0,10}(?:上册|下册)/u.test(value) && /(?:第.{1,4}单元|第.{1,4}课|快乐读书吧)/u.test(value)
+    ? value
+    : "本讲对标待模型联网核对：重新生成文字初稿后，系统会给出本年级教材册别、具体单元与课文/书目。";
+}
+
 function defaultBodySize(pageIndex: number, lesson?: LessonPreview) {
   if (!lesson) return 11;
   const length = pageIndex === 0
@@ -466,7 +472,7 @@ export function LayoutWorkspace({
                   <p className="lesson-technique">— “{currentLesson.technique.replace(/[—“”]/g, "").trim()}” —</p>
                   <p className="lesson-subtitle">{currentLesson.subtitle}</p>
                   <h3>🎯 一、本讲要学什么</h3>
-                  <section className="lesson-callout"><b>本讲对标</b><p>{currentLesson.courseAlignment ?? "请在文字审核中补充本讲教材对标。"}</p><b>学习目标：</b>{currentLesson.learningGoals.map((goal, index) => <p key={index}>{index + 1}. {goal}</p>)}</section>
+                  <section className="lesson-callout"><b>本讲对标</b><p>{visibleCourseAlignment(currentLesson.courseAlignment)}</p><b>学习目标：</b>{currentLesson.learningGoals.map((goal, index) => <p key={index}>{index + 1}. {goal}</p>)}</section>
                 </>
               ) : pageIndex === 1 ? (
                 <>

@@ -52,6 +52,12 @@ function lessonBookTitle(value: string) {
   return match?.[0] ?? value.replace(/^第\s*\d+\s*讲[：:、\s]*/u, "").trim();
 }
 
+function printableCourseAlignment(value?: string) {
+  return value && /(?:[一二三四五六]|[1-6])年级.{0,10}(?:上册|下册)/u.test(value) && /(?:第.{1,4}单元|第.{1,4}课|快乐读书吧)/u.test(value)
+    ? value
+    : "本讲对标待模型联网核对：请重新生成文字初稿后再导出。";
+}
+
 function lessonTitleBlock(lesson: LessonContent) {
   return [
     new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 80, after: 70 }, children: [run(lessonBookTitle(lesson.title), { bold: true, size: 36, color: orange })] }),
@@ -180,7 +186,7 @@ function lessonSections(lesson: LessonContent, input: HandoutDocumentInput) {
   const p1 = section([
     ...lessonTitleBlock(lesson),
     heading("🎯 一、本讲要学什么"),
-    calloutTable(["本讲对标", lesson.courseAlignment ?? "本讲教材对标待生成，请重新生成文字初稿后核对。", "学习目标", ...lesson.learningGoals.map((goal, index) => `${index + 1}. ${goal}`)])
+    calloutTable(["本讲对标", printableCourseAlignment(lesson.courseAlignment), "学习目标", ...lesson.learningGoals.map((goal, index) => `${index + 1}. ${goal}`)])
   ], pickBackground(input, "LESSON_HOME"), input);
   const p2 = section([
     ...title("💡 二、家长使用提示", "【二选一】"), studentParentChoiceTable(),
