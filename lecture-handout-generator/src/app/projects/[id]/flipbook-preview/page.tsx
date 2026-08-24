@@ -8,6 +8,11 @@ import { createPinyinReview, validatePinyinReview } from "@/lib/handout/pinyin";
 
 export const dynamic = "force-dynamic";
 
+function richPage(layoutConfig: unknown, lessonNumber: number, pageIndex: number) {
+  const config = layoutConfig as { richPreviewHtml?: Record<string, string> } | null;
+  return config?.richPreviewHtml?.[`student-${lessonNumber}-${pageIndex}`];
+}
+
 function previewPractice<T extends { imageSourceFileId?: string }>(items: T[]) {
   return items.map((item) => ({
     ...item,
@@ -37,9 +42,9 @@ export default async function FlipbookPreviewPage({
         title: `第${savedLesson.lessonNumber}讲 ${lesson.title}`,
         subtitle: lesson.subtitle ?? "",
         body: lesson.learningGoals,
-        technique: lesson.technique,
+        technique: lesson.technique, richHtml: richPage(project.layoutConfig, savedLesson.lessonNumber, 0),
       },
-      { collection: "student", kind: "conversation", title: "课后交流话题", topics: lesson.conversationTopics },
+      { collection: "student", kind: "conversation", title: "课后交流话题", topics: lesson.conversationTopics, richHtml: richPage(project.layoutConfig, savedLesson.lessonNumber, 1) },
       {
         collection: "student", kind: "reading",
         title: "阅读文段",
@@ -48,19 +53,19 @@ export default async function FlipbookPreviewPage({
           const saved = savedLesson.pinyinReview as Array<{ char: string; pinyin: string }> | null;
           try { return saved ? validatePinyinReview(lesson.readingExcerpt.text, saved) : createPinyinReview(lesson.readingExcerpt.text); } catch { return createPinyinReview(lesson.readingExcerpt.text); }
         })() : undefined,
-        practice: lesson.closeReadingQuestions,
+        practice: lesson.closeReadingQuestions, richHtml: richPage(project.layoutConfig, savedLesson.lessonNumber, 2),
       },
       {
         collection: "student", kind: "practice",
         title: "课堂方法与真题带练",
         method: lesson.methodSummary,
-        practice: previewPractice(lesson.practice),
+        practice: previewPractice(lesson.practice), richHtml: richPage(project.layoutConfig, savedLesson.lessonNumber, 3),
       },
       {
         collection: "student", kind: "teacher",
         title: "我是小老师",
         steps: lesson.littleTeacherSteps,
-        framework: lesson.oralFramework,
+        framework: lesson.oralFramework, richHtml: richPage(project.layoutConfig, savedLesson.lessonNumber, 4),
       },
     ];
   });

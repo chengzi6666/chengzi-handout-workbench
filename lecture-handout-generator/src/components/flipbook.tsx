@@ -8,6 +8,9 @@ function PinyinText({ units }: { units: Array<{ char: string; pinyin: string }> 
 }
 function PageContent({ page, pageNumber }: { page?: Record<string, unknown>; pageNumber?: string }) {
   if (!page) return <div className="book-empty" />;
+  // 版式审核保存的逐页富文本（高光、加粗、斜体、下划线）优先展示；
+  // 它来自本项目的编辑器，不接收外部 HTML。
+  if (typeof page.richHtml === "string" && page.richHtml) return <><div className="book-rich-content" dangerouslySetInnerHTML={{ __html: page.richHtml }} /><footer>{pageNumber}</footer></>;
   return <>
     <span className="book-kicker">橙子讲义工坊</span><h2>{String(page.title ?? "")}</h2>
     {page.subtitle ? <h3>{String(page.subtitle)}</h3> : null}

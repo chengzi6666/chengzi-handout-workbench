@@ -14,6 +14,11 @@ function publicPractice<T extends { imageSourceFileId?: string }>(items: T[], sl
   }));
 }
 
+function richPage(layoutConfig: unknown, lessonNumber: number, pageIndex: number) {
+  const config = layoutConfig as { richPreviewHtml?: Record<string, string> } | null;
+  return config?.richPreviewHtml?.[`student-${lessonNumber}-${pageIndex}`];
+}
+
 export async function POST(_request: Request, context: { params: Promise<{ id: string }> }) {
   const session = await readSession(); if (!session) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   const parsed = publishSchema.safeParse(await _request.json().catch(() => null));
@@ -26,11 +31,11 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
   const latest = project.flipbooks[0]; const slug = latest?.slug ?? randomBytes(6).toString("base64url");
   const parent = [{ collection: "parent", kind: "parent", title: "家长使用手册", subtitle: "—— 真读书 · 有深度 · 用得上 ——", body: ["双师陪伴：主讲老师负责课程讲解、阅读方法和表达写作训练；班主任老师负责直播跟课、答疑、反馈和学习规划。", "五讲合起来，孩子练习的是：读懂故事 → 找到证据 → 学会方法 → 说清楚 → 写完整。"] }];
   const student = lessons.flatMap((lesson) => [
-    { collection: "student", kind: "home", title: `第${lesson.lessonNumber}讲 ${lesson.title}`, subtitle: lesson.subtitle, body: lesson.learningGoals, technique: lesson.technique },
-    { collection: "student", kind: "conversation", title: "课后交流话题", topics: lesson.conversationTopics },
-    { collection: "student", kind: "reading", title: "阅读文段", text: lesson.readingExcerpt.text, questions: lesson.closeReadingQuestions },
-    { collection: "student", kind: "practice", title: "课堂方法与真题带练", method: lesson.methodSummary, practice: publicPractice(lesson.practice, slug) },
-    { collection: "student", kind: "teacher", title: "我是小老师", steps: lesson.littleTeacherSteps, framework: lesson.oralFramework }
+    { collection: "student", kind: "home", title: `第${lesson.lessonNumber}讲 ${lesson.title}`, subtitle: lesson.subtitle, body: lesson.learningGoals, technique: lesson.technique, richHtml: richPage(project.layoutConfig, lesson.lessonNumber, 0) },
+    { collection: "student", kind: "conversation", title: "课后交流话题", topics: lesson.conversationTopics, richHtml: richPage(project.layoutConfig, lesson.lessonNumber, 1) },
+    { collection: "student", kind: "reading", title: "阅读文段", text: lesson.readingExcerpt.text, questions: lesson.closeReadingQuestions, richHtml: richPage(project.layoutConfig, lesson.lessonNumber, 2) },
+    { collection: "student", kind: "practice", title: "课堂方法与真题带练", method: lesson.methodSummary, practice: publicPractice(lesson.practice, slug), richHtml: richPage(project.layoutConfig, lesson.lessonNumber, 3) },
+    { collection: "student", kind: "teacher", title: "我是小老师", steps: lesson.littleTeacherSteps, framework: lesson.oralFramework, richHtml: richPage(project.layoutConfig, lesson.lessonNumber, 4) }
   ]);
   const answers = lessons.flatMap((lesson) => [
     { collection: "answers", kind: "answer", title: `第${lesson.lessonNumber}讲参考答案`, topics: lesson.conversationTopics },
