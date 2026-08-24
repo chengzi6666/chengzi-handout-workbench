@@ -14,6 +14,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { ProjectSidebar } from "./project-sidebar";
+import { LiveAnnotation } from "./live-annotation";
 import {
   OUTPUT_OPTIONS,
   type HandoutProject,
@@ -648,6 +649,7 @@ export function WorkspaceShell({ initialProjects, user }: WorkspaceShellProps) {
             <h1>{selected?.name ?? "新建讲义项目"}</h1>
           </div>
           <div className="topbar-actions">
+            <LiveAnnotation projectId={selected?.id} />
             <div
               className="model-status"
               title="在左侧底部的“模型与接口”中管理 Key"
