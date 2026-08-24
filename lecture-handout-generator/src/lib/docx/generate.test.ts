@@ -3,6 +3,7 @@ import test from "node:test";
 import JSZip from "jszip";
 import { expandAnswerSpace, generateHandoutDocx } from "./generate";
 import type { LessonContent } from "@/lib/handout/content-schema";
+import { formatStudentBlank, normalizeStudentFacingContent } from "@/lib/handout/student-format";
 
 const lesson: LessonContent = {
   lessonNumber: 1, title: "测试课程", subtitle: "副标题", technique: "观察法", learningGoals: ["目标一", "目标二", "目标三"],
@@ -38,6 +39,10 @@ test("grade two reviewed pinyin is emitted as native Word ruby", async () => {
 test("practice blanks reserve student writing space", () => {
   assert.equal(expandAnswerSpace("（ ）"), `（${"　".repeat(40)}）`);
   assert.equal(expandAnswerSpace("答案：*"), "答案：____________________");
+  assert.equal(formatStudentBlank("（ ）").length, 42);
+  const student = normalizeStudentFacingContent(lesson);
+  assert.match(student.oralFramework, /________/);
+  assert.equal(student.oralReferenceAnswer, lesson.oralFramework);
 });
 
 test("parent manual follows the family guidance structure", async () => {

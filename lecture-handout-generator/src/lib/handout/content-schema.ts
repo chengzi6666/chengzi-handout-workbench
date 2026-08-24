@@ -34,7 +34,8 @@ export const lessonContentSchema = z.object({
   methodSummary: z.string().trim().min(1),
   practice: z.array(z.object({ prompt: z.string().trim().min(1), answer: z.string().trim().min(1), imageSourceFileId: z.string().optional(), imageSourcePageId: z.string().optional() })).min(1),
   littleTeacherSteps: z.array(z.string().trim().min(1)).min(1),
-  oralFramework: z.string().trim().min(1)
+  oralFramework: z.string().trim().min(1),
+  oralReferenceAnswer: z.string().trim().min(1).optional()
 });
 
 export type LessonContent = z.infer<typeof lessonContentSchema>;

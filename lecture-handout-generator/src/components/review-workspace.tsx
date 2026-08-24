@@ -5,6 +5,7 @@ import { useMemo, useRef, useState } from "react";
 import { ArrowLeft, CheckCircle2, RefreshCw, RotateCcw, Save } from "lucide-react";
 import type { LessonContent } from "@/lib/handout/content-schema";
 import { normalizeLessonSubtitle } from "@/lib/handout/subtitle";
+import { normalizeStudentFacingContent } from "@/lib/handout/student-format";
 
 type LessonRow = {
   id: string;
@@ -19,7 +20,7 @@ const copy = (value: unknown) =>
 const normalizedCopy = (value: unknown) => {
   const next = copy(value);
   next.subtitle = normalizeLessonSubtitle(next.subtitle, next.technique, next.learningGoals);
-  return next;
+  return normalizeStudentFacingContent(next);
 };
 const lines = (items: string[]) => items.join("\n");
 const parseLines = (value: string) =>
@@ -329,7 +330,7 @@ export function ReviewWorkspace({
                 />
               </label>
               <label>
-                表达小支架
+                学生版表达题干
                 <textarea
                   value={draft.oralFramework}
                   onChange={(e) =>

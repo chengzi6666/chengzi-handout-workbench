@@ -5,6 +5,7 @@ import {
 import JSZip from "jszip";
 import type { LessonContent } from "@/lib/handout/content-schema";
 import type { PinyinUnit } from "@/lib/handout/pinyin";
+import { formatStudentBlank, studentOralFramework } from "@/lib/handout/student-format";
 
 const FONT = "Microsoft YaHei";
 const orange = "F07A42";
@@ -51,10 +52,7 @@ function body(text: string, bold = false) {
 
 // 题目中的空括号和占位下划线必须给孩子留下可书写的空间，而不是只留两个字符。
 export function expandAnswerSpace(text: string) {
-  return text
-    .replace(/_{1,19}/g, "____________________")
-    .replace(/[（(]\s*[）)]/g, `（${"　".repeat(40)}）`)
-    .replace(/(^|[：:\s])\*(?=$|[\s，。；])/g, "$1____________________");
+  return formatStudentBlank(text);
 }
 
 function numbered(items: string[]) {
@@ -134,7 +132,7 @@ function lessonSections(lesson: LessonContent, input: HandoutDocumentInput) {
     ...lesson.practice.flatMap((item, index) => [body(`${index + 1}. ${item.prompt}`, true), ...practiceImage(input, item.imageSourcePageId, item.imageSourceFileId), body("我的作答：________________________________________________________________")]), ...teacherParagraph(input)
   ], pickBackground(input, "PRACTICE"));
   const p5 = section([
-    ...title("🎤 五、我是今天的小老师"), heading("作答步骤"), ...numbered(lesson.littleTeacherSteps), heading("口头表达示范框架"), body(lesson.oralFramework)
+    ...title("🎤 五、我是今天的小老师"), heading("作答步骤"), ...numbered(lesson.littleTeacherSteps), heading("口头表达题干"), body(studentOralFramework(lesson))
   ], pickBackground(input, "LITTLE_TEACHER"));
   return [p1, p2, p3, p4, p5];
 }
@@ -182,7 +180,7 @@ function answerSections(input: HandoutDocumentInput) {
     body("使用说明：客观题给出明确答案；开放题提供一种完整示例，合理、有依据、表达通顺即可，不要求与示例完全一致。"),
     heading("一、阅读与方法题"), ...lesson.closeReadingQuestions.flatMap((question, index) => [body(question, true), body(lesson.closeReadingAnswers[index] ?? "参考：请结合原文中的词句或具体情节作答。")]),
     heading("二、真题带练／书面练习"), ...lesson.practice.flatMap((item, index) => [body(`${index + 1}. ${item.prompt}`, true), body(`示例：${item.answer}`)]),
-    heading("三、“我是小老师”口头表达示例"), body(lesson.oralFramework), body("★ 开放题答案不唯一，重点看是否使用本讲方法。")
+    heading("三、“我是小老师”口头表达示例"), body((lesson as LessonContent & { oralReferenceAnswer?: string }).oralReferenceAnswer ?? lesson.oralFramework), body("★ 开放题答案不唯一，重点看是否使用本讲方法。")
   ], pickBackground(input, "SIMPLE")));
 }
 
