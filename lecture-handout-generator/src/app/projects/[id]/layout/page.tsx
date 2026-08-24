@@ -13,7 +13,7 @@ export default async function LayoutPage({ params }: { params: Promise<{ id: str
     db.teacher.findMany({ where: { enabled: true }, include: { assets: { orderBy: { sortOrder: "asc" } } }, orderBy: { formalName: "asc" } })
   ]);
   if (!project) redirect("/");
-  return <LayoutWorkspace project={{ id: project.id, name: project.name, grade: project.grade, teacherId: project.teacherId, layoutConfig: project.layoutConfig }} backgrounds={project.backgroundPack?.assets ?? []} teachers={teachers.map((teacher) => ({ id: teacher.id, formalName: teacher.formalName, nickname: teacher.nickname, grade: teacher.grade, assets: teacher.assets.map((asset) => ({ id: asset.id, label: asset.label, kind: asset.kind })) }))} lessons={project.lessons.map((lesson) => {
+  return <LayoutWorkspace project={{ id: project.id, name: project.name, grade: project.grade, teacherId: project.teacherId, layoutConfig: project.layoutConfig }} backgrounds={project.backgroundPack?.assets ?? []} teachers={teachers.map((teacher) => ({ id: teacher.id, formalName: teacher.formalName, nickname: teacher.nickname, grade: teacher.grade, introduction: teacher.introduction, assets: teacher.assets.map((asset) => ({ id: asset.id, label: asset.label, kind: asset.kind })) }))} lessons={project.lessons.map((lesson) => {
     const content = lessonContentSchema.parse(lesson.structuredContent);
     const saved = lesson.pinyinReview as Array<{ char: string; pinyin: string }> | null;
     return { ...content, pinyinUnits: project.grade === "1升2" ? (() => { try { return saved ? validatePinyinReview(content.readingExcerpt.text, saved) : createPinyinReview(content.readingExcerpt.text); } catch { return createPinyinReview(content.readingExcerpt.text); } })() : undefined };

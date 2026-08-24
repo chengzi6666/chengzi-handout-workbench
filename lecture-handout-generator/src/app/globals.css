@@ -329,11 +329,18 @@ button { cursor: pointer; }
 .lesson-subtitle { color: #6e655f; }
 .lesson-callout, .note-preview { padding: 14px 16px; border: 1px solid #ead8cc; border-radius: 10px; background: #fffaf5; }
 .lesson-callout p, .note-preview p { margin: 7px 0; }
-.note-preview { min-height: 190px; white-space: pre-wrap; overflow: hidden; }
+.note-preview { min-height: 190px; white-space: pre-wrap; overflow: auto; resize: vertical; }
 .note-editable { outline: 0; cursor: text; }
 .note-editable:focus { border-color: #f07a42; box-shadow: 0 0 0 3px #f07a4220; }
 .note-preview p { color: #b6aaa0; }
 .note-own-page { position: absolute; inset: 28% 10% auto; min-height: 34%; padding: 18px; border: 1px solid #ead8cc; border-radius: 10px; background: #fffaf5; }
+.parent-teacher-card { display: grid; grid-template-columns: 34% 1fr; gap: 12px; align-items: center; padding: 12px; border: 1px solid #efcdb8; border-radius: 9px; background: rgba(255,250,245,.9); }
+.parent-teacher-card img { width: 100%; max-height: 150px; object-fit: contain; }
+.parent-teacher-card h3 { margin: 0 0 8px; }
+.parent-teacher-card p { margin: 0; white-space: pre-wrap; }
+.parent-schedule { width: 100%; border-collapse: collapse; font-size: .83em; }
+.parent-schedule th, .parent-schedule td { padding: 6px; border: 1px solid #efcdb8; vertical-align: top; text-align: left; }
+.parent-schedule th { color: #fff; background: var(--orange); }
 .note-own-page-toggle { margin-top: 10px; display: inline-flex; align-items: center; gap: 7px; color: #75655b; font-size: 13px; }
 .inline-format-tools input[type="color"] { width: 29px; min-width: 29px; height: 29px; padding: 2px; border: 0; border-radius: 6px; cursor: pointer; }
 .floating-teacher, .teacher-placeholder { position: absolute; object-fit: contain; touch-action: none; cursor: move; user-select: none; }

@@ -54,9 +54,9 @@ function lessonBookTitle(value: string) {
 }
 
 function printableCourseAlignment(value?: string) {
-  return value && /(?:[一二三四五六]|[1-6])年级.{0,10}(?:上册|下册)/u.test(value) && /(?:第.{1,4}单元|第.{1,4}课|快乐读书吧)/u.test(value)
-    ? value
-    : "待教研核对教材对标。";
+  let text = value?.trim() || "对应本年级本册教材阅读表达要求。";
+  if (/二年级上册[“”"]?快乐读书吧/u.test(text) && !/第[一二三四五六七八九十\d]+单元/u.test(text)) text = text.replace(/二年级上册([“”"]?快乐读书吧)/u, "二年级上册第一单元$1");
+  return text.replace(/(快乐读书吧[”"]?)[：:，,]\s*/u, "$1\n");
 }
 
 function printableLearningGoal(goal: string) {
@@ -164,9 +164,9 @@ function calloutTable(lines: string[], fill = "FFF8F2") {
 function studentParentChoiceTable() {
   return calloutTable([
     "📱 忙碌时（5分钟搞定）",
-    "① 让孩子按第五部分【我是小老师】的口头框架讲一遍故事；② 录1分钟左右的小视频，发到班级群；③ 老师会1对1批改、点评。",
+    "① 让孩子按第五部分【我是小老师】的口头框架讲一遍故事；\n② 录1分钟左右的小视频，发到班级群；\n③ 老师会1对1批改、点评。",
     "📚 学有余力时（写一写）",
-    "① 让孩子完成第四部分【真题带练】的书面练习；② 拍照或文档发到班级群/私发给老师；③ 老师会1对1批改、点评。"
+    "① 让孩子完成第四部分【真题带练】的5行填空；\n② 拍照或文档发到班级群／私发给老师；\n③ 老师会1对1批改、点评。"
   ], "FFFDF8");
 }
 

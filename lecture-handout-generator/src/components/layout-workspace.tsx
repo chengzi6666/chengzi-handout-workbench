@@ -22,6 +22,7 @@ type Teacher = {
   formalName: string;
   nickname: string;
   grade: string | null;
+  introduction: string;
   assets: Array<{ id: string; label: string | null; kind: string }>;
 };
 type Position = {
@@ -61,22 +62,27 @@ const WPS_SIZES = [
   ["六号", 7.5], ["小六", 6.5], ["七号", 5.5], ["八号", 5],
 ] as const;
 type PageTypography = Record<string, { bodySize?: number; titleSize?: number }>;
-const defaultBackgrounds: Record<(typeof pageRoles)[number], string> = {
+const defaultBackgrounds: Record<(typeof pageRoles)[number] | "PARENT_MANUAL", string> = {
   LESSON_HOME: "/handout-backgrounds/butter-school.png",
   CONVERSATION: "/handout-backgrounds/blush-school.png",
   READING: "/handout-backgrounds/mint-school.png",
   PRACTICE: "/handout-backgrounds/butter-school.png",
   LITTLE_TEACHER: "/handout-backgrounds/blush-school.png",
+  PARENT_MANUAL: "/handout-backgrounds/blush-school.png",
 };
 
 function bookTitle(value: string) {
   return value.match(/《[^》]+》/u)?.[0] ?? value.replace(/^第\s*\d+\s*讲[：:、\s]*/u, "").trim();
 }
 
-function visibleCourseAlignment(value?: string) {
-  return value && /(?:[一二三四五六]|[1-6])年级.{0,10}(?:上册|下册)/u.test(value) && /(?:第.{1,4}单元|第.{1,4}课|快乐读书吧)/u.test(value)
-    ? value
-    : "待教研核对教材对标。";
+function formatCourseAlignment(value?: string) {
+  let text = value?.trim() || "对应本年级本册教材阅读表达要求。";
+  // 二上“快乐读书吧”属于第一单元；旧项目的模型初稿常漏掉这一层教材位置。
+  if (/二年级上册[“”"]?快乐读书吧/u.test(text) && !/第[一二三四五六七八九十\d]+单元/u.test(text)) {
+    text = text.replace(/二年级上册([“”"]?快乐读书吧)/u, "二年级上册第一单元$1");
+  }
+  const split = text.match(/^(.*?(?:第[一二三四五六七八九十\d]+单元[^：:。；]*|快乐读书吧[”"]?))(?:[：:，,]\s*)?(.*)$/u);
+  return split && split[2] ? [split[1].replace(/^对应/u, "对应"), split[2]] : text.split(/(?<=[。；])\s*/u).filter(Boolean);
 }
 
 function printableLearningGoal(value: string) {
@@ -128,6 +134,8 @@ export function LayoutWorkspace({
   const [fontSize, setFontSize] = useState((project.layoutConfig as { fontSize?: number } | null)?.fontSize ?? 11);
   const [pageTypography, setPageTypography] = useState((project.layoutConfig as { pageTypography?: PageTypography } | null)?.pageTypography ?? {});
   const [noteOwnPage, setNoteOwnPage] = useState((project.layoutConfig as { noteOwnPage?: boolean } | null)?.noteOwnPage ?? false);
+  const [noteHeight, setNoteHeight] = useState((project.layoutConfig as { noteHeight?: number } | null)?.noteHeight ?? 190);
+  const [parentPage, setParentPage] = useState(0);
   const [highlightColor, setHighlightColor] = useState("#FFE08A");
   const [fontFamily, setFontFamily] = useState((project.layoutConfig as { fontFamily?: string } | null)?.fontFamily ?? "Microsoft YaHei");
   const [headerText, setHeaderText] = useState((project.layoutConfig as { headerText?: string } | null)?.headerText ?? "");
@@ -160,7 +168,7 @@ export function LayoutWorkspace({
       expressions[0],
     [expressions, position.assetId],
   );
-  const currentRole = pageRoles[pageIndex];
+  const currentRole = previewKind === "parent" ? "PARENT_MANUAL" : pageRoles[pageIndex];
   // Older generated projects may still contain model-produced ----- blanks.
   // Normalize at display time too, so reopening an existing project never shows dashed writing lines.
   const currentLesson = useMemo(() => {
@@ -255,7 +263,7 @@ export function LayoutWorkspace({
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           teacherImage: { ...position, assetId: activeAsset?.id },
-          fontFamily, fontSize, pageTypography, noteOwnPage, headerText, footerText, headerSize, footerSize, richPreviewHtml: nextRichPreviewHtml,
+          fontFamily, fontSize, pageTypography, noteOwnPage, noteHeight, headerText, footerText, headerSize, footerSize, richPreviewHtml: nextRichPreviewHtml,
         }),
       }),
     ]);
@@ -368,6 +376,9 @@ export function LayoutWorkspace({
                   {index + 1}. {label}
                 </button>
               ))}
+            </div>}
+            {previewKind === "parent" && <div className="page-tabs" aria-label="家长手册预览页面">
+              {["老师介绍", "能力提升", "五讲安排", "阶段与配合"].map((label, index) => <button type="button" className={parentPage === index ? "active" : ""} onClick={() => setParentPage(index)} key={label}>{index + 1}. {label}</button>)}
             </div>}
             <label>
               正文字体
@@ -501,18 +512,14 @@ export function LayoutWorkspace({
                 </>
               ) : previewKind === "parent" ? (
                 <>
-                  <h2 style={{ fontSize: `${currentTitleSize}pt` }}>{project.grade}读写综合能力提升</h2>
-                  <p className="parent-slogan">—— 真读书 · 有深度 · 用得上 ——</p>
-                  <h3>🤝 双师陪伴｜主讲老师＋班主任老师</h3>
-                  <section className="lesson-callout"><p>{teacher?.formalName ?? "主讲"}老师负责课程讲解、阅读方法和表达写作训练；班主任老师负责直播跟课、日常答疑、阶段反馈、薄弱点跟踪和学习规划，两位老师共同陪伴一个孩子。</p></section>
-                  <h3>五讲课程带来的能力提升</h3>
-                  <p>五讲合起来，孩子练习的是：读懂故事 → 找到证据 → 学会方法 → 说清楚 → 写完整。</p>
-                  <h3>🎯 {project.grade}阶段，最需要关注什么？</h3>
-                  <p>基础：从“会认字”走向“会用字词”；阅读：从“听故事”走向“读懂故事”；表达：从“说一句话”走向“完整表达”。</p>
-                  <h3>五讲学习安排</h3>
-                  {lessons.map((lesson) => <section key={lesson.lessonNumber}><b>第{lesson.lessonNumber}讲 {lesson.title}</b><p>课堂方法：{lesson.technique}</p><p>课后交流：{lesson.conversationTopics[0]?.question ?? "请孩子复述今天学到的方法。"}</p></section>)}
-                  <h3>💡 家长怎么配合？</h3>
-                  <section className="lesson-callout"><p>正课时间：19:00-19:40。课前10分钟＋课后10分钟由班主任老师统一带领预习、复习，无需家长提前筹备。</p><p>课业紧张时，按第五部分口头框架录1分钟复习视频；学有余力时，完成第四部分书面练习并提交老师批改。</p></section>
+                  {parentPage === 0 && <>
+                    <h2 style={{ fontSize: `${currentTitleSize}pt` }}>家长使用手册</h2><p className="parent-slogan">—— 真读书 · 有深度 · 用得上 ——</p>
+                    <section className="parent-teacher-card">{teacher?.assets[0] ? <img src={`/api/assets/teacher/${teacher.assets[0].id}`} alt={`${teacher.formalName}老师`} /> : null}<div><h3>{teacher?.formalName ?? "主讲"}老师｜主讲老师</h3><p>{teacher?.introduction ?? "负责阅读方法、表达写作和课堂互动引导。"}</p></div></section>
+                    <h3>🤝 双师陪伴｜主讲老师＋班主任老师</h3><section className="lesson-callout"><p>{teacher?.formalName ?? "主讲"}老师负责课程讲解、阅读方法和表达写作训练；班主任老师负责直播跟课、日常答疑、阶段反馈、薄弱点跟踪和学习规划，两位老师共同陪伴一个孩子。</p></section>
+                  </>}
+                  {parentPage === 1 && <><h2 style={{ fontSize: `${currentTitleSize}pt` }}>五讲课程带来的能力提升</h2><p>五讲合起来，孩子练习的是：读懂故事 → 找到证据 → 学会方法 → 说清楚 → 写完整。</p><h3>五讲合起来，孩子练习的是：</h3><p>{lessons.map((lesson) => `第${lesson.lessonNumber}讲：${lesson.technique}`).join("；")}</p></>}
+                  {parentPage === 2 && <><h2 style={{ fontSize: `${currentTitleSize}pt` }}>五讲学习安排</h2><table className="parent-schedule"><thead><tr><th>讲次</th><th>讲次名称</th><th>讲次技法</th><th>具体学习内容</th></tr></thead><tbody>{lessons.map((lesson) => <tr key={lesson.lessonNumber}><td>第{lesson.lessonNumber}讲</td><td>{bookTitle(lesson.title)}</td><td>{lesson.technique}</td><td>{lesson.learningGoals.map((goal, index) => <div key={index}>{index + 1}. {printableLearningGoal(goal)}</div>)}</td></tr>)}</tbody></table></>}
+                  {parentPage === 3 && <><h2 style={{ fontSize: `${currentTitleSize}pt` }}>🎯 {project.grade}阶段，最需要关注什么？</h2><p>基础：从“会认字”走向“会用字词”；阅读：从“听故事”走向“读懂故事”；表达：从“说一句话”走向“完整表达”。</p><h3>💡 家长怎么配合？</h3><section className="lesson-callout"><p>正课时间：19:00-19:40。课前10分钟＋课后10分钟由班主任老师统一带领预习、复习，无需家长提前筹备。</p><p>课业紧张时，按第五部分口头框架录1分钟复习视频；学有余力时，完成第四部分书面练习并提交老师批改。</p></section></>}
                 </>
               ) : previewKind === "answers" ? (
                 <>
@@ -528,10 +535,11 @@ export function LayoutWorkspace({
                   <p className="lesson-technique">— “{currentLesson.technique.replace(/[—“”]/g, "").trim()}” —</p>
                   <p className="lesson-subtitle">{currentLesson.subtitle}</p>
                   <h3>🎯 一、本讲要学什么</h3>
-                  <section className="lesson-callout"><b>本讲对标</b><p>{visibleCourseAlignment(currentLesson.courseAlignment)}</p><b>学习目标：</b>{currentLesson.learningGoals.map((goal, index) => <p key={index}>{index + 1}. {printableLearningGoal(goal)}</p>)}</section>
+                  <section className="lesson-callout"><b>本讲对标</b>{formatCourseAlignment(currentLesson.courseAlignment).map((line, index) => <p key={index}>{line}</p>)}<b>学习目标：</b>{currentLesson.learningGoals.map((goal, index) => <p key={index}>{index + 1}. {printableLearningGoal(goal)}</p>)}</section>
                 </>
               ) : pageIndex === 1 ? (
                 <>
+                  <h3>💡 二、家长使用提示　【二选一】</h3><section className="lesson-callout"><b>📱 忙碌时（5分钟搞定）</b><p>① 让孩子按第五部分【我是小老师】的口头框架讲一遍故事；</p><p>② 录1分钟左右的小视频，发到班级群；</p><p>③ 老师会1对1批改、点评。</p><b>📚 学有余力时（写一写）</b><p>① 让孩子完成第四部分【真题带练】的5行填空；</p><p>② 拍照或文档发到班级群／私发给老师；</p><p>③ 老师会1对1批改、点评。</p></section>
                   <h2 style={{ fontSize: `${currentTitleSize}pt` }}>下课后，建议家长可以和孩子交流的话题</h2>
                   {currentLesson.conversationTopics.map((item, index) => (
                     <section key={item.question}>
@@ -555,7 +563,7 @@ export function LayoutWorkspace({
                       <li key={item}>{item}</li>
                     ))}
                   </ol>
-                  {!noteOwnPage && <section className="note-preview note-editable" contentEditable suppressContentEditableWarning onKeyDown={(event) => {
+                  {!noteOwnPage && <section className="note-preview note-editable" style={{ minHeight: `${noteHeight}px` }} contentEditable suppressContentEditableWarning onPointerUp={(event) => setNoteHeight(Math.round(event.currentTarget.getBoundingClientRect().height))} onKeyDown={(event) => {
                     if (event.key === "Enter") {
                       event.preventDefault();
                       document.execCommand("insertLineBreak");
@@ -595,7 +603,7 @@ export function LayoutWorkspace({
                 </>
               )}
             </div>
-            {previewKind === "student" && pageIndex === 2 && noteOwnPage ? <section className="note-own-page note-editable" contentEditable suppressContentEditableWarning onKeyDown={(event) => {
+            {previewKind === "student" && pageIndex === 2 && noteOwnPage ? <section className="note-own-page note-editable" style={{ minHeight: `${noteHeight}px`, resize: "vertical", overflow: "auto" }} contentEditable suppressContentEditableWarning onPointerUp={(event) => setNoteHeight(Math.round(event.currentTarget.getBoundingClientRect().height))} onKeyDown={(event) => {
               if (event.key === "Enter") { event.preventDefault(); document.execCommand("insertLineBreak"); event.currentTarget.style.minHeight = `${Math.min(620, event.currentTarget.offsetHeight + 28)}px`; }
             }}><b contentEditable={false}>📖 笔记</b><br /></section> : null}
             {footerText ? <div className="preview-running-footer" style={{ fontFamily, fontSize: `${footerSize}pt` }}>{footerText}　·　第{pageIndex + 1}页</div> : null}
