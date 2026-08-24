@@ -4,6 +4,7 @@ import { Flipbook } from "@/components/flipbook";
 import { requireUser } from "@/lib/auth/current-user";
 import { db } from "@/lib/db";
 import { lessonContentSchema } from "@/lib/handout/content-schema";
+import { createPinyinReview, validatePinyinReview } from "@/lib/handout/pinyin";
 
 export const dynamic = "force-dynamic";
 
@@ -35,6 +36,10 @@ export default async function FlipbookPreviewPage({
         kind: "reading",
         title: "阅读文段",
         text: lesson.readingExcerpt.text,
+        pinyinUnits: project.grade === "1升2" ? (() => {
+          const saved = savedLesson.pinyinReview as Array<{ char: string; pinyin: string }> | null;
+          try { return saved ? validatePinyinReview(lesson.readingExcerpt.text, saved) : createPinyinReview(lesson.readingExcerpt.text); } catch { return createPinyinReview(lesson.readingExcerpt.text); }
+        })() : undefined,
         practice: lesson.closeReadingQuestions,
       },
       {

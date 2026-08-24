@@ -68,6 +68,14 @@ function normalizeStringList(value: unknown): string[] {
   }).filter(Boolean);
 }
 
+function normalizeLearningGoals(value: unknown) {
+  return normalizeStringList(value)
+    .map((goal) => goal
+      .replace(/^\s*(?:我|我们)\s*(?:要|能|可以|学会)?\s*/u, "")
+      .replace(/^能/u, "能够"))
+    .filter(Boolean);
+}
+
 function textOf(value: unknown, fallback = "") {
   if (typeof value === "string" && value.trim()) return value.trim();
   if (value && typeof value === "object") return normalizeStringList([value])[0] ?? fallback;
@@ -103,9 +111,9 @@ function lessonTitleFromSource(source: string, lessonNumber: number) {
   return match?.[1]?.trim() || `第${lessonNumber}讲阅读课`;
 }
 
-function promptForLesson(input: { lessonNumber: number; grade: string; year: number; sourceId: string; sourceName: string; pages: Array<{ id: string; pageNumber: number; extractedText: string }> }) {
+function promptForLesson(input: { lessonNumber: number; grade: string; year: number; season: string; sourceId: string; sourceName: string; pages: Array<{ id: string; pageNumber: number; extractedText: string }> }) {
   const source = input.pages.map((page) => `【PDF第${page.pageNumber}页，页面ID=${page.id}】\n${page.extractedText}`).join("\n\n").slice(0, 180_000);
-  return `为${input.grade}、${input.year}年口径生成第${input.lessonNumber}讲讲义文字初稿。源文件ID=${input.sourceId}，文件名=${input.sourceName}。\n\n${patternPrompt(input.grade)}\n\n先从源文件识别本讲的故事、知识方法、课堂活动和题目证据；再以教研编辑身份补全完整讲义。不要把“没有写到某板块”当作空白理由：学习目标、方法小结、精读问题、精读参考答案、家长交流、练习答案、小老师表达和家长指导均应根据课堂证据新写，语言具体、可教、可练。只有readingExcerpt.text必须逐字取自源文件，可从没有“原文摘抄”标签的正文中定位，但绝不可以自行改写或拼接。closeReadingQuestions与closeReadingAnswers必须一一对应，答案要回扣原文证据。\n\n本讲对标必须写入courseAlignment：秋季对应本年级上册，冬季/春季对应本年级下册，暑期对应本年级下册加升年级上册；用“教材/必读书目＋本讲能力目标”的完整表述，禁止写空泛口号。subtitle必须是一句概括本讲能力重点的短语，例如“读懂人物 · 讲清事情 · 说出道理”；严禁写年级、季节、年份、教材口径、讲义文字初稿或项目名称。oralFramework是学生填写的题干，必须保留足够的填空线，不得把示范答案写进此字段；如需答案写入oralReferenceAnswer。\n\n输出字段必须是：lessonNumber,title,subtitle,technique,courseAlignment,learningGoals(至少3项),curriculumAlignment([{claim,sourceUrl,sourceTitle,confirmed:false}]),parentBusySteps,parentExtendedSteps,conversationTopics([{question,referenceAnswer}]至少4项),readingExcerpt({text,sourceFileId:"${input.sourceId}",sourcePages:[页码],sourceFingerprint:"temporary-fingerprint",corrections:[],approved:false}),closeReadingQuestions,closeReadingAnswers,methodSummary,practice([{prompt,answer,imageSourcePageId?}]),littleTeacherSteps,oralFramework,oralReferenceAnswer?。若练习依赖PDF中的题图，把对应页面ID写入imageSourcePageId；不得生成替代图片。\n\nPDF识别文本如下：\n${source}`;
+  return `为${input.grade}、${input.year}年${input.season}生成第${input.lessonNumber}讲讲义文字初稿。源文件ID=${input.sourceId}，文件名=${input.sourceName}。\n\n${patternPrompt(input.grade)}\n\n先从源文件识别本讲的故事、知识方法、课堂活动和题目证据；再以教研编辑身份补全完整讲义。不要把“没有写到某板块”当作空白理由：学习目标、方法小结、精读问题、精读参考答案、家长交流、练习答案、小老师表达和家长指导均应根据课堂证据新写，语言具体、可教、可练。只有readingExcerpt.text必须逐字取自源文件，可从没有“原文摘抄”标签的正文中定位，但绝不可以自行改写或拼接。closeReadingQuestions与closeReadingAnswers必须一一对应，答案要回扣原文证据。\n\n本讲对标必须先使用你的联网检索能力核对${input.year}年仍在使用的官方教材目录、单元与课文/快乐读书吧书目：${input.season}对应${input.grade}上册；冬季/春季对应${input.grade}下册；暑期对应本年级下册加升年级上册。courseAlignment只写一段不超过90字的事实性结论，必须明确“几年级、上/下册、第几单元、第几课或快乐读书吧书目”及本讲能力对应；绝对禁止出现“请联网”“模型”“提示词”“课程标准口径”“讲义文字初稿”“根据要求”等元指令。curriculumAlignment同时给出实际检索到的官方来源链接，confirmed:false。learningGoals至少3条，每条只写一个可观察能力，不用第一人称、不用“我/我们”，并且每项独立成行。subtitle必须是一句概括本讲能力重点的短语，例如“读懂人物 · 讲清事情 · 说出道理”；严禁写年级、季节、年份、教材口径、讲义文字初稿或项目名称。oralFramework是学生填写的题干，必须保留足够的填空线，不得把示范答案写进此字段；如需答案写入oralReferenceAnswer。\n\n输出字段必须是：lessonNumber,title,subtitle,technique,courseAlignment,learningGoals(至少3项),curriculumAlignment([{claim,sourceUrl,sourceTitle,confirmed:false}]),parentBusySteps,parentExtendedSteps,conversationTopics([{question,referenceAnswer}]至少4项),readingExcerpt({text,sourceFileId:"${input.sourceId}",sourcePages:[页码],sourceFingerprint:"temporary-fingerprint",corrections:[],approved:false}),closeReadingQuestions,closeReadingAnswers,methodSummary,practice([{prompt,answer,imageSourcePageId?}]),littleTeacherSteps,oralFramework,oralReferenceAnswer?。若练习依赖PDF中的题图，把对应页面ID写入imageSourcePageId；不得生成替代图片。\n\nPDF识别文本如下：\n${source}`;
 }
 
 export async function generateProjectContent(
@@ -130,7 +138,7 @@ export async function generateProjectContent(
   if (generationSources.length === 0) throw new Error("未识别到可生成讲义的主讲内容");
   for (const [index, source] of generationSources.entries()) {
     await reportProgress?.(index, generationSources.length);
-    const result = await provider.generateText({ systemPrompt, userPrompt: promptForLesson({ lessonNumber: index + 1, grade: project.grade, year: project.teachingYear, sourceId: source.id, sourceName: source.originalName, pages: source.pages }), temperature: 0.15 });
+    const result = await provider.generateText({ systemPrompt, userPrompt: promptForLesson({ lessonNumber: index + 1, grade: project.grade, year: project.teachingYear, season: project.season ?? "秋季", sourceId: source.id, sourceName: source.originalName, pages: source.pages }), temperature: 0.15 });
     const draft = parseJsonResponse(result.text) as Record<string, unknown>;
     const reading = draft.readingExcerpt as Record<string, unknown> | undefined;
     if (!reading || typeof reading.text !== "string") throw new Error(`第${index + 1}讲未生成阅读文段`);
@@ -151,7 +159,7 @@ export async function generateProjectContent(
     reading.corrections = Array.isArray(reading.corrections) ? reading.corrections : [];
     const alignment = draft.curriculumAlignment as Array<Record<string, unknown>> | undefined;
     alignment?.forEach((item) => { item.confirmed = false; });
-    const learningGoals = normalizeStringList(draft.learningGoals);
+    const learningGoals = normalizeLearningGoals(draft.learningGoals);
     const parentBusySteps = normalizeStringList(draft.parentBusySteps);
     const parentExtendedSteps = normalizeStringList(draft.parentExtendedSteps);
     const content = lessonContentSchema.parse({
@@ -159,7 +167,7 @@ export async function generateProjectContent(
       lessonNumber: index + 1,
       title: textOf(draft.title, lessonTitleFromSource(source.pages.map((page) => page.extractedText).join("\n"), index + 1)),
       technique: textOf(draft.technique, "阅读方法"),
-      courseAlignment: textOf(draft.courseAlignment, textOf((alignment?.[0] ?? {}).claim, "请人工核对本讲教材对标与学习目标。")),
+      courseAlignment: textOf(draft.courseAlignment, "本讲教材对标待生成，请重新生成文字初稿后核对。"),
       learningGoals: learningGoals.length >= 3 ? learningGoals : ["读懂本讲人物和事情。", "能用课堂方法梳理关键信息。", "能结合文本说出自己的理解。"],
       // A missing parent path must not abort all five lessons. The editor can refine these
       // two visible scaffolds during the first human review.

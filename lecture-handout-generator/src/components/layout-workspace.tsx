@@ -51,6 +51,12 @@ const pageRoles = [
   "LITTLE_TEACHER",
 ] as const;
 const pageLabels = ["课程首页", "交流话题", "精读阅读", "真题带练", "小老师"];
+const WPS_SIZES = [
+  ["初号", 42], ["小初", 36], ["一号", 26], ["小一", 24], ["二号", 22], ["小二", 18],
+  ["三号", 16], ["小三", 15], ["四号", 14], ["小四", 12], ["五号", 10.5], ["小五", 9],
+  ["六号", 7.5], ["小六", 6.5], ["七号", 5.5], ["八号", 5],
+] as const;
+type PageTypography = Record<string, { bodySize?: number; titleSize?: number }>;
 const defaultBackgrounds: Record<(typeof pageRoles)[number], string> = {
   LESSON_HOME: "/handout-backgrounds/butter-school.png",
   CONVERSATION: "/handout-backgrounds/blush-school.png",
@@ -84,6 +90,9 @@ export function LayoutWorkspace({
     ?.teacherImage ?? { x: 67, y: 57, width: 25, height: 30 };
   const [position, setPosition] = useState<Position>(initial);
   const [fontSize, setFontSize] = useState((project.layoutConfig as { fontSize?: number } | null)?.fontSize ?? 11);
+  const [pageTypography, setPageTypography] = useState((project.layoutConfig as { pageTypography?: PageTypography } | null)?.pageTypography ?? {});
+  const [noteOwnPage, setNoteOwnPage] = useState((project.layoutConfig as { noteOwnPage?: boolean } | null)?.noteOwnPage ?? false);
+  const [highlightColor, setHighlightColor] = useState("#FFE08A");
   const [fontFamily, setFontFamily] = useState((project.layoutConfig as { fontFamily?: string } | null)?.fontFamily ?? "Microsoft YaHei");
   const [headerText, setHeaderText] = useState((project.layoutConfig as { headerText?: string } | null)?.headerText ?? "");
   const [footerText, setFooterText] = useState((project.layoutConfig as { footerText?: string } | null)?.footerText ?? "真读书 · 有深度 · 用得上");
@@ -114,6 +123,9 @@ export function LayoutWorkspace({
   const currentRole = pageRoles[pageIndex];
   const currentLesson = lessons[lessonIndex];
   const previewKey = `${previewKind}-${currentLesson?.lessonNumber ?? 0}-${pageIndex}`;
+  const currentTypography = pageTypography[previewKey] ?? {};
+  const currentBodySize = currentTypography.bodySize ?? fontSize;
+  const currentTitleSize = currentTypography.titleSize ?? Math.max(currentBodySize + 8, 18);
   const defaultTeacherKey =
     (
       {
@@ -192,7 +204,7 @@ export function LayoutWorkspace({
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           teacherImage: { ...position, assetId: activeAsset?.id },
-          fontFamily, fontSize, headerText, footerText, richPreviewHtml: nextRichPreviewHtml,
+          fontFamily, fontSize, pageTypography, noteOwnPage, headerText, footerText, richPreviewHtml: nextRichPreviewHtml,
         }),
       }),
     ]);
@@ -202,13 +214,22 @@ export function LayoutWorkspace({
         : "保存失败",
     );
   }
-  function formatSelection(command: "bold" | "italic" | "underline" | "hiliteColor") {
+  function updatePageTypography(patch: { bodySize?: number; titleSize?: number }) {
+    setPageTypography((value) => ({ ...value, [previewKey]: { ...value[previewKey], ...patch } }));
+  }
+  function formatSelection(command: "bold" | "italic" | "underline" | "hiliteColor" | "fontSize") {
     const selection = window.getSelection();
     if (!selection?.rangeCount || selection.isCollapsed || !canvasCopy.current?.contains(selection.anchorNode)) {
       setMessage("请先在预览正文中用鼠标选中要调整的文字");
       return;
     }
-    document.execCommand(command, false, command === "hiliteColor" ? "#FFE08A" : undefined);
+    if (command === "fontSize") {
+      document.execCommand("fontSize", false, "7");
+      canvasCopy.current.querySelectorAll("font[size='7']").forEach((node) => {
+        (node as HTMLElement).style.fontSize = `${currentBodySize}pt`;
+        node.removeAttribute("size");
+      });
+    } else document.execCommand(command, false, command === "hiliteColor" ? highlightColor : undefined);
     setMessage("已应用到选中文字；点击“保存版式审核”后保存本次版式设置");
   }
   return (
@@ -290,9 +311,15 @@ export function LayoutWorkspace({
               </select>
             </label>
             <label>
-              正文字号
-              <select value={fontSize} onChange={(event) => setFontSize(Number(event.target.value))}>
-                {[10, 11, 12, 13, 14, 15, 16, 17, 18].map((size) => <option key={size} value={size}>{size} 号</option>)}
+              本页正文字号
+              <select value={currentBodySize} onChange={(event) => updatePageTypography({ bodySize: Number(event.target.value) })}>
+                {WPS_SIZES.map(([label, size]) => <option key={label} value={size}>{label}（{size} 磅）</option>)}
+              </select>
+            </label>
+            <label>
+              本页标题字号
+              <select value={currentTitleSize} onChange={(event) => updatePageTypography({ titleSize: Number(event.target.value) })}>
+                {WPS_SIZES.map(([label, size]) => <option key={label} value={size}>{label}（{size} 磅）</option>)}
               </select>
             </label>
             <label>
@@ -309,11 +336,13 @@ export function LayoutWorkspace({
               <button type="button" title="斜体选中文字" onMouseDown={(event) => event.preventDefault()} onClick={() => formatSelection("italic")}><Italic size={15} /></button>
               <button type="button" title="为选中文字加下划线" onMouseDown={(event) => event.preventDefault()} onClick={() => formatSelection("underline")}><Underline size={15} /></button>
               <button type="button" title="高光选中文字" onMouseDown={(event) => event.preventDefault()} onClick={() => formatSelection("hiliteColor")}><Highlighter size={15} /></button>
+              <input aria-label="高光颜色" type="color" value={highlightColor} onChange={(event) => setHighlightColor(event.target.value)} />
+              <button type="button" title="以本页正文字号调整选中文字" onMouseDown={(event) => event.preventDefault()} onClick={() => formatSelection("fontSize")}>字号</button>
             </div>
             {previewKind === "student" && pageIndex === 3 && (
               <>
                 <label>
-                  课堂表情
+                  真题页主讲卡通
                   <select
                     value={activeAsset?.id ?? ""}
                     onChange={(event) =>
@@ -361,12 +390,13 @@ export function LayoutWorkspace({
             }}
             style={{ backgroundImage: previewBackground }}
           >
+            {headerText ? <div className="preview-running-header" style={{ fontFamily, fontSize: `${Math.max(8, currentBodySize - 2)}pt` }}>{headerText}</div> : null}
             <div
               className="canvas-copy"
               ref={canvasCopy}
               contentEditable
               suppressContentEditableWarning
-              style={{ fontFamily, fontSize: `${fontSize}pt` }}
+              style={{ fontFamily, fontSize: `${currentBodySize}pt` }}
               onInput={() => setMessage("文字已调整；保存版式审核后继续导出")}
             >
               {richPreviewHtml[previewKey] ? (
@@ -378,7 +408,7 @@ export function LayoutWorkspace({
                 </>
               ) : previewKind === "parent" ? (
                 <>
-                  <h2>{project.grade}读写综合能力提升</h2>
+                  <h2 style={{ fontSize: `${currentTitleSize}pt` }}>{project.grade}读写综合能力提升</h2>
                   <p>家长使用手册 · 真读书 · 有深度 · 用得上</p>
                   <h3>五讲课程带来的能力提升</h3>
                   <p>五讲合起来，孩子练习的是：读懂故事 → 找到证据 → 学会方法 → 说清楚 → 写完整。</p>
@@ -387,7 +417,7 @@ export function LayoutWorkspace({
                 </>
               ) : previewKind === "answers" ? (
                 <>
-                  <h2>第{currentLesson.lessonNumber}讲参考答案</h2>
+                  <h2 style={{ fontSize: `${currentTitleSize}pt` }}>第{currentLesson.lessonNumber}讲参考答案</h2>
                   <h3>交流话题参考</h3>
                   {currentLesson.conversationTopics.map((item, index) => <section key={item.question}><b>{index + 1}. {item.question}</b><p>参考：{item.referenceAnswer}</p></section>)}
                   <h3>真题带练参考</h3>
@@ -395,15 +425,15 @@ export function LayoutWorkspace({
                 </>
               ) : pageIndex === 0 ? (
                 <>
-                  <h2 className="lesson-book-title">{bookTitle(currentLesson.title)}</h2>
+                  <h2 className="lesson-book-title" style={{ fontSize: `${currentTitleSize}pt` }}>{bookTitle(currentLesson.title)}</h2>
                   <p className="lesson-technique">— “{currentLesson.technique.replace(/[—“”]/g, "").trim()}” —</p>
                   <p className="lesson-subtitle">{currentLesson.subtitle}</p>
                   <h3>🎯 一、本讲要学什么</h3>
-                  <section className="lesson-callout"><b>本讲对标</b><p>{currentLesson.courseAlignment ?? "请在文字审核中补充本讲教材对标。"}</p><p><b>学习目标：</b>{currentLesson.learningGoals.join("；")}</p></section>
+                  <section className="lesson-callout"><b>本讲对标</b><p>{currentLesson.courseAlignment ?? "请在文字审核中补充本讲教材对标。"}</p><b>学习目标：</b>{currentLesson.learningGoals.map((goal, index) => <p key={index}>{index + 1}. {goal}</p>)}</section>
                 </>
               ) : pageIndex === 1 ? (
                 <>
-                  <h2>下课后，建议家长可以和孩子交流的话题</h2>
+                  <h2 style={{ fontSize: `${currentTitleSize}pt` }}>下课后，建议家长可以和孩子交流的话题</h2>
                   {currentLesson.conversationTopics.map((item, index) => (
                     <section key={item.question}>
                       <h3>
@@ -418,7 +448,7 @@ export function LayoutWorkspace({
                 </>
               ) : pageIndex === 2 ? (
                 <>
-                  <h2>阅读文段</h2>
+                  <h2 style={{ fontSize: `${currentTitleSize}pt` }}>阅读文段</h2>
                   <p className="reading-preview">
                     {currentLesson.readingExcerpt.text}
                   </p>
@@ -428,11 +458,11 @@ export function LayoutWorkspace({
                       <li key={item}>{item}</li>
                     ))}
                   </ol>
-                  <section className="note-preview"><b>📖 笔记</b><p>________________________________________________</p><p>________________________________________________</p><p>________________________________________________</p></section>
+                  {!noteOwnPage && <section className="note-preview"><b>📖 笔记</b><p> </p><p> </p><p> </p></section>}
                 </>
               ) : pageIndex === 3 ? (
                 <>
-                  <h2>🌟 四、{teacher?.nickname ?? "主讲"}老师课堂 · 真题带练</h2>
+                  <h2 style={{ fontSize: `${currentTitleSize}pt` }}>🌟 四、{teacher?.nickname ?? "主讲"}老师课堂 · 真题带练</h2>
                   <h3>方法小结</h3>
                   <p>{currentLesson.methodSummary}</p>
                   <h3>练一练</h3>
@@ -443,13 +473,13 @@ export function LayoutWorkspace({
                           {index + 1}. {item.prompt}
                         </b>
                       </p>
-                      <p>我的作答：________________________________________________</p>
+                      <p>我的作答：＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿</p>
                     </section>
                   ))}
                 </>
               ) : (
                 <>
-                  <h2>🎤 五、我是小老师</h2>
+                  <h2 style={{ fontSize: `${currentTitleSize}pt` }}>🎤 五、我是小老师</h2>
                   <h3>🎯 作答步骤</h3>
                   <ol>
                     {currentLesson.littleTeacherSteps.map((item) => (
@@ -461,6 +491,8 @@ export function LayoutWorkspace({
                 </>
               )}
             </div>
+            {previewKind === "student" && pageIndex === 2 && noteOwnPage ? <section className="note-own-page"><b>📖 笔记</b><p>在此记录阅读发现、好词好句或自己的问题。</p></section> : null}
+            {footerText ? <div className="preview-running-footer" style={{ fontFamily, fontSize: `${Math.max(8, currentBodySize - 2)}pt` }}>{footerText}　·　第{pageIndex + 1}页</div> : null}
             {previewKind === "student" && pageIndex === 3 ? (
               <img
                 className="floating-teacher"
@@ -480,6 +512,7 @@ export function LayoutWorkspace({
               />
             ) : null}
           </div>
+          {previewKind === "student" && pageIndex === 2 ? <label className="note-own-page-toggle"><input type="checkbox" checked={noteOwnPage} onChange={(event) => setNoteOwnPage(event.target.checked)} /> 笔记框单独成页（阅读文段较长时使用）</label> : null}
           <div className="review-actions">
             <span>{message}</span>
             <button className="secondary-button" onClick={() => void save()}>

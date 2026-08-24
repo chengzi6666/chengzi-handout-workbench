@@ -6,6 +6,7 @@ export interface HandoutProject {
   grade: string;
   lessonCount: number;
   teachingYear: number;
+  season: string;
   teachingYearConfirmed: boolean;
   outputKinds: OutputKind[];
   status: ProjectStatus;

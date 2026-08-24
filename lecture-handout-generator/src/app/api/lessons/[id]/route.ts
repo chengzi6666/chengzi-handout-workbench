@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
+import { Prisma } from "@prisma/client";
 import { readSession } from "@/lib/auth/session";
 import { lessonContentSchema, requiresPinyinReview } from "@/lib/handout/content-schema";
 
@@ -15,6 +16,9 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
   const lesson = await db.lesson.findFirst({ where: { id, project: { ownerId: session.userId } }, include: { project: true } });
   if (!lesson) return NextResponse.json({ error: "课程不存在" }, { status: 404 });
   const content = parsed.data.content ?? lessonContentSchema.parse(lesson.structuredContent);
+  // 二年级的拼音草稿只服务于“阅读文段”。文字审核一旦改动原文，
+  // 旧拼音就不能继续冒充有效结果，必须在下一步基于最新原文重新生成。
+  const readingChanged = content.readingExcerpt.text !== (lesson.readingExcerpt ?? "");
   if (parsed.data.approveText) {
     if (!content.readingExcerpt.approved) return NextResponse.json({ error: "请先勾选确认阅读文段与PDF原文一致" }, { status: 409 });
     if (content.curriculumAlignment.some((item) => !item.confirmed)) return NextResponse.json({ error: "请先确认所有联网对标来源" }, { status: 409 });
@@ -23,6 +27,7 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
     structuredContent: content,
     readingExcerpt: content.readingExcerpt.text,
     readingExcerptSource: content.readingExcerpt,
+    ...(readingChanged ? { pinyinReview: Prisma.JsonNull, pinyinApprovedAt: null } : {}),
     ...(parsed.data.approveText ? { textApprovedAt: new Date(), status: "APPROVED" } : {}),
     ...(parsed.data.revokeTextApproval ? { textApprovedAt: null, status: "TEXT_REVIEW" } : {}),
     ...(parsed.data.approvePinyin ? { pinyinApprovedAt: new Date() } : {}),

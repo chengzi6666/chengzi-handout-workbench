@@ -14,7 +14,6 @@ import {
   Trash2,
 } from "lucide-react";
 import { ProjectSidebar } from "./project-sidebar";
-import { LiveAnnotation } from "./live-annotation";
 import {
   OUTPUT_OPTIONS,
   type HandoutProject,
@@ -49,11 +48,13 @@ export function WorkspaceShell({ initialProjects, user }: WorkspaceShellProps) {
   const [newProjectYear, setNewProjectYear] = useState(
     String(new Date().getFullYear()),
   );
+  const [newProjectSeason, setNewProjectSeason] = useState("秋季");
   const [createProjectMessage, setCreateProjectMessage] = useState("");
   const [trashOpen, setTrashOpen] = useState(false);
   const [trashProjects, setTrashProjects] = useState<Array<{ id: string; name: string; grade: string; lessonCount: number; deletedAt: string }>>([]);
   const [trashMessage, setTrashMessage] = useState("");
   const [settingsYear, setSettingsYear] = useState("");
+  const [settingsSeason, setSettingsSeason] = useState("秋季");
   const [settingsMessage, setSettingsMessage] = useState("");
   const autoNavigateToReviewFor = useRef<string | null>(null);
   const [processMessage, setProcessMessage] = useState("");
@@ -338,7 +339,7 @@ export function WorkspaceShell({ initialProjects, user }: WorkspaceShellProps) {
       const restored = payload.project;
       const next: HandoutProject = {
         id: restored.id, name: restored.name, grade: restored.grade, lessonCount: restored.lessonCount,
-        teachingYear: restored.teachingYear, teachingYearConfirmed: Boolean(restored.teachingYearConfirmedAt),
+        teachingYear: restored.teachingYear, season: restored.season ?? "秋季", teachingYearConfirmed: Boolean(restored.teachingYearConfirmedAt),
         outputKinds: ["lesson_student", "combined_student"], status: "draft", pinned: false, updatedAt: "刚刚"
       };
       setProjects((items) => [next, ...items]);
@@ -352,6 +353,7 @@ export function WorkspaceShell({ initialProjects, user }: WorkspaceShellProps) {
     setNewProjectName(`${new Date().getFullYear()}年秋季五讲`);
     setNewProjectGrade("1升2");
     setNewProjectYear(String(new Date().getFullYear()));
+    setNewProjectSeason("秋季");
     setCreateProjectMessage("");
     setCreateProjectOpen(true);
   }
@@ -377,7 +379,7 @@ export function WorkspaceShell({ initialProjects, user }: WorkspaceShellProps) {
         name: newProjectName.trim(),
         grade: newProjectGrade.trim(),
         teachingYear,
-        season: "秋季",
+        season: newProjectSeason,
         lessonCount: 5,
       }),
     });
@@ -392,6 +394,7 @@ export function WorkspaceShell({ initialProjects, user }: WorkspaceShellProps) {
       grade: project.grade,
       lessonCount: project.lessonCount,
       teachingYear: project.teachingYear,
+      season: project.season ?? newProjectSeason,
       teachingYearConfirmed: false,
       outputKinds: ["lesson_student", "combined_student"],
       status: "draft",
@@ -480,7 +483,7 @@ export function WorkspaceShell({ initialProjects, user }: WorkspaceShellProps) {
     if (!selected || selected.teachingYearConfirmed) return true;
     if (
       !window.confirm(
-        `请确认：本项目按 ${selected.teachingYear} 年最新教材与课标口径检索。确认后才能开始解析。`,
+        `请确认：本项目按 ${selected.teachingYear} 年${selected.season}教材与课标口径检索。确认后才能开始解析。`,
       )
     )
       return false;
@@ -538,6 +541,7 @@ export function WorkspaceShell({ initialProjects, user }: WorkspaceShellProps) {
   function openGenerationSettings() {
     if (!selected) return;
     setSettingsYear(String(selected.teachingYear));
+    setSettingsSeason(selected.season ?? "秋季");
     setSettingsMessage("");
     setGenerationSettingsOpen(true);
   }
@@ -556,7 +560,7 @@ export function WorkspaceShell({ initialProjects, user }: WorkspaceShellProps) {
     const response = await fetch(`/api/projects/${selected.id}`, {
       method: "PATCH",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ teachingYear }),
+      body: JSON.stringify({ teachingYear, season: settingsSeason }),
     });
     if (!response.ok) {
       setSettingsMessage("保存失败，请稍后重试。");
@@ -568,16 +572,17 @@ export function WorkspaceShell({ initialProjects, user }: WorkspaceShellProps) {
           ? {
               ...item,
               teachingYear,
+              season: settingsSeason,
               teachingYearConfirmed:
                 teachingYear === item.teachingYear
-                  ? item.teachingYearConfirmed
+                  ? item.teachingYearConfirmed && settingsSeason === item.season
                   : false,
             }
           : item,
       ),
     );
     setProcessMessage(
-      teachingYear === selected.teachingYear
+      teachingYear === selected.teachingYear && settingsSeason === selected.season
         ? "生成设置已保存。"
         : `已切换为 ${teachingYear} 年教材口径，请在解析前重新确认。`,
     );
@@ -642,7 +647,6 @@ export function WorkspaceShell({ initialProjects, user }: WorkspaceShellProps) {
             <h1>{selected?.name ?? "新建讲义项目"}</h1>
           </div>
           <div className="topbar-actions">
-            <LiveAnnotation projectId={selected?.id} />
             <div
               className="model-status"
               title="在左侧底部的“模型与接口”中管理 Key"
@@ -900,7 +904,7 @@ export function WorkspaceShell({ initialProjects, user }: WorkspaceShellProps) {
                 <p className="eyebrow">本项目设置</p>
                 <h2 id="generation-settings-title">生成设置</h2>
                 <p>
-                  输出类型可直接在上方勾选；此处用于确认生成所依据的教材年份。
+                  输出类型可直接在上方勾选；此处用于确认生成所依据的教材年份与季节。
                 </p>
               </div>
               <label>
@@ -912,6 +916,12 @@ export function WorkspaceShell({ initialProjects, user }: WorkspaceShellProps) {
                   maxLength={4}
                   onChange={(event) => setSettingsYear(event.target.value)}
                 />
+              </label>
+              <label>
+                <span>课程季节</span>
+                <select aria-label="课程季节" value={settingsSeason} onChange={(event) => setSettingsSeason(event.target.value)}>
+                  <option value="春季">春季</option><option value="暑期">暑期</option><option value="秋季">秋季</option><option value="冬季">冬季</option>
+                </select>
               </label>
               <p className="modal-note">
                 修改年份后，系统会要求在下一次解析前重新确认教材口径。
@@ -980,6 +990,12 @@ export function WorkspaceShell({ initialProjects, user }: WorkspaceShellProps) {
                   maxLength={4}
                   onChange={(event) => setNewProjectYear(event.target.value)}
                 />
+              </label>
+              <label>
+                <span>课程季节</span>
+                <select aria-label="新项目课程季节" value={newProjectSeason} onChange={(event) => setNewProjectSeason(event.target.value)}>
+                  <option value="春季">春季</option><option value="暑期">暑期</option><option value="秋季">秋季</option><option value="冬季">冬季</option>
+                </select>
               </label>
               {createProjectMessage && (
                 <p className="settings-message">{createProjectMessage}</p>
