@@ -138,7 +138,9 @@ async function repairCourseAlignment(input: {
   const value = parseJsonResponse(result.text) as Record<string, unknown>;
   const alignment = textOf(value.courseAlignment);
   const sourceUrl = textOf(value.sourceUrl);
-  if (!hasSpecificCourseAlignment(alignment) || !/^https?:\/\//u.test(sourceUrl)) throw new Error(`未能联网核对《${input.title}》对应的具体教材单元/课文；请更换支持联网搜索的模型后重试`);
+  // 当前公司网关的普通 Chat Completions 接口不会自动附带联网工具。
+  // 联网核对失败必须进入人工审核，而不是让整份讲义生成失败。
+  if (!hasSpecificCourseAlignment(alignment) || !/^https?:\/\//u.test(sourceUrl)) return null;
   return {
     courseAlignment: alignment,
     claim: textOf(value.claim, alignment),
@@ -209,7 +211,7 @@ export async function generateProjectContent(
         title: textOf(draft.title, lessonTitleFromSource(wholeSourceText, index + 1)),
         source: wholeSourceText
       });
-      courseAlignment = repairedAlignment.courseAlignment;
+      courseAlignment = repairedAlignment?.courseAlignment ?? "待教研核对：当前模型接口未返回可验证的教材单元/课文来源。";
     }
     const content = lessonContentSchema.parse({
       ...draft,
