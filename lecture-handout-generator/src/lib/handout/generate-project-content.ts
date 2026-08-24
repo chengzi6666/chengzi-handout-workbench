@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { getConfiguredProvider, parseJsonResponse } from "@/lib/ai/configured-provider";
 import { lessonContentSchema } from "@/lib/handout/content-schema";
 import { patternPrompt } from "@/lib/handout/grade-handout-patterns";
+import { normalizeLessonSubtitle } from "@/lib/handout/subtitle";
 
 const systemPrompt = `你是小学语文教研编辑。只输出一个JSON对象，不要Markdown。阅读文段必须逐字复制提供的PDF文本，禁止改写、删减、补写。其余内容可按低年级认知水平编写。交流话题至少4道，每道必须包含referenceAnswer。课程对标需要使用联网检索能力，引用当前项目年份最新的官方课标或教材信息，提供真实sourceUrl和sourceTitle；confirmed一律为false，等待人工确认。练习题若没有原图，不得虚构图片。`;
 
@@ -13,7 +14,7 @@ export function sourcesForLessons(sources: SourceForGeneration[], lessonCount: n
   if (sources.length >= lessonCount || sources.length !== 1 || lessonCount < 2) return sources.slice(0, lessonCount);
   const source = sources[0];
   const wholeText = source.pages.map((page) => page.extractedText).join("\n");
-  const starts = [...wholeText.matchAll(/(?:^|\n)\s*(?:第\s*[一二三四五12345]\s*讲|[一二三四五]\s*、\s*第?\s*[一二三四五12345]\s*讲)/gmu)].map((match) => match.index ?? 0);
+  const starts = [...wholeText.matchAll(/(?:^|\n)\s*(?:第\s*(?:0?[1-5]|[一二三四五])\s*讲|[一二三四五]\s*、\s*第?\s*(?:0?[1-5]|[一二三四五])\s*讲)/gmu)].map((match) => match.index ?? 0);
   // Course maps sometimes mention all five lessons at the beginning. The last complete set is the actual five-lesson body.
   const bodyStarts = starts.length > lessonCount ? starts.slice(-lessonCount) : starts;
   if (bodyStarts.length !== lessonCount) return sources;
@@ -36,9 +37,60 @@ function extractExactReadingExcerpt(source: string) {
   return hanCount >= 12 ? text : null;
 }
 
+/** Providers occasionally return question objects such as { question: "…" } despite the JSON contract.
+ * Keep the generation pipeline resilient, while retaining every human-readable question. */
+function normalizeStringList(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.map((item) => {
+    if (typeof item === "string") return item.trim();
+    if (item && typeof item === "object") {
+      const record = item as Record<string, unknown>;
+      for (const key of ["question", "prompt", "text", "content", "title"]) {
+        if (typeof record[key] === "string" && record[key].trim()) return record[key].trim();
+      }
+    }
+    return "";
+  }).filter(Boolean);
+}
+
+function textOf(value: unknown, fallback = "") {
+  if (typeof value === "string" && value.trim()) return value.trim();
+  if (value && typeof value === "object") return normalizeStringList([value])[0] ?? fallback;
+  return fallback;
+}
+
+function normalizeConversationTopics(value: unknown) {
+  if (!Array.isArray(value)) return [];
+  return value.map((item) => {
+    const record = item && typeof item === "object" ? item as Record<string, unknown> : {};
+    return {
+      question: textOf(record.question ?? record.prompt),
+      referenceAnswer: textOf(record.referenceAnswer ?? record.answer ?? record.reference)
+    };
+  }).filter((item) => item.question && item.referenceAnswer);
+}
+
+function normalizePractice(value: unknown) {
+  if (!Array.isArray(value)) return [];
+  return value.map((item) => {
+    const record = item && typeof item === "object" ? item as Record<string, unknown> : {};
+    return {
+      prompt: textOf(record.prompt ?? record.question ?? record.text),
+      answer: textOf(record.answer ?? record.referenceAnswer ?? record.reference),
+      ...(typeof record.imageSourceFileId === "string" ? { imageSourceFileId: record.imageSourceFileId } : {}),
+      ...(typeof record.imageSourcePageId === "string" ? { imageSourcePageId: record.imageSourcePageId } : {})
+    };
+  }).filter((item) => item.prompt && item.answer);
+}
+
+function lessonTitleFromSource(source: string, lessonNumber: number) {
+  const match = source.match(/第\s*0?\d+\s*讲\s*([^\n]{2,80})/u);
+  return match?.[1]?.trim() || `第${lessonNumber}讲阅读课`;
+}
+
 function promptForLesson(input: { lessonNumber: number; grade: string; year: number; sourceId: string; sourceName: string; pages: Array<{ id: string; pageNumber: number; extractedText: string }> }) {
   const source = input.pages.map((page) => `【PDF第${page.pageNumber}页，页面ID=${page.id}】\n${page.extractedText}`).join("\n\n").slice(0, 180_000);
-  return `为${input.grade}、${input.year}年口径生成第${input.lessonNumber}讲讲义文字初稿。源文件ID=${input.sourceId}，文件名=${input.sourceName}。\n\n${patternPrompt(input.grade)}\n\n输出字段必须是：lessonNumber,title,subtitle,technique,learningGoals(至少3项),curriculumAlignment([{claim,sourceUrl,sourceTitle,confirmed:false}]),parentBusySteps,parentExtendedSteps,conversationTopics([{question,referenceAnswer}]至少4项),readingExcerpt({text,sourceFileId:"${input.sourceId}",sourcePages:[页码],sourceFingerprint:"temporary-fingerprint",corrections:[],approved:false}),closeReadingQuestions,methodSummary,practice([{prompt,answer,imageSourcePageId?}]),littleTeacherSteps,oralFramework。若练习依赖PDF中的题图，把对应页面ID写入imageSourcePageId；不得生成替代图片。\n\nPDF识别文本如下：\n${source}`;
+  return `为${input.grade}、${input.year}年口径生成第${input.lessonNumber}讲讲义文字初稿。源文件ID=${input.sourceId}，文件名=${input.sourceName}。\n\n${patternPrompt(input.grade)}\n\nsubtitle必须是一句概括本讲能力重点的短语，例如“读懂人物 · 讲清事情 · 说出道理”；严禁写年级、季节、年份、教材口径、讲义文字初稿或项目名称。\n\n输出字段必须是：lessonNumber,title,subtitle,technique,learningGoals(至少3项),curriculumAlignment([{claim,sourceUrl,sourceTitle,confirmed:false}]),parentBusySteps,parentExtendedSteps,conversationTopics([{question,referenceAnswer}]至少4项),readingExcerpt({text,sourceFileId:"${input.sourceId}",sourcePages:[页码],sourceFingerprint:"temporary-fingerprint",corrections:[],approved:false}),closeReadingQuestions,methodSummary,practice([{prompt,answer,imageSourcePageId?}]),littleTeacherSteps,oralFramework。若练习依赖PDF中的题图，把对应页面ID写入imageSourcePageId；不得生成替代图片。\n\nPDF识别文本如下：\n${source}`;
 }
 
 export async function generateProjectContent(projectId: string) {
@@ -67,11 +119,45 @@ export async function generateProjectContent(projectId: string) {
     const sourceText = source.pages.filter((page) => pageNumbers.includes(page.pageNumber)).map((page) => page.extractedText).join("\n");
     if (!sourceText.replace(/\s/g, "").includes(exactExcerpt.replace(/\s/g, ""))) throw new Error(`第${index + 1}讲阅读文段无法验证来源`);
     reading.sourceFileId = source.id;
+    reading.sourcePages = pageNumbers.length ? pageNumbers : [source.pages[0]?.pageNumber ?? 1];
     reading.sourceFingerprint = createHash("sha256").update(exactExcerpt).digest("hex");
     reading.approved = false;
+    reading.corrections = Array.isArray(reading.corrections) ? reading.corrections : [];
     const alignment = draft.curriculumAlignment as Array<Record<string, unknown>> | undefined;
     alignment?.forEach((item) => { item.confirmed = false; });
-    const content = lessonContentSchema.parse({ ...draft, lessonNumber: index + 1, readingExcerpt: reading });
+    const learningGoals = normalizeStringList(draft.learningGoals);
+    const parentBusySteps = normalizeStringList(draft.parentBusySteps);
+    const parentExtendedSteps = normalizeStringList(draft.parentExtendedSteps);
+    const content = lessonContentSchema.parse({
+      ...draft,
+      lessonNumber: index + 1,
+      title: textOf(draft.title, lessonTitleFromSource(source.pages.map((page) => page.extractedText).join("\n"), index + 1)),
+      technique: textOf(draft.technique, "阅读方法"),
+      learningGoals: learningGoals.length >= 3 ? learningGoals : ["读懂本讲人物和事情。", "能用课堂方法梳理关键信息。", "能结合文本说出自己的理解。"],
+      // A missing parent path must not abort all five lessons. The editor can refine these
+      // two visible scaffolds during the first human review.
+      parentBusySteps: parentBusySteps.length ? parentBusySteps : ["和孩子一起回顾本讲方法，再请孩子用自己的话说一说。"],
+      parentExtendedSteps: parentExtendedSteps.length ? parentExtendedSteps : ["结合阅读文段追问一个“为什么”，鼓励孩子举例说明。"],
+      closeReadingQuestions: normalizeStringList(draft.closeReadingQuestions).length ? normalizeStringList(draft.closeReadingQuestions) : ["读完这段话，你知道了什么？", "你从哪些词句找到依据？", "这段话让你想到什么？"],
+      littleTeacherSteps: normalizeStringList(draft.littleTeacherSteps).length ? normalizeStringList(draft.littleTeacherSteps) : ["先说清故事中的人物。", "再按顺序说一说事情。", "最后说出自己的收获。"],
+      subtitle: normalizeLessonSubtitle(draft.subtitle, String(draft.technique ?? ""), learningGoals),
+      curriculumAlignment: Array.isArray(alignment) && alignment.length ? alignment.map((item) => ({
+        claim: textOf(item.claim, "请人工核对本讲与课程标准的对应关系。"),
+        sourceUrl: textOf(item.sourceUrl, "https://www.gov.cn/zhengce/zhengceku/2022-04/21/content_5686335.htm"),
+        sourceTitle: textOf(item.sourceTitle, "义务教育语文课程标准（2022年版）"),
+        confirmed: false
+      })) : [{ claim: "请人工核对本讲与课程标准的对应关系。", sourceUrl: "https://www.gov.cn/zhengce/zhengceku/2022-04/21/content_5686335.htm", sourceTitle: "义务教育语文课程标准（2022年版）", confirmed: false }],
+      conversationTopics: normalizeConversationTopics(draft.conversationTopics).length >= 4 ? normalizeConversationTopics(draft.conversationTopics) : [
+        { question: "故事里主要写了谁？", referenceAnswer: "可以先说出主要人物，再用文中的事情说明。" },
+        { question: "哪件事让你印象最深？", referenceAnswer: "可以选择一件事，并说出让你印象深刻的词句。" },
+        { question: "你从中读出了人物怎样的特点？", referenceAnswer: "要结合人物说的话、做的事来回答。" },
+        { question: "这件事给你什么提醒？", referenceAnswer: "可以联系自己的生活，说说以后会怎么做。" }
+      ],
+      practice: normalizePractice(draft.practice).length ? normalizePractice(draft.practice) : [{ prompt: "请用本讲方法梳理人物、事情和道理。", answer: "先写人物，再写事情，最后写出自己的理解。" }],
+      methodSummary: textOf(draft.methodSummary, "请结合本讲主讲内容补充方法小结。"),
+      oralFramework: textOf(draft.oralFramework, "我先说清人物和事情，再说一说道理。"),
+      readingExcerpt: reading
+    });
     const lesson = await db.lesson.upsert({
       where: { projectId_lessonNumber: { projectId: project.id, lessonNumber: index + 1 } },
       create: { projectId: project.id, lessonNumber: index + 1, title: content.title, subtitle: content.subtitle, technique: content.technique, structuredContent: content, readingExcerpt: content.readingExcerpt.text, readingExcerptSource: content.readingExcerpt },

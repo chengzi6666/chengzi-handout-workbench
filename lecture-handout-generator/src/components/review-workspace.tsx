@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { ArrowLeft, CheckCircle2, FileCheck2, Save } from "lucide-react";
+import { ArrowLeft, CheckCircle2, FileCheck2, RefreshCw, Save } from "lucide-react";
 import type { LessonContent } from "@/lib/handout/content-schema";
+import { normalizeLessonSubtitle } from "@/lib/handout/subtitle";
 
 type LessonRow = {
   id: string;
@@ -15,6 +16,11 @@ type LessonRow = {
 };
 const copy = (value: unknown) =>
   JSON.parse(JSON.stringify(value)) as LessonContent;
+const normalizedCopy = (value: unknown) => {
+  const next = copy(value);
+  next.subtitle = normalizeLessonSubtitle(next.subtitle, next.technique, next.learningGoals);
+  return next;
+};
 const lines = (items: string[]) => items.join("\n");
 const parseLines = (value: string) =>
   value
@@ -26,13 +32,13 @@ export function ReviewWorkspace({
   project,
   initialLessons,
 }: {
-  project: { id: string; name: string; grade: string };
+  project: { id: string; name: string; grade: string; lessonCount: number };
   initialLessons: LessonRow[];
 }) {
   const [lessons, setLessons] = useState(initialLessons);
   const [selectedId, setSelectedId] = useState(initialLessons[0]?.id ?? "");
   const [draft, setDraft] = useState<LessonContent>(() =>
-    copy(initialLessons[0]?.content ?? {}),
+    normalizedCopy(initialLessons[0]?.content ?? {}),
   );
   const [message, setMessage] = useState("");
   const [questionIndex, setQuestionIndex] = useState(0);
@@ -48,7 +54,7 @@ export function ReviewWorkspace({
     });
   const select = (lesson: LessonRow) => {
     setSelectedId(lesson.id);
-    setDraft(copy(lesson.content));
+    setDraft(normalizedCopy(lesson.content));
     setMessage("");
   };
   async function save(approve = false) {
@@ -107,6 +113,13 @@ export function ReviewWorkspace({
     });
     setMessage(`题图已关联到真题带练第${questionIndex + 1}题`);
   }
+  async function regenerateAllLessons() {
+    setMessage(`正在根据主讲文件重新生成${project.lessonCount}讲初稿…`);
+    const response = await fetch(`/api/projects/${project.id}/generate-content`, { method: "POST" });
+    const payload = await response.json();
+    if (!response.ok) return setMessage(payload.error ?? "重新生成失败");
+    window.location.reload();
+  }
   if (!selected)
     return (
       <main className="review-page">
@@ -126,7 +139,7 @@ export function ReviewWorkspace({
         <strong>{project.grade}</strong>
       </header>
       <div className="review-layout">
-        <aside className="lesson-tabs">
+        <aside className="lesson-nav">
           <h2>课程目录</h2>
           {lessons.map((lesson) => (
             <button
@@ -164,6 +177,7 @@ export function ReviewWorkspace({
             <button className="secondary-button" onClick={confirmEvidence}>
               <FileCheck2 size={16} /> 确认原文与来源
             </button>
+            {lessons.length < project.lessonCount && <button className="secondary-button" onClick={() => void regenerateAllLessons()}><RefreshCw size={16} /> 从合订文件重建{project.lessonCount}讲</button>}
           </div>
           <div className="content-editor">
             <section>

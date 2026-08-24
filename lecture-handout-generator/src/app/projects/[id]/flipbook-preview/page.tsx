@@ -16,7 +16,7 @@ export default async function FlipbookPreviewPage({
   const { id } = await params;
   const project = await db.project.findFirst({
     where: { id, ownerId: user.id },
-    include: { lessons: { orderBy: { lessonNumber: "asc" } } },
+    include: { lessons: { orderBy: { lessonNumber: "asc" } }, backgroundPack: { include: { assets: true } } },
   });
   if (!project) redirect("/");
 
@@ -62,6 +62,7 @@ export default async function FlipbookPreviewPage({
         title={project.name}
         description={`${project.grade} · ${project.season ?? "课程"} · 微信翻页书预览`}
         pages={pages}
+        coverSrc={project.backgroundPack?.assets.find((asset) => asset.role === "COVER") ? `/api/assets/background/${project.backgroundPack?.assets.find((asset) => asset.role === "COVER")?.id}` : undefined}
       />
     </>
   );

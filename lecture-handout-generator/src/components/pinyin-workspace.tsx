@@ -62,7 +62,7 @@ export function PinyinWorkspace({
         </div>
       </header>
       <div className="review-layout">
-        <aside className="lesson-tabs">
+        <aside className="lesson-nav">
           <h2>课程目录</h2>
           {lessons.map((lesson) => (
             <button

@@ -10,5 +10,5 @@ export default async function ReviewPage({ params }: { params: Promise<{ id: str
   const { id } = await params;
   const project = await db.project.findFirst({ where: { id, ownerId: user.id }, include: { lessons: { orderBy: { lessonNumber: "asc" } } } });
   if (!project) redirect("/");
-  return <ReviewWorkspace project={{ id: project.id, name: project.name, grade: project.grade }} initialLessons={project.lessons.map((lesson) => ({ id: lesson.id, lessonNumber: lesson.lessonNumber, title: lesson.title, content: lesson.structuredContent, textApproved: Boolean(lesson.textApprovedAt), pinyinApproved: Boolean(lesson.pinyinApprovedAt) }))} />;
+  return <ReviewWorkspace project={{ id: project.id, name: project.name, grade: project.grade, lessonCount: project.lessonCount }} initialLessons={project.lessons.map((lesson) => ({ id: lesson.id, lessonNumber: lesson.lessonNumber, title: lesson.title, content: lesson.structuredContent, textApproved: Boolean(lesson.textApprovedAt), pinyinApproved: Boolean(lesson.pinyinApprovedAt) }))} />;
 }
