@@ -13,7 +13,7 @@ process.on("SIGTERM", () => { stopping = true; });
 async function recoverInterruptedJobs() {
   const staleBefore = new Date(Date.now() - 10 * 60 * 1000);
   const recovered = await db.processingJob.updateMany({
-    where: { status: "RUNNING", startedAt: { lt: staleBefore } },
+    where: { status: "RUNNING", startedAt: { lt: staleBefore }, project: { deletedAt: null } },
     data: { status: "QUEUED", startedAt: null, error: null, result: Prisma.JsonNull }
   });
   if (recovered.count > 0) console.log(`recovered ${recovered.count} interrupted job(s)`);
@@ -21,7 +21,8 @@ async function recoverInterruptedJobs() {
 
 async function claimJob() {
   for (let attempt = 0; attempt < 5; attempt += 1) {
-    const job = await db.processingJob.findFirst({ where: { status: "QUEUED" }, orderBy: { createdAt: "asc" } });
+    // 回收站项目不再领取任务；已删除项目可能仍保留历史任务记录。
+    const job = await db.processingJob.findFirst({ where: { status: "QUEUED", project: { deletedAt: null } }, orderBy: { createdAt: "asc" } });
     if (!job) return null;
     const claimed = await db.processingJob.updateMany({
       where: { id: job.id, status: "QUEUED" },
@@ -33,7 +34,7 @@ async function claimJob() {
 }
 
 async function ocrScannedPdf(pdf: Uint8Array, projectId: string, pageCount: number, report: (pageNumber: number, totalPages: number) => Promise<void>) {
-  const project = await db.project.findUnique({ where: { id: projectId }, select: { selectedProviderId: true } });
+  const project = await db.project.findFirst({ where: { id: projectId, deletedAt: null }, select: { selectedProviderId: true } });
   if (!project) throw new Error("OCR项目不存在");
   const provider = await getConfiguredProvider(project.selectedProviderId);
   const results: Array<{ pageNumber: number; text: string }> = [];
@@ -41,6 +42,8 @@ async function ocrScannedPdf(pdf: Uint8Array, projectId: string, pageCount: numb
   // sending one page per request made a 45-page teaching deck take tens of minutes.
   const batchSize = 5;
   for (let start = 1; start <= pageCount; start += batchSize) {
+    const stillActive = await db.project.findFirst({ where: { id: projectId, deletedAt: null }, select: { id: true } });
+    if (!stillActive) throw new Error("项目已移入回收站，OCR已停止");
     const numbers = Array.from({ length: Math.min(batchSize, pageCount - start + 1) }, (_, offset) => start + offset);
     await report(numbers[0], pageCount);
     const rendered = await Promise.all(numbers.map((pageNumber) => renderPdfPage(pdf, pageNumber)));
@@ -80,8 +83,9 @@ async function ocrScannedPdf(pdf: Uint8Array, projectId: string, pageCount: numb
 async function parseSourceDocument(job: ProcessingJob) {
   const payload = job.payload as { sourceFileId?: string };
   if (!payload.sourceFileId) throw new Error("PDF解析任务缺少sourceFileId");
-  const source = await db.sourceFile.findUnique({ where: { id: payload.sourceFileId } });
+  const source = await db.sourceFile.findUnique({ where: { id: payload.sourceFileId }, include: { project: { select: { deletedAt: true } } } });
   if (!source || source.projectId !== job.projectId) throw new Error("PDF源文件不存在");
+  if (source.project.deletedAt) throw new Error("项目已移入回收站，解析已停止");
   const pdf = await objectStore().get(source.objectKey);
   if (source.kind === "DOCUMENT") {
     const text = await extractWordText(pdf);
@@ -140,9 +144,13 @@ async function runJob(job: ProcessingJob) {
 }
 
 async function complete(job: ProcessingJob) {
+  const activeProject = await db.project.findFirst({ where: { id: job.projectId, deletedAt: null }, select: { id: true } });
+  if (!activeProject) return;
   try {
     const result = await runJob(job);
-    await db.processingJob.update({ where: { id: job.id }, data: { status: "SUCCEEDED", result: result as Prisma.InputJsonValue, finishedAt: new Date() } });
+    // 删除源文件或移入回收站时，任务会在执行期间被移除/终止；此处用 updateMany 防止旧任务把 worker 拉崩。
+    const finished = await db.processingJob.updateMany({ where: { id: job.id, status: "RUNNING" }, data: { status: "SUCCEEDED", result: result as Prisma.InputJsonValue, finishedAt: new Date() } });
+    if (finished.count === 0) return;
     if (job.kind === "PDF_PARSE") {
       const remaining = await db.processingJob.count({ where: { projectId: job.projectId, kind: "PDF_PARSE", status: { in: ["QUEUED", "RUNNING"] } } });
       if (remaining === 0) {
@@ -152,8 +160,8 @@ async function complete(job: ProcessingJob) {
       }
     }
   } catch (error) {
-    await db.processingJob.update({ where: { id: job.id }, data: { status: "FAILED", error: error instanceof Error ? error.stack?.slice(0, 8000) ?? error.message : "未知错误", finishedAt: new Date() } });
-    await db.project.update({ where: { id: job.projectId }, data: { status: "FAILED" } });
+    await db.processingJob.updateMany({ where: { id: job.id, status: "RUNNING" }, data: { status: "FAILED", error: error instanceof Error ? error.stack?.slice(0, 8000) ?? error.message : "未知错误", finishedAt: new Date() } });
+    await db.project.updateMany({ where: { id: job.projectId, deletedAt: null }, data: { status: "FAILED" } });
   }
 }
 
