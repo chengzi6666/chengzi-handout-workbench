@@ -5,7 +5,9 @@ import { lessonContentSchema } from "@/lib/handout/content-schema";
 import { patternPrompt } from "@/lib/handout/grade-handout-patterns";
 import { normalizeLessonSubtitle } from "@/lib/handout/subtitle";
 
-const systemPrompt = `你是小学语文教研编辑。只输出一个JSON对象，不要Markdown。阅读文段必须逐字复制提供的PDF文本，禁止改写、删减、补写。其余内容可按低年级认知水平编写。交流话题至少4道，每道必须包含referenceAnswer。课程对标需要使用联网检索能力，引用当前项目年份最新的官方课标或教材信息，提供真实sourceUrl和sourceTitle；confirmed一律为false，等待人工确认。练习题若没有原图，不得虚构图片。`;
+const systemPrompt = `你是小学语文教研编辑。主讲文件是课堂证据，不是要逐段照抄的讲义模板。只输出一个JSON对象，不要Markdown。
+
+硬规则：阅读文段必须从提供的主讲文件中逐字复制，禁止改写、删减、补写；除阅读文段外，必须根据课堂故事、方法、练习与年级认知主动完成讲义的全部板块，即使主讲文件没有逐项写出这些板块，也不得留空或照抄零散课件文字。交流话题至少4道，每道必须包含具体的referenceAnswer。课程对标需要使用联网检索能力，引用当前项目年份最新的官方课标或教材信息，提供真实sourceUrl和sourceTitle；confirmed一律为false，等待人工确认。练习题若没有原图，不得虚构图片。`;
 
 type SourceForGeneration = { id: string; originalName: string; pages: Array<{ id: string; pageNumber: number; extractedText: string }> };
 
@@ -35,6 +37,15 @@ function extractExactReadingExcerpt(source: string) {
   // 只有中文标点的“摘抄”通常是 OCR/版式噪声；阻断导出而不是把垃圾内容当原文。
   const hanCount = (text.match(/[\u3400-\u9fff]/gu) ?? []).length;
   return hanCount >= 12 ? text : null;
+}
+
+/** The model can identify an unlabeled reading passage, but every character still has to
+ * be traceable to the source file. Whitespace does not alter the reading text itself. */
+function isVerbatimSourceText(candidate: string, source: string) {
+  const compactCandidate = candidate.replace(/\s/g, "");
+  const compactSource = source.replace(/\s/g, "");
+  const hanCount = (compactCandidate.match(/[\u3400-\u9fff]/gu) ?? []).length;
+  return hanCount >= 12 && compactSource.includes(compactCandidate);
 }
 
 /** Providers occasionally return question objects such as { question: "…" } despite the JSON contract.
@@ -90,12 +101,12 @@ function lessonTitleFromSource(source: string, lessonNumber: number) {
 
 function promptForLesson(input: { lessonNumber: number; grade: string; year: number; sourceId: string; sourceName: string; pages: Array<{ id: string; pageNumber: number; extractedText: string }> }) {
   const source = input.pages.map((page) => `【PDF第${page.pageNumber}页，页面ID=${page.id}】\n${page.extractedText}`).join("\n\n").slice(0, 180_000);
-  return `为${input.grade}、${input.year}年口径生成第${input.lessonNumber}讲讲义文字初稿。源文件ID=${input.sourceId}，文件名=${input.sourceName}。\n\n${patternPrompt(input.grade)}\n\nsubtitle必须是一句概括本讲能力重点的短语，例如“读懂人物 · 讲清事情 · 说出道理”；严禁写年级、季节、年份、教材口径、讲义文字初稿或项目名称。\n\n输出字段必须是：lessonNumber,title,subtitle,technique,learningGoals(至少3项),curriculumAlignment([{claim,sourceUrl,sourceTitle,confirmed:false}]),parentBusySteps,parentExtendedSteps,conversationTopics([{question,referenceAnswer}]至少4项),readingExcerpt({text,sourceFileId:"${input.sourceId}",sourcePages:[页码],sourceFingerprint:"temporary-fingerprint",corrections:[],approved:false}),closeReadingQuestions,methodSummary,practice([{prompt,answer,imageSourcePageId?}]),littleTeacherSteps,oralFramework。若练习依赖PDF中的题图，把对应页面ID写入imageSourcePageId；不得生成替代图片。\n\nPDF识别文本如下：\n${source}`;
+  return `为${input.grade}、${input.year}年口径生成第${input.lessonNumber}讲讲义文字初稿。源文件ID=${input.sourceId}，文件名=${input.sourceName}。\n\n${patternPrompt(input.grade)}\n\n先从源文件识别本讲的故事、知识方法、课堂活动和题目证据；再以教研编辑身份补全完整讲义。不要把“没有写到某板块”当作空白理由：学习目标、方法小结、精读问题、家长交流、练习答案、小老师表达和家长指导均应根据课堂证据新写，语言具体、可教、可练。只有readingExcerpt.text必须逐字取自源文件，可从没有“原文摘抄”标签的正文中定位，但绝不可以自行改写或拼接。\n\nsubtitle必须是一句概括本讲能力重点的短语，例如“读懂人物 · 讲清事情 · 说出道理”；严禁写年级、季节、年份、教材口径、讲义文字初稿或项目名称。\n\n输出字段必须是：lessonNumber,title,subtitle,technique,learningGoals(至少3项),curriculumAlignment([{claim,sourceUrl,sourceTitle,confirmed:false}]),parentBusySteps,parentExtendedSteps,conversationTopics([{question,referenceAnswer}]至少4项),readingExcerpt({text,sourceFileId:"${input.sourceId}",sourcePages:[页码],sourceFingerprint:"temporary-fingerprint",corrections:[],approved:false}),closeReadingQuestions,methodSummary,practice([{prompt,answer,imageSourcePageId?}]),littleTeacherSteps,oralFramework。若练习依赖PDF中的题图，把对应页面ID写入imageSourcePageId；不得生成替代图片。\n\nPDF识别文本如下：\n${source}`;
 }
 
 export async function generateProjectContent(projectId: string) {
-  const project = await db.project.findUnique({
-    where: { id: projectId },
+  const project = await db.project.findFirst({
+    where: { id: projectId, deletedAt: null },
     include: { sourceFiles: { where: { kind: { in: ["PDF", "DOCUMENT"] } }, orderBy: { createdAt: "asc" }, include: { pages: { orderBy: { pageNumber: "asc" } } } } }
   });
   if (!project) throw new Error("项目不存在");
@@ -108,19 +119,23 @@ export async function generateProjectContent(projectId: string) {
   const provider = await getConfiguredProvider(project.selectedProviderId);
   const lessons: string[] = [];
   const generationSources = sourcesForLessons(project.sourceFiles, project.lessonCount);
-  if (generationSources.length < project.lessonCount) throw new Error(`当前只识别到${generationSources.length}讲主讲内容；请上传${project.lessonCount}份文件，或使用带清晰“第X讲”标题的合订DOCX/PDF`);
+  // 单讲 Word 是有效课堂证据：先完成它，不以项目默认的五讲数量强迫模型臆造其它课程。
+  if (generationSources.length === 0) throw new Error("未识别到可生成讲义的主讲内容");
   for (const [index, source] of generationSources.entries()) {
     const result = await provider.generateText({ systemPrompt, userPrompt: promptForLesson({ lessonNumber: index + 1, grade: project.grade, year: project.teachingYear, sourceId: source.id, sourceName: source.originalName, pages: source.pages }), temperature: 0.15 });
     const draft = parseJsonResponse(result.text) as Record<string, unknown>;
     const reading = draft.readingExcerpt as Record<string, unknown> | undefined;
     if (!reading || typeof reading.text !== "string") throw new Error(`第${index + 1}讲未生成阅读文段`);
-    const exactExcerpt = extractExactReadingExcerpt(source.pages.map((page) => page.extractedText).join("\n"));
-    if (!exactExcerpt) throw new Error(`第${index + 1}讲未能从主讲文件定位“原文摘抄”；已停止生成，需人工在文字审核页选取阅读文段`);
-    // 阅读文段不交给模型“复述”：从主讲文件中的原文摘抄直接回填，确保逐字可追溯。
+    const wholeSourceText = source.pages.map((page) => page.extractedText).join("\n");
+    const modelExcerpt = reading.text.trim();
+    const labeledExcerpt = extractExactReadingExcerpt(wholeSourceText);
+    // Prefer the labeled source passage when present; otherwise accept the model's quoted
+    // passage only after exact character-level source verification.
+    const exactExcerpt = labeledExcerpt ?? (isVerbatimSourceText(modelExcerpt, wholeSourceText) ? modelExcerpt : null);
+    if (!exactExcerpt) throw new Error(`第${index + 1}讲未能从主讲文件逐字定位阅读文段；请补充含原文的主讲页后重试`);
     reading.text = exactExcerpt;
-    const pageNumbers = source.pages.filter((page) => page.extractedText.includes(exactExcerpt.slice(0, 12))).map((page) => page.pageNumber);
-    const sourceText = source.pages.filter((page) => pageNumbers.includes(page.pageNumber)).map((page) => page.extractedText).join("\n");
-    if (!sourceText.replace(/\s/g, "").includes(exactExcerpt.replace(/\s/g, ""))) throw new Error(`第${index + 1}讲阅读文段无法验证来源`);
+    const pageNumbers = source.pages.filter((page) => isVerbatimSourceText(exactExcerpt, page.extractedText)).map((page) => page.pageNumber);
+    if (!isVerbatimSourceText(exactExcerpt, wholeSourceText)) throw new Error(`第${index + 1}讲阅读文段无法验证来源`);
     reading.sourceFileId = source.id;
     reading.sourcePages = pageNumbers.length ? pageNumbers : [source.pages[0]?.pageNumber ?? 1];
     reading.sourceFingerprint = createHash("sha256").update(exactExcerpt).digest("hex");
