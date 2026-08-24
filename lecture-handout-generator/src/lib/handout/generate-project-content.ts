@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { searchCurriculum } from "@/lib/curriculum/web-search";
 import { db } from "@/lib/db";
 import { getConfiguredProvider, parseJsonResponse } from "@/lib/ai/configured-provider";
 import { lessonContentSchema } from "@/lib/handout/content-schema";
@@ -130,9 +131,12 @@ async function repairCourseAlignment(input: {
   title: string;
   source: string;
 }) {
+  const semester = input.season === "秋季" ? "上册" : "下册";
+  const evidence = await searchCurriculum(`${input.year} ${targetGradeName(input.grade)}语文${semester} ${input.title} 教材 单元 快乐读书吧`);
+  if (evidence.length === 0) return null;
   const result = await input.provider.generateText({
     systemPrompt: "你是小学语文教材教研员。只能输出 JSON，不要解释。",
-    userPrompt: `请联网核对${input.year}年小学语文教材目录。课程为${targetGradeName(input.grade)}、${input.season}、题材《${input.title}》。输出 JSON：{"courseAlignment":"不超过80字，必须含几年级上/下册、第几单元第几课或快乐读书吧书目，以及本讲能力对应","claim":"同一条可核验结论","sourceUrl":"官方教材或教育部链接","sourceTitle":"来源标题"}。如果无法核验具体单元/课文，不能猜测，输出{"courseAlignment":"","claim":"","sourceUrl":"","sourceTitle":""}。课堂证据如下：${input.source.slice(0, 12000)}`,
+    userPrompt: `根据以下实时网页检索结果核对${input.year}年小学语文教材目录。课程为${targetGradeName(input.grade)}、${input.season}、题材《${input.title}》。只能依据给出的检索结果，不能猜测。输出 JSON：{"courseAlignment":"不超过80字，必须含几年级上/下册、第几单元第几课或快乐读书吧书目，以及本讲能力对应","claim":"同一条可核验结论","sourceUrl":"必须来自下列链接","sourceTitle":"来源标题"}。如果无法核验具体单元/课文，输出空字段。\n\n实时检索结果：${evidence.map((item, index) => `${index + 1}. ${item.title}\n${item.url}\n${item.snippet}`).join("\n\n")}\n\n课堂证据如下：${input.source.slice(0, 12000)}`,
     temperature: 0
   });
   const value = parseJsonResponse(result.text) as Record<string, unknown>;
