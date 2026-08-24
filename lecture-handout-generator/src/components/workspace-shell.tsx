@@ -39,6 +39,8 @@ export function WorkspaceShell({ initialProjects, user }: WorkspaceShellProps) {
   const [uploading, setUploading] = useState(false);
   const [uploadMessage, setUploadMessage] = useState("");
   const [processing, setProcessing] = useState(false);
+  const [outputMessage, setOutputMessage] = useState("");
+  const [savingOutputs, setSavingOutputs] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [generationSettingsOpen, setGenerationSettingsOpen] = useState(false);
   const [createProjectOpen, setCreateProjectOpen] = useState(false);
@@ -406,37 +408,28 @@ export function WorkspaceShell({ initialProjects, user }: WorkspaceShellProps) {
     window.location.href = "/login";
   }
 
-  function toggleOutput(id: OutputKind) {
-    setOutputs((items) => {
-      const next = items.includes(id)
-        ? items.filter((item) => item !== id)
-        : [...items, id];
-      setProjects((projectItems) =>
-        projectItems.map((project) =>
-          project.id === selectedId
-            ? { ...project, outputKinds: next }
-            : project,
-        ),
-      );
-      if (selectedId)
-        void fetch(`/api/projects/${selectedId}/outputs`, {
-          method: "PUT",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({
-            kinds: next.map(
-              (kind) =>
-                ({
-                  lesson_student: "LESSON_STUDENT",
-                  combined_student: "COMBINED_STUDENT",
-                  combined_answers: "COMBINED_ANSWERS",
-                  parent_manual: "PARENT_MANUAL",
-                  lesson_answers: "LESSON_ANSWERS",
-                })[kind],
-            ),
-          }),
-        });
-      return next;
+  async function toggleOutput(id: OutputKind) {
+    if (!selectedId || savingOutputs) return;
+    const previous = outputs;
+    const next = previous.includes(id) ? previous.filter((item) => item !== id) : [...previous, id];
+    setOutputs(next);
+    setOutputMessage("正在保存输出设置…");
+    setSavingOutputs(true);
+    setProjects((items) => items.map((project) => project.id === selectedId ? { ...project, outputKinds: next } : project));
+    const response = await fetch(`/api/projects/${selectedId}/outputs`, {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ kinds: next.map((kind) => ({ lesson_student: "LESSON_STUDENT", combined_student: "COMBINED_STUDENT", combined_answers: "COMBINED_ANSWERS", parent_manual: "PARENT_MANUAL", lesson_answers: "LESSON_ANSWERS" })[kind]) }),
     });
+    setSavingOutputs(false);
+    if (!response.ok) {
+      setOutputs(previous);
+      setProjects((items) => items.map((project) => project.id === selectedId ? { ...project, outputKinds: previous } : project));
+      const payload = await response.json().catch(() => ({}));
+      setOutputMessage(payload.error ?? "保存失败，未更改原来的输出设置。");
+      return;
+    }
+    setOutputMessage("已保存到项目，刷新后仍会保留。");
   }
 
   async function uploadPdfs(files: FileList | null) {
@@ -761,7 +754,8 @@ export function WorkspaceShell({ initialProjects, user }: WorkspaceShellProps) {
                     <input
                       type="checkbox"
                       checked={outputs.includes(option.id)}
-                      onChange={() => toggleOutput(option.id)}
+                      onChange={() => void toggleOutput(option.id)}
+                      disabled={savingOutputs}
                     />
                     <span className="custom-check">✓</span>
                     <span>
@@ -771,6 +765,7 @@ export function WorkspaceShell({ initialProjects, user }: WorkspaceShellProps) {
                   </label>
                 ))}
               </div>
+              {outputMessage && <p className={`output-save-message ${outputMessage.includes("失败") ? "error" : ""}`}>{outputMessage}</p>}
             </section>
           </div>
 
