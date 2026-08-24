@@ -273,7 +273,10 @@ button { cursor: pointer; }
 .review-toolbar p { margin: 5px 0 0; color: #8c827a; font-size: 11px; }
 .json-editor { width: 100%; height: calc(100vh - 260px); margin: 18px 0; padding: 18px; border: 1px solid #ddd5ce; border-radius: 12px; outline: none; resize: none; color: #3e3834; background: #fbfaf8; font: 13px/1.75 Consolas, monospace; }
 .review-actions span { flex: 1; color: #846b58; font-size: 12px; }
-.question-upload { cursor: pointer; }
+.question-upload { display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; }
+.question-upload span { color: #6d5c51; font-size: 12px; }
+.question-upload select { height: 34px; min-width: 60px; padding: 0 4px; border: 1px solid #ded4cc; border-radius: 7px; color: #493c34; background: #fff; font-size: 12px; }
+.question-upload .secondary-button { height: 34px; padding: 0 10px; font-size: 12px; }
 .question-upload input { display: none; }
 @media (max-width: 800px) { .review-layout { grid-template-columns: 1fr; } .lesson-nav { border-right: 0; } }
 .pinyin-grid { max-height: calc(100vh - 250px); padding: 20px; display: flex; flex-wrap: wrap; align-content: flex-start; gap: 7px 2px; overflow: auto; border: 1px solid var(--line); border-radius: 12px; background: #fffdf9; }

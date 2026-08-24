@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { ArrowLeft, CheckCircle2, RefreshCw, RotateCcw, Save } from "lucide-react";
 import type { LessonContent } from "@/lib/handout/content-schema";
 import { normalizeLessonSubtitle } from "@/lib/handout/subtitle";
@@ -42,6 +42,7 @@ export function ReviewWorkspace({
   );
   const [message, setMessage] = useState("");
   const [questionIndex, setQuestionIndex] = useState(0);
+  const questionImageInput = useRef<HTMLInputElement>(null);
   const selected = useMemo(
     () => lessons.find((lesson) => lesson.id === selectedId),
     [lessons, selectedId],
@@ -163,18 +164,12 @@ export function ReviewWorkspace({
                 这里是对外展示的中文内容；阅读文段只能纠正识别错误，不能压缩改写。
               </p>
             </div>
-          <label className="secondary-button question-upload">
-            放入真题带练第
-            <select value={questionIndex} onChange={(event) => setQuestionIndex(Number(event.target.value))}>{draft.practice.map((_, index) => <option value={index} key={index}>{index + 1} 题</option>)}</select>
-            人工替代题图
-              <input
-                type="file"
-                accept="image/*"
-                onChange={(event) =>
-                  void uploadQuestionImage(event.target.files)
-                }
-              />
-            </label>
+          <div className="question-upload">
+            <span>放入真题带练第</span>
+            <select aria-label="选择真题带练题号" value={questionIndex} onChange={(event) => setQuestionIndex(Number(event.target.value))}>{draft.practice.map((_, index) => <option value={index} key={index}>{index + 1} 题</option>)}</select>
+            <button type="button" className="secondary-button" onClick={() => questionImageInput.current?.click()}>上传人工替代题图</button>
+            <input ref={questionImageInput} type="file" accept="image/*" onChange={(event) => void uploadQuestionImage(event.target.files)} />
+          </div>
             {lessons.length < project.lessonCount && <button className="secondary-button" onClick={() => void regenerateAllLessons()}><RefreshCw size={16} /> 从合订文件重建{project.lessonCount}讲</button>}
           </div>
           <div className="content-editor">
