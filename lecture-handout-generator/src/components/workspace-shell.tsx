@@ -135,8 +135,20 @@ export function WorkspaceShell({ initialProjects, user }: WorkspaceShellProps) {
       }
       const contentJob = jobs.find((job) => job.kind === "CONTENT_GENERATE");
       const parseJobs = jobs.filter((job) => job.kind === "PDF_PARSE");
+      const activeParseJobs = parseJobs.filter(
+        (job) => job.status === "QUEUED" || job.status === "RUNNING",
+      );
       // jobs 按时间倒序返回：只看最新一轮内容任务，历史失败不能覆盖已成功的重试结果。
-      if (contentJob?.status === "FAILED") {
+      // Scanned PDFs can spend several minutes in OCR. A historical content-generation
+      // failure must never overwrite that live progress with a stale ZodError.
+      if (activeParseJobs.length > 0) {
+        const activeParse = activeParseJobs.find((job) => job.status === "RUNNING") ?? activeParseJobs[0];
+        const progress = activeParse.result?.percent ?? 1;
+        const page = activeParse.result?.pageNumber;
+        const total = activeParse.result?.totalPages;
+        setParseProgress({ percent: progress, label: activeParse.result?.stage === "ocr" ? `正在识别扫描课件${page && total ? `（第${page}/${total}页）` : ""}` : "正在解析主讲文件" });
+        setProcessMessage("扫描件正在识别文字；完成后会自动生成文字初稿。");
+      } else if (contentJob?.status === "FAILED") {
         setProcessing(false);
         setParseProgress(null);
         setProcessMessage(

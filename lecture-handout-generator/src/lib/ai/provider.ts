@@ -11,8 +11,8 @@ export interface GenerateTextResult {
 }
 
 export interface GenerateVisionTextInput extends GenerateTextInput {
-  /** A local PDF page encoded as data:image/png;base64,... */
-  imageDataUrl: string;
+  /** Local PDF pages encoded as data:image/png;base64,... */
+  imageDataUrls: string[];
 }
 
 export interface AiProvider {
@@ -49,7 +49,7 @@ export class OpenAiCompatibleProvider implements AiProvider {
       role: "user",
       content: [
         { type: "text", text: input.userPrompt },
-        { type: "image_url", image_url: { url: input.imageDataUrl } }
+        ...input.imageDataUrls.map((url) => ({ type: "image_url", image_url: { url } }))
       ]
     });
   }

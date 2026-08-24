@@ -101,6 +101,9 @@ export async function generateProjectContent(projectId: string) {
   if (!project) throw new Error("项目不存在");
   if (!project.teachingYearConfirmedAt) throw new Error("请先确认教学年份");
   if (project.sourceFiles.length === 0 || project.sourceFiles.some((file) => file.pages.length === 0)) throw new Error("请先完成全部主讲文件解析");
+  if (project.sourceFiles.some((file) => file.pages.every((page) => page.extractedText.replace(/\s/g, "").length === 0))) {
+    throw new Error("主讲文件仍在扫描件OCR中，当前没有可用文字；请等待解析进度完成后系统会自动生成初稿");
+  }
 
   const provider = await getConfiguredProvider(project.selectedProviderId);
   const lessons: string[] = [];

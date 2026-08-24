@@ -37,18 +37,20 @@ async function ocrScannedPdf(pdf: Uint8Array, projectId: string, pageCount: numb
   if (!project) throw new Error("OCR项目不存在");
   const provider = await getConfiguredProvider(project.selectedProviderId);
   const results: Array<{ pageNumber: number; text: string }> = [];
-  // Group models have a low RPM quota. Process pages in order so the progress meter is honest
-  // and a long scanned course can resume through the existing job mechanism.
-  for (let pageNumber = 1; pageNumber <= pageCount; pageNumber += 1) {
-    await report(pageNumber, pageCount);
-    const page = await renderPdfPage(pdf, pageNumber);
+  // Batch five pages into one vision request. The group model is commonly capped at 5 RPM;
+  // sending one page per request made a 45-page teaching deck take tens of minutes.
+  const batchSize = 5;
+  for (let start = 1; start <= pageCount; start += batchSize) {
+    const numbers = Array.from({ length: Math.min(batchSize, pageCount - start + 1) }, (_, offset) => start + offset);
+    await report(numbers[0], pageCount);
+    const rendered = await Promise.all(numbers.map((pageNumber) => renderPdfPage(pdf, pageNumber)));
     let response;
     for (let attempt = 0; attempt < 4; attempt += 1) {
       try {
         response = await provider.generateVisionText({
-          systemPrompt: "你是中文教材OCR校对员。只输出图片中可见的中文、数字、英文和标点原文，不要解释、不要Markdown、不要补写。版面无文字时输出空字符串。",
-          userPrompt: `请逐字识别这张主讲PDF第${pageNumber}页。保留段落换行；看不清的字符用□代替。`,
-          imageDataUrl: `data:image/png;base64,${Buffer.from(page.image).toString("base64")}`,
+          systemPrompt: "你是中文教材OCR校对员。严格输出JSON：{\"pages\":[{\"pageNumber\":数字,\"text\":\"原文\"}]}。逐字识别每张图片中可见的中文、数字、英文和标点；不要解释、不要Markdown、不要补写。版面无文字时text为空字符串。",
+          userPrompt: `依次识别主讲PDF第${numbers.join("、")}页。图片顺序与页码顺序一致；保留段落换行，看不清的字符用□代替。`,
+          imageDataUrls: rendered.map((page) => `data:image/png;base64,${Buffer.from(page.image).toString("base64")}`),
           temperature: 0
         });
         break;
@@ -60,10 +62,17 @@ async function ocrScannedPdf(pdf: Uint8Array, projectId: string, pageCount: numb
         await new Promise((resolve) => setTimeout(resolve, 13_000 * (attempt + 1)));
       }
     }
-    if (!response) throw new Error(`第${pageNumber}页OCR未返回内容`);
-    results.push({ pageNumber, text: response.text.trim() });
-    // Keep below the 5 RPM default even when a page response is very fast.
-    if (pageNumber < pageCount) await new Promise((resolve) => setTimeout(resolve, 12_500));
+    if (!response) throw new Error(`第${numbers[0]}页OCR未返回内容`);
+    const raw = response.text.match(/```(?:json)?\s*([\s\S]*?)```/i)?.[1] ?? response.text;
+    let parsed: { pages?: Array<{ pageNumber?: number; text?: string }> };
+    try { parsed = JSON.parse(raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1)); }
+    catch { throw new Error(`第${numbers[0]}-${numbers.at(-1)}页OCR返回格式异常，请重试`); }
+    for (const pageNumber of numbers) {
+      const item = parsed.pages?.find((entry) => entry.pageNumber === pageNumber);
+      results.push({ pageNumber, text: typeof item?.text === "string" ? item.text.trim() : "" });
+    }
+    // Leave a small buffer under the default 5 RPM quota; one 45-page deck is now 9 requests.
+    if (start + batchSize <= pageCount) await new Promise((resolve) => setTimeout(resolve, 12_500));
   }
   return results;
 }
