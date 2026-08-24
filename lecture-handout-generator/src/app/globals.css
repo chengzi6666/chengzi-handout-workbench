@@ -345,9 +345,10 @@ button { cursor: pointer; }
 .book-cover-spread h2 { max-width: 70%; margin: 12% auto; font-size: clamp(28px, 5vw, 58px); }
 .book-cover-spread small { letter-spacing: .12em; }.book-cover-spread p { font-size: 13px; }
 .book-leaf { position: relative; width: 50%; min-width: 0; padding: 5.5% 6%; overflow: auto; background: #fffdf7; animation: spread-page-turn .58s cubic-bezier(.25,.7,.2,1); }
-.book-turn-sheet { position: absolute; z-index: 4; top: 0; bottom: 0; width: 50%; padding: 5.5% 6%; overflow: hidden; color: #3b302a; background: #fffdf7; backface-visibility: hidden; box-shadow: 0 0 12px #57392033; }
-.turn-next { right: 0; transform-origin: left center; animation: book-turn-next .82s cubic-bezier(.42,0,.2,1) forwards; }.turn-previous { left: 0; transform-origin: right center; animation: book-turn-previous .82s cubic-bezier(.42,0,.2,1) forwards; }
-@keyframes book-turn-next { 0% { transform: rotateY(0); } 46% { background: #fffdf7; } 100% { transform: rotateY(-180deg); background: #f3ebe1; } } @keyframes book-turn-previous { 0% { transform: rotateY(0); } 46% { background: #fffdf7; } 100% { transform: rotateY(180deg); background: #f3ebe1; } }
+.book-turn-sheet { position: absolute; z-index: 4; top: 0; bottom: 0; width: 50%; padding: 5.5% 6%; overflow: hidden; color: #3b302a; background: linear-gradient(90deg, #f5ede4, #fffdf7 14%, #fffdf7 84%, #eadfce); backface-visibility: hidden; box-shadow: 0 0 18px #57392055; will-change: transform; }
+.book-turn-sheet::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(90deg, #3b211b00 10%, #3b211b33 48%, #fff9ee99 62%, #3b211b00 92%); mix-blend-mode: multiply; }
+.turn-next { right: 0; transform-origin: left center; animation: book-turn-next .52s cubic-bezier(.16,.78,.24,1) forwards; }.turn-previous { left: 0; transform-origin: right center; animation: book-turn-previous .52s cubic-bezier(.16,.78,.24,1) forwards; }
+@keyframes book-turn-next { 0% { transform: rotateY(0deg) skewY(0); } 50% { transform: rotateY(-82deg) skewY(-2deg); } 100% { transform: rotateY(-179deg) skewY(0); } } @keyframes book-turn-previous { 0% { transform: rotateY(0deg) skewY(0); } 50% { transform: rotateY(82deg) skewY(2deg); } 100% { transform: rotateY(179deg) skewY(0); } }
 .book-left { border-radius: 9px 2px 2px 9px; transform-origin: right center; }.book-right { border-radius: 2px 9px 9px 2px; transform-origin: left center; }
 .book-leaf.kind-home { background: #fff2cf url("/handout-backgrounds/butter-school.png") center/100% 100% no-repeat; }.book-leaf.kind-conversation, .book-leaf.kind-teacher { background: #fff0ec url("/handout-backgrounds/blush-school.png") center/100% 100% no-repeat; }.book-leaf.kind-reading { background: #eaf7ef url("/handout-backgrounds/mint-school.png") center/100% 100% no-repeat; }.book-leaf.kind-practice { background: #fff2cf url("/handout-backgrounds/butter-school.png") center/100% 100% no-repeat; }
 .pinyin-reading ruby { ruby-position: over; }.pinyin-reading rt { color: #df6f42; font-size: .56em; }
@@ -360,6 +361,7 @@ button { cursor: pointer; }
 .book-stage > header span { color: #a76643; font-size: 11px; }
 .book-stage > header h1 { margin: 2px 0; font-size: 20px; }
 .book-stage > header button { padding: 9px 13px; display: flex; align-items: center; gap: 6px; border: 0; border-radius: 9px; color: #fff; background: #b76d48; }
+.flipbook-options { max-width: 1100px; margin: 0 auto 14px; padding: 10px 14px; display: flex; flex-wrap: wrap; align-items: center; gap: 12px; border: 1px solid #e6d3c4; border-radius: 10px; color: #624d40; background: #fffaf5; font-size: 13px; }.flipbook-options label { cursor: pointer; }.flipbook-options input { accent-color: #c46d42; }.flipbook-options button { padding: 7px 10px; display: inline-flex; align-items: center; gap: 5px; border: 0; border-radius: 7px; color: #fff; background: #c46d42; cursor: pointer; }.flipbook-options span { color: #9b694e; font-size: 12px; }
 .book-shell { height: calc(100vh - 100px); display: flex; align-items: center; justify-content: center; gap: 15px; perspective: 1800px; }
 .book-shell > button { width: 42px; height: 42px; display: grid; place-items: center; border: 0; border-radius: 50%; color: #6e5141; background: #ffffffc7; box-shadow: 0 4px 14px #6b4b3520; }
 .book-shell > button:disabled { opacity: .3; }
