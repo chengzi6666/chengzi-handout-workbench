@@ -10,6 +10,11 @@ export interface GenerateTextResult {
   provider: string;
 }
 
+export interface GenerateVisionTextInput extends GenerateTextInput {
+  /** A local PDF page encoded as data:image/png;base64,... */
+  imageDataUrl: string;
+}
+
 export interface AiProvider {
   readonly id: string;
   readonly displayName: string;
@@ -36,6 +41,20 @@ export class OpenAiCompatibleProvider implements AiProvider {
   }
 
   async generateText(input: GenerateTextInput): Promise<GenerateTextResult> {
+    return this.request(input, { role: "user", content: input.userPrompt });
+  }
+
+  async generateVisionText(input: GenerateVisionTextInput): Promise<GenerateTextResult> {
+    return this.request(input, {
+      role: "user",
+      content: [
+        { type: "text", text: input.userPrompt },
+        { type: "image_url", image_url: { url: input.imageDataUrl } }
+      ]
+    });
+  }
+
+  private async request(input: GenerateTextInput, userMessage: unknown): Promise<GenerateTextResult> {
     const endpoint = `${this.options.baseUrl.replace(/\/$/, "")}/chat/completions`;
     const response = await fetch(endpoint, {
       method: "POST",
@@ -49,7 +68,7 @@ export class OpenAiCompatibleProvider implements AiProvider {
         temperature: input.temperature ?? 0.2,
         messages: [
           { role: "system", content: input.systemPrompt },
-          { role: "user", content: input.userPrompt }
+          userMessage
         ]
       })
     });
