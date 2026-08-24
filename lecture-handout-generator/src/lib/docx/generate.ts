@@ -196,6 +196,11 @@ function noteTable() {
 }
 
 function lessonSections(lesson: LessonContent, input: HandoutDocumentInput) {
+  // 拼音是在 DOCX 打包完成后替换为 Word 原生 ruby。使用唯一占位符，绝不以全文正则跨段落匹配，
+  // 否则五讲内容相似时会把多个 w:r / w:rt 嵌套在一起，生成损坏的 DOCX。
+  const readingText = input.mode === "student" && input.pinyinReviews?.[lesson.lessonNumber]
+    ? `PINYINREADINGMARKER${lesson.lessonNumber}X`
+    : lesson.readingExcerpt.text;
   const p1 = section([
     ...lessonTitleBlock(lesson),
     heading("🎯 一、本讲要学什么"),
@@ -207,7 +212,7 @@ function lessonSections(lesson: LessonContent, input: HandoutDocumentInput) {
     ...lesson.conversationTopics.flatMap((topic, index) => [heading(`${index + 1}. ${topic.question}`), body(`参考：${topic.referenceAnswer}`)])
   ], pickBackground(input, "CONVERSATION"), input);
   const p3 = section([
-    ...title("📖 三、精读片段"), heading("📖 课文片段"), body(lesson.readingExcerpt.text),
+    ...title("📖 三、精读片段"), heading("📖 课文片段"), body(readingText),
     heading("💡 精读批注"), ...numbered(lesson.closeReadingQuestions), ...(input.noteOwnPage ? [] : [noteTable()])
   ], pickBackground(input, "READING"), input);
   const notePage = input.noteOwnPage ? section([
@@ -338,14 +343,17 @@ async function addNativeRuby(buffer: Buffer, lessons: LessonContent[], reviews: 
   for (const lesson of lessons) {
     const units = reviews[lesson.lessonNumber];
     if (!units) continue;
-    const escaped = escapeXml(lesson.readingExcerpt.text);
-    // w:ruby 必须是段落的直接子节点，不能插到既有 w:r 内部。旧实现会留下不配对的 w:r，
-    // 这正是下载的“课文片段”出现标点/乱码的根因。
-    const textPattern = new RegExp(`<w:r(?:\\s[^>]*)?>[\\s\\S]*?<w:t(?:\\s[^>]*)?>${escaped}<\\/w:t>[\\s\\S]*?<\\/w:r>`);
-    const match = xml.match(textPattern);
-    if (!match) throw new Error(`第${lesson.lessonNumber}讲阅读文段无法定位，未添加拼音`);
-    xml = xml.replace(match[0], rubyXml(units));
+    const marker = escapeXml(`PINYINREADINGMARKER${lesson.lessonNumber}X`);
+    // 只匹配由本生成器写入的唯一 TextRun。w:ruby 必须是段落的直接子节点；
+    // 不能用全文正则从任意 w:r 跨到阅读原文，否则会产生嵌套的 w:rt 并损坏 XML。
+    const markerIndex = xml.indexOf(marker);
+    const precedingRuns = markerIndex < 0 ? [] : [...xml.slice(0, markerIndex).matchAll(/<w:r(?:\s[^>]*)?>/g)];
+    const runStart = precedingRuns.at(-1)?.index ?? -1;
+    const runEnd = markerIndex < 0 ? -1 : xml.indexOf("</w:r>", markerIndex);
+    if (runStart < 0 || runEnd < 0) throw new Error(`第${lesson.lessonNumber}讲阅读文段占位符无法定位（marker=${markerIndex}, runStart=${runStart}, runEnd=${runEnd}），未添加拼音`);
+    xml = `${xml.slice(0, runStart)}${rubyXml(units)}${xml.slice(runEnd + "</w:r>".length)}`;
   }
+  if (/PINYINREADINGMARKER\d+X/u.test(xml)) throw new Error("DOCX拼音占位符未全部替换，已停止导出");
   zip.file("word/document.xml", xml);
   return Buffer.from(await zip.generateAsync({ type: "nodebuffer", compression: "DEFLATE" }));
 }

@@ -309,12 +309,12 @@ button { cursor: pointer; }
 .preview-kind-tabs, .lesson-tabs, .page-tabs { display: flex; gap: 6px; flex-wrap: wrap; }
 .preview-kind-tabs button, .lesson-tabs button, .page-tabs button { min-height: 36px; padding: 0 12px; border: 1px solid #e4cbbb; border-radius: 18px; color: #7d5d4e; background: #fff; font-size: 13px; cursor: pointer; }
 .preview-kind-tabs button.active, .lesson-tabs button.active, .page-tabs button.active { color: #fff; border-color: #f06f36; background: #ff6b2d; }
-.page-canvas { position: relative; aspect-ratio: 210 / 297; max-height: calc(100vh - 250px); margin: auto; overflow: auto; border: 1px solid #d8d0c9; box-shadow: 0 10px 30px #7e6c5a25; background: #fff center/100% 100% no-repeat; }
+.page-canvas { position: relative; display: flex; flex-direction: column; aspect-ratio: 210 / 297; max-height: calc(100vh - 250px); margin: auto; overflow: auto; border: 1px solid #d8d0c9; box-shadow: 0 10px 30px #7e6c5a25; background: #fff center/100% 100% no-repeat; }
 .page-canvas.answer-canvas { overflow: auto; }
-.canvas-copy { min-height: 100%; padding: 14% 10% 22%; color: #453d38; outline: none; cursor: text; }
+.canvas-copy { flex: 1 0 auto; min-height: 0; padding: 14% 10% 6%; color: #453d38; outline: none; cursor: text; }
 .preview-running-header, .preview-running-footer { position: absolute; z-index: 4; left: 10%; right: 10%; color: #a07c68; letter-spacing: .06em; pointer-events: none; }
 .preview-running-header { top: 4%; text-align: center; }
-.preview-running-footer { bottom: 3.5%; text-align: center; }
+.preview-running-footer { position: relative; z-index: 4; left: auto; right: auto; bottom: auto; flex: 0 0 auto; margin: 0 10% 3.5%; padding-top: 8px; text-align: center; }
 .page-tabs { display: flex; flex: 1 1 100%; gap: 6px; margin-bottom: 8px; overflow-x: auto; }
 .page-tabs button { flex: 1 0 auto; padding: 7px 10px; border: 1px solid #ead8cc; border-radius: 999px; color: #755d4d; background: #fff; font-size: 11px; cursor: pointer; }
 .page-tabs button.active { color: #fff; border-color: var(--orange); background: var(--orange); }
@@ -370,6 +370,10 @@ button { cursor: pointer; }
 .export-action:disabled { cursor: wait; opacity: 1; color: #8b6552; background: #fff3ea; border-color: #f3cbb8; box-shadow: none; transform: none; }
 .export-action:disabled svg { color: #e77948; }
 .export-action i { width: 13px; height: 13px; flex: 0 0 13px; border: 2px solid #f6c2a7; border-top-color: #eb6530; border-radius: 50%; animation: export-spin .7s linear infinite; }
+.export-progress { margin-top: 11px; padding: 9px; border: 1px solid #f1d8ca; border-radius: 9px; background: #fff9f5; color: #9a6045; font-size: 11px; font-weight: 700; }
+.export-progress div { height: 7px; overflow: hidden; border-radius: 999px; background: #f5e1d6; }
+.export-progress div i { display: block; height: 100%; border: 0; border-radius: inherit; background: linear-gradient(90deg, #ff995d, #ff682f); transition: width .3s ease; }
+.export-progress span { display: block; margin-top: 6px; }
 @keyframes export-spin { to { transform: rotate(360deg); } }
 .export-panel a.publish-button { margin-top: 13px; min-height: 40px; padding: 10px 11px; display: flex; align-items: center; justify-content: center; border: 1px solid #efc6b4; border-radius: 10px; color: #b6532a; background: #fff7f2; font-size: 12px; font-weight: 800; text-decoration: none; transition: background .16s ease; }
 .export-panel a.publish-button:hover { background: #ffeadf; }

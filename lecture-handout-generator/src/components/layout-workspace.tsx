@@ -153,6 +153,7 @@ export function LayoutWorkspace({
   const [draggingBackgroundRole, setDraggingBackgroundRole] = useState<string | null>(null);
   const [message, setMessage] = useState("");
   const [downloading, setDownloading] = useState<string | null>(null);
+  const [exportProgress, setExportProgress] = useState<number | null>(null);
   const [pageIndex, setPageIndex] = useState(0);
   const [lessonIndex, setLessonIndex] = useState(0);
   const [previewKind, setPreviewKind] = useState<"student" | "answers" | "parent">("student");
@@ -279,19 +280,29 @@ export function LayoutWorkspace({
   }
   async function download(kind: string) {
     setDownloading(kind);
+    setExportProgress(6);
     setMessage("正在生成 Word，请勿关闭本页…");
+    const progressTimer = window.setInterval(() => {
+      setExportProgress((value) => Math.min(88, (value ?? 6) + (value && value > 60 ? 2 : 5)));
+    }, 450);
     try {
       const response = await fetch(`/api/projects/${project.id}/export?kind=${kind}`);
       if (!response.ok) { const payload = await response.json().catch(() => ({})); throw new Error(payload.error ?? "Word生成失败"); }
+      setExportProgress(93);
       const blob = await response.blob();
+      setExportProgress(98);
       const disposition = response.headers.get("content-disposition") ?? "";
       const encoded = disposition.match(/filename\*=UTF-8''([^;]+)/u)?.[1];
       const fileName = encoded ? decodeURIComponent(encoded) : "讲义.docx";
       const url = URL.createObjectURL(blob); const anchor = document.createElement("a");
       anchor.href = url; anchor.download = fileName; anchor.click(); URL.revokeObjectURL(url);
+      setExportProgress(100);
       setMessage("Word 已生成并开始下载。");
     } catch (error) { setMessage(error instanceof Error ? error.message : "下载失败"); }
-    finally { setDownloading(null); }
+    finally {
+      window.clearInterval(progressTimer);
+      window.setTimeout(() => { setExportProgress(null); setDownloading(null); }, 450);
+    }
   }
   function updatePageTypography(patch: { bodySize?: number; titleSize?: number }) {
     setPageTypography((value) => ({ ...value, [previewKey]: { ...value[previewKey], ...patch } }));
@@ -658,6 +669,7 @@ export function LayoutWorkspace({
               {downloading === kind ? <i aria-label="正在生成" /> : null}
             </button>
           ))}
+          {downloading && exportProgress !== null ? <div className="export-progress" role="status" aria-live="polite"><div><i style={{ width: `${exportProgress}%` }} /></div><span>正在生成 Word · {exportProgress}%</span></div> : null}
           <Link
             className="publish-button"
             href={`/projects/${project.id}/flipbook-preview`}

@@ -13,6 +13,18 @@ const lesson: LessonContent = {
   closeReadingQuestions: ["想一想"], closeReadingAnswers: ["参考答案"], methodSummary: "先观察，再表达。", practice: [{ prompt: "练习", answer: "参考" }], littleTeacherSteps: ["说标题"], oralFramework: "我先……再……"
 };
 
+function assertWellFormedXml(xml: string) {
+  const stack: string[] = [];
+  for (const match of xml.matchAll(/<(\/)?([\w:.-]+)(?:\s[^<>]*)?\/?\s*>/gu)) {
+    const closing = match[1];
+    const name = match[2];
+    if (!name || name.startsWith("?")) continue;
+    if (closing) assert.equal(stack.pop(), name, `DOCX XML 标签未正确闭合：${name}`);
+    else if (!match[0].endsWith("/>") ) stack.push(name);
+  }
+  assert.equal(stack.length, 0, "DOCX XML 存在未闭合标签");
+}
+
 test("student docx contains five next-page sections and inline conversation answers", async () => {
   const output = await generateHandoutDocx({ projectName: "测试", grade: "0升1", teachingYear: 2026, lessons: [lesson], mode: "student" });
   const zip = await JSZip.loadAsync(output); const xml = await zip.file("word/document.xml")!.async("string");
@@ -34,6 +46,7 @@ test("grade two reviewed pinyin is emitted as native Word ruby", async () => {
   const output = await generateHandoutDocx({ projectName: "测试", grade: "1升2", teachingYear: 2026, lessons: [lesson], pinyinReviews: { 1: [{ char: "重", pinyin: "chóng" }, { char: "阳", pinyin: "yáng" }, { char: "节", pinyin: "jié" }, { char: "。", pinyin: "" }] }, mode: "student" });
   const zip = await JSZip.loadAsync(output); const xml = await zip.file("word/document.xml")!.async("string");
   assert.match(xml, /<w:ruby>/); assert.match(xml, /chóng/); assert.match(xml, /<w:rubyBase>/);
+  assertWellFormedXml(xml);
 });
 
 test("practice blanks reserve student writing space", () => {
@@ -57,4 +70,15 @@ test("parent manual follows the family guidance structure", async () => {
   assert.match(xml, /高远老师/);
   assert.match(xml, /讲次名称/);
   assert.ok((xml.match(/w:type w:val="nextPage"/g) ?? []).length >= 4);
+});
+
+test("combined parent and student export keeps every handbook and lesson section", async () => {
+  const lessons = Array.from({ length: 5 }, (_, index) => ({ ...lesson, lessonNumber: index + 1, title: `第${index + 1}讲测试课程` }));
+  const output = await generateHandoutDocx({ projectName: "测试", grade: "1升2", teachingYear: 2026, lessons, mode: "student", includeParentManual: true });
+  const zip = await JSZip.loadAsync(output); const xml = await zip.file("word/document.xml")!.async("string");
+  assertWellFormedXml(xml);
+  assert.match(xml, /家长使用手册/);
+  for (let index = 1; index <= 5; index += 1) assert.match(xml, new RegExp(`第${index}讲测试课程`, "u"));
+  // 家长手册至少 4 页，每讲固定 5 页；每一页都由真正的 nextPage 分节符分隔。
+  assert.ok((xml.match(/w:type w:val="nextPage"/g) ?? []).length >= 29);
 });
