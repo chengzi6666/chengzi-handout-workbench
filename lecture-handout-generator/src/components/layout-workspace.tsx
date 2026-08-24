@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useMemo, useRef, useState } from "react";
 import { ArrowLeft, Bold, Download, Highlighter, ImagePlus, Italic, Save, Underline } from "lucide-react";
 import { createPinyinReview } from "@/lib/handout/pinyin";
+import { formatStudentBlank } from "@/lib/handout/student-format";
 
 const roles = [
   ["SIMPLE", "简单模式·全文"],
@@ -160,7 +161,18 @@ export function LayoutWorkspace({
     [expressions, position.assetId],
   );
   const currentRole = pageRoles[pageIndex];
-  const currentLesson = lessons[lessonIndex];
+  // Older generated projects may still contain model-produced ----- blanks.
+  // Normalize at display time too, so reopening an existing project never shows dashed writing lines.
+  const currentLesson = useMemo(() => {
+    const lesson = lessons[lessonIndex];
+    return lesson
+      ? {
+          ...lesson,
+          practice: lesson.practice.map((item) => ({ ...item, prompt: formatStudentBlank(item.prompt) })),
+          oralFramework: formatStudentBlank(lesson.oralFramework),
+        }
+      : undefined;
+  }, [lessons, lessonIndex]);
   const previewKey = `${previewKind}-${currentLesson?.lessonNumber ?? 0}-${pageIndex}`;
   const currentTypography = pageTypography[previewKey] ?? {};
   const currentBodySize = currentTypography.bodySize ?? Math.min(fontSize, defaultBodySize(pageIndex, currentLesson));
