@@ -182,11 +182,13 @@ export function WorkspaceShell({ initialProjects, user }: WorkspaceShellProps) {
           contentJob?.status === "QUEUED" ||
           contentJob?.status === "RUNNING"
         ) {
+          const generated = contentJob.result?.pageNumber;
+          const total = contentJob.result?.totalPages;
           setParseProgress({
-            percent: contentJob.status === "RUNNING" ? 88 : 82,
+            percent: contentJob.result?.percent ?? (contentJob.status === "RUNNING" ? 82 : 80),
             label:
               contentJob.status === "RUNNING"
-                ? "正在生成文字初稿"
+                ? `正在生成文字初稿${generated !== undefined && total ? `（已完成${generated}/${total}讲）` : ""}`
                 : "文字初稿正在排队生成",
           });
           setProcessMessage("主讲文件解析完成，系统正在自动生成文字初稿…");

@@ -108,7 +108,10 @@ function promptForLesson(input: { lessonNumber: number; grade: string; year: num
   return `为${input.grade}、${input.year}年口径生成第${input.lessonNumber}讲讲义文字初稿。源文件ID=${input.sourceId}，文件名=${input.sourceName}。\n\n${patternPrompt(input.grade)}\n\n先从源文件识别本讲的故事、知识方法、课堂活动和题目证据；再以教研编辑身份补全完整讲义。不要把“没有写到某板块”当作空白理由：学习目标、方法小结、精读问题、精读参考答案、家长交流、练习答案、小老师表达和家长指导均应根据课堂证据新写，语言具体、可教、可练。只有readingExcerpt.text必须逐字取自源文件，可从没有“原文摘抄”标签的正文中定位，但绝不可以自行改写或拼接。closeReadingQuestions与closeReadingAnswers必须一一对应，答案要回扣原文证据。\n\nsubtitle必须是一句概括本讲能力重点的短语，例如“读懂人物 · 讲清事情 · 说出道理”；严禁写年级、季节、年份、教材口径、讲义文字初稿或项目名称。\n\n输出字段必须是：lessonNumber,title,subtitle,technique,learningGoals(至少3项),curriculumAlignment([{claim,sourceUrl,sourceTitle,confirmed:false}]),parentBusySteps,parentExtendedSteps,conversationTopics([{question,referenceAnswer}]至少4项),readingExcerpt({text,sourceFileId:"${input.sourceId}",sourcePages:[页码],sourceFingerprint:"temporary-fingerprint",corrections:[],approved:false}),closeReadingQuestions,closeReadingAnswers,methodSummary,practice([{prompt,answer,imageSourcePageId?}]),littleTeacherSteps,oralFramework。若练习依赖PDF中的题图，把对应页面ID写入imageSourcePageId；不得生成替代图片。\n\nPDF识别文本如下：\n${source}`;
 }
 
-export async function generateProjectContent(projectId: string) {
+export async function generateProjectContent(
+  projectId: string,
+  reportProgress?: (completed: number, total: number) => Promise<void>,
+) {
   const project = await db.project.findFirst({
     where: { id: projectId, deletedAt: null },
     include: { sourceFiles: { where: { kind: { in: ["PDF", "DOCUMENT"] } }, orderBy: { createdAt: "asc" }, include: { pages: { orderBy: { pageNumber: "asc" } } } } }
@@ -126,6 +129,7 @@ export async function generateProjectContent(projectId: string) {
   // 单讲 Word 是有效课堂证据：先完成它，不以项目默认的五讲数量强迫模型臆造其它课程。
   if (generationSources.length === 0) throw new Error("未识别到可生成讲义的主讲内容");
   for (const [index, source] of generationSources.entries()) {
+    await reportProgress?.(index, generationSources.length);
     const result = await provider.generateText({ systemPrompt, userPrompt: promptForLesson({ lessonNumber: index + 1, grade: project.grade, year: project.teachingYear, sourceId: source.id, sourceName: source.originalName, pages: source.pages }), temperature: 0.15 });
     const draft = parseJsonResponse(result.text) as Record<string, unknown>;
     const reading = draft.readingExcerpt as Record<string, unknown> | undefined;
@@ -187,6 +191,7 @@ export async function generateProjectContent(projectId: string) {
       update: { title: content.title, subtitle: content.subtitle, technique: content.technique, structuredContent: content, readingExcerpt: content.readingExcerpt.text, readingExcerptSource: content.readingExcerpt, status: "TEXT_REVIEW", textApprovedAt: null }
     });
     lessons.push(lesson.id);
+    await reportProgress?.(index + 1, generationSources.length);
   }
   await db.project.update({ where: { id: project.id }, data: { status: "TEXT_REVIEW" } });
   return lessons;

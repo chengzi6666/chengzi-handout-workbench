@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ArchiveRestore, FileText, MoreHorizontal, PanelLeftClose, Pencil, Pin, Plus, Search, Settings, SlidersHorizontal, Trash2 } from "lucide-react";
+import { ArchiveRestore, Bug, FileText, MoreHorizontal, PanelLeftClose, Pencil, Pin, Plus, Search, Settings, SlidersHorizontal, Trash2 } from "lucide-react";
 import type { HandoutProject } from "@/lib/domain";
 
 interface ProjectSidebarProps {
@@ -46,7 +46,7 @@ export function ProjectSidebar({ projects, selectedId, onSelect, onTogglePinned,
           </div>
         ))}
       </nav>
-      <div className="sidebar-footer"><p>系统设置</p><button onClick={onOpenTrash}><ArchiveRestore size={18} /><span><strong>项目回收站</strong><small>恢复或彻底删除项目</small></span></button><button onClick={() => { window.location.href = "/settings/teachers"; }}><Settings size={18} /><span><strong>教师资料库</strong><small>姓名、昵称、介绍与头像</small></span></button><button onClick={() => { window.location.href = "/settings/models"; }}><SlidersHorizontal size={18} /><span><strong>模型与接口</strong><small>配置 Token Plan Key</small></span></button></div>
+      <div className="sidebar-footer"><p>系统设置</p><button onClick={onOpenTrash}><ArchiveRestore size={18} /><span><strong>项目回收站</strong><small>恢复或彻底删除项目</small></span></button><button onClick={() => { window.location.href = "/settings/teachers"; }}><Settings size={18} /><span><strong>教师资料库</strong><small>姓名、昵称、介绍与头像</small></span></button><button onClick={() => { window.location.href = "/settings/models"; }}><SlidersHorizontal size={18} /><span><strong>模型与接口</strong><small>配置 Token Plan Key</small></span></button><button onClick={() => { window.location.href = "/debug"; }}><Bug size={18} /><span><strong>开发调试台</strong><small>监控任务、框选并提交问题</small></span></button></div>
     </aside>
   );
 }

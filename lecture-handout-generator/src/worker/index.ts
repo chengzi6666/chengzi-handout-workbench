@@ -138,7 +138,16 @@ async function parseSourceDocument(job: ProcessingJob) {
 async function runJob(job: ProcessingJob) {
   switch (job.kind) {
     case "PDF_PARSE": return parseSourceDocument(job);
-    case "CONTENT_GENERATE": return { lessonIds: await generateProjectContent(job.projectId) };
+    case "CONTENT_GENERATE": {
+      const lessonIds = await generateProjectContent(job.projectId, async (completed, total) => {
+        const percent = 82 + Math.round((completed / Math.max(total, 1)) * 16);
+        await db.processingJob.update({
+          where: { id: job.id },
+          data: { result: { stage: "generating", pageNumber: completed, totalPages: total, percent } as Prisma.InputJsonValue },
+        });
+      });
+      return { lessonIds };
+    }
     default: throw new Error(`任务类型 ${job.kind} 尚未实现`);
   }
 }
