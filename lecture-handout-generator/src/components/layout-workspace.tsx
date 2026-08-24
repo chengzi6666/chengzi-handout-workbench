@@ -72,7 +72,11 @@ function bookTitle(value: string) {
 function visibleCourseAlignment(value?: string) {
   return value && /(?:[一二三四五六]|[1-6])年级.{0,10}(?:上册|下册)/u.test(value) && /(?:第.{1,4}单元|第.{1,4}课|快乐读书吧)/u.test(value)
     ? value
-    : "本讲对标待模型联网核对：重新生成文字初稿后，系统会给出本年级教材册别、具体单元与课文/书目。";
+    : "待教研核对教材对标。";
+}
+
+function printableLearningGoal(value: string) {
+  return value.replace(/^\s*(?:我|我们)\s*(?:要|能|可以|学会)?\s*/u, "").replace(/^能/u, "能够");
 }
 
 function defaultBodySize(pageIndex: number, lesson?: LessonPreview) {
@@ -130,6 +134,7 @@ export function LayoutWorkspace({
   );
   const [backgrounds, setBackgrounds] = useState(initialBackgrounds);
   const [message, setMessage] = useState("");
+  const [downloading, setDownloading] = useState<string | null>(null);
   const [pageIndex, setPageIndex] = useState(0);
   const [lessonIndex, setLessonIndex] = useState(0);
   const [previewKind, setPreviewKind] = useState<"student" | "answers" | "parent">("student");
@@ -238,6 +243,22 @@ export function LayoutWorkspace({
         ? "版式审核结果已保存"
         : "保存失败",
     );
+  }
+  async function download(kind: string) {
+    setDownloading(kind);
+    setMessage("正在生成 Word，请勿关闭本页…");
+    try {
+      const response = await fetch(`/api/projects/${project.id}/export?kind=${kind}`);
+      if (!response.ok) { const payload = await response.json().catch(() => ({})); throw new Error(payload.error ?? "Word生成失败"); }
+      const blob = await response.blob();
+      const disposition = response.headers.get("content-disposition") ?? "";
+      const encoded = disposition.match(/filename\*=UTF-8''([^;]+)/u)?.[1];
+      const fileName = encoded ? decodeURIComponent(encoded) : "讲义.docx";
+      const url = URL.createObjectURL(blob); const anchor = document.createElement("a");
+      anchor.href = url; anchor.download = fileName; anchor.click(); URL.revokeObjectURL(url);
+      setMessage("Word 已生成并开始下载。");
+    } catch (error) { setMessage(error instanceof Error ? error.message : "下载失败"); }
+    finally { setDownloading(null); }
   }
   function updatePageTypography(patch: { bodySize?: number; titleSize?: number }) {
     setPageTypography((value) => ({ ...value, [previewKey]: { ...value[previewKey], ...patch } }));
@@ -472,7 +493,7 @@ export function LayoutWorkspace({
                   <p className="lesson-technique">— “{currentLesson.technique.replace(/[—“”]/g, "").trim()}” —</p>
                   <p className="lesson-subtitle">{currentLesson.subtitle}</p>
                   <h3>🎯 一、本讲要学什么</h3>
-                  <section className="lesson-callout"><b>本讲对标</b><p>{visibleCourseAlignment(currentLesson.courseAlignment)}</p><b>学习目标：</b>{currentLesson.learningGoals.map((goal, index) => <p key={index}>{index + 1}. {goal}</p>)}</section>
+                  <section className="lesson-callout"><b>本讲对标</b><p>{visibleCourseAlignment(currentLesson.courseAlignment)}</p><b>学习目标：</b>{currentLesson.learningGoals.map((goal, index) => <p key={index}>{index + 1}. {printableLearningGoal(goal)}</p>)}</section>
                 </>
               ) : pageIndex === 1 ? (
                 <>
@@ -571,14 +592,17 @@ export function LayoutWorkspace({
             ["combined_student", "五讲合订学生版"],
             ["combined_answers", "合订版参考答案"],
             ["parent_manual", "家长使用手册"],
+            ["combined_parent_student", "合并：家长手册＋学生合集"],
           ].map(([kind, label]) => (
-            <a
+            <button
+              type="button"
               key={kind}
-              href={`/api/projects/${project.id}/export?kind=${kind}`}
+              disabled={downloading !== null}
+              onClick={() => void download(kind)}
             >
               <Download size={15} />
-              {label}
-            </a>
+              {downloading === kind ? "正在生成…" : label}
+            </button>
           ))}
           <Link
             className="publish-button"

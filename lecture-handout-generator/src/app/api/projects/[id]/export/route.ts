@@ -9,7 +9,7 @@ import { validatePinyinReview, type PinyinUnit } from "@/lib/handout/pinyin";
 import { objectStore } from "@/lib/storage/object-store";
 import { getOrCreateSourcePageImage } from "@/lib/pdf/source-page-image";
 
-const allowed = new Set(["combined_student", "combined_answers", "parent_manual", "lesson_student", "lesson_answers"]);
+const allowed = new Set(["combined_student", "combined_answers", "parent_manual", "combined_parent_student", "lesson_student", "lesson_answers"]);
 
 export async function GET(request: Request, context: { params: Promise<{ id: string }> }) {
   const session = await readSession();
@@ -66,7 +66,15 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
   const manualImageIds = lessons.flatMap(({ content }) => content.practice.map((item) => item.imageSourceFileId).filter((value): value is string => Boolean(value)));
   const manualImages = manualImageIds.length ? await db.sourceFile.findMany({ where: { id: { in: manualImageIds }, projectId: project.id, kind: "QUESTION_IMAGE" } }) : [];
   for (const image of manualImages) practiceImages[image.id] = { data: Buffer.from(await objectStore().get(image.objectKey)), type: typeOf(image.objectKey) };
-  const buffer = await generateHandoutDocx({ projectName: project.name, grade: project.grade, teachingYear: project.teachingYear, teacherFormalName: project.teacher?.formalName, teacherNickname: project.teacher?.nickname, headerText: layout?.headerText, headerSize: layout?.headerSize, footerText: layout?.footerText, footerSize: layout?.footerSize, noteOwnPage: layout?.noteOwnPage, lessons: lessons.map((item) => item.content), pinyinReviews, backgrounds, teacherImage, teacherPortrait, teacherPosition: layout?.teacherImage, fontSize: layout?.fontSize, fontFamily: layout?.fontFamily, practiceImages, includeFrontMatter: kind === "combined_student", mode });
-  const fileName = `${project.name}-${kind}${lessonNumber ? `-第${lessonNumber}讲` : ""}.docx`.replace(/[\\/:*?"<>|]/g, "-");
+  const buffer = await generateHandoutDocx({ projectName: project.name, grade: project.grade, teachingYear: project.teachingYear, teacherFormalName: project.teacher?.formalName, teacherNickname: project.teacher?.nickname, headerText: layout?.headerText, headerSize: layout?.headerSize, footerText: layout?.footerText, footerSize: layout?.footerSize, noteOwnPage: layout?.noteOwnPage, lessons: lessons.map((item) => item.content), pinyinReviews, backgrounds, teacherImage, teacherPortrait, teacherPosition: layout?.teacherImage, fontSize: layout?.fontSize, fontFamily: layout?.fontFamily, practiceImages, includeParentManual: kind === "combined_parent_student", mode });
+  const outputName: Record<string, string> = {
+    combined_student: "学员的电子版合集",
+    combined_answers: "参考答案",
+    parent_manual: "家长使用手册",
+    combined_parent_student: "家长使用手册+学员的电子版合集",
+    lesson_student: `第${lessonNumber}讲学生版讲义`,
+    lesson_answers: `第${lessonNumber}讲参考答案`,
+  };
+  const fileName = `${project.teachingYear}年${project.season ?? ""}${project.grade}【${outputName[kind]}】.docx`.replace(/[\\/:*?"<>|]/g, "-");
   return new NextResponse(buffer, { headers: { "content-type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "content-disposition": `attachment; filename*=UTF-8''${encodeURIComponent(fileName)}` } });
 }

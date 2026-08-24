@@ -1,6 +1,6 @@
 import {
   AlignmentType, Document, Footer, Header, HorizontalPositionRelativeFrom, ImageRun, PageNumber, Paragraph, Packer,
-  SectionType, ShadingType, Table, TableCell, TableRow, TextRun, VerticalPositionRelativeFrom, WidthType, type ISectionOptions
+  SectionType, ShadingType, Table, TableCell, TableRow, TextRun, UnderlineType, VerticalPositionRelativeFrom, WidthType, type ISectionOptions
 } from "docx";
 import JSZip from "jszip";
 import type { LessonContent } from "@/lib/handout/content-schema";
@@ -31,7 +31,7 @@ export type HandoutDocumentInput = {
   fontSize?: number;
   fontFamily?: "Microsoft YaHei" | "SimSun" | "KaiTi" | "FangSong";
   practiceImages?: Record<string, ImageAsset>;
-  includeFrontMatter?: boolean;
+  includeParentManual?: boolean;
   mode: "student" | "answers" | "parent";
 };
 type ImageAsset = { data: Buffer; type: "png" | "jpg" | "gif" | "bmp" };
@@ -55,7 +55,11 @@ function lessonBookTitle(value: string) {
 function printableCourseAlignment(value?: string) {
   return value && /(?:[一二三四五六]|[1-6])年级.{0,10}(?:上册|下册)/u.test(value) && /(?:第.{1,4}单元|第.{1,4}课|快乐读书吧)/u.test(value)
     ? value
-    : "本讲对标待模型联网核对：请重新生成文字初稿后再导出。";
+    : "待教研核对教材对标。";
+}
+
+function printableLearningGoal(goal: string) {
+  return goal.replace(/^\s*(?:我|我们)\s*(?:要|能|可以|学会)?\s*/u, "").replace(/^能/u, "能够");
 }
 
 function lessonTitleBlock(lesson: LessonContent) {
@@ -70,8 +74,17 @@ function heading(text: string) {
   return new Paragraph({ spacing: { before: 180, after: 90 }, keepNext: true, children: [run(text, { bold: true, size: 25, color: orange })] });
 }
 
+function bodyRuns(text: string, bold = false) {
+  // 全角下划线在 WPS/不同字体中会显示成断续短横。这里改为真正的 Word 连续下划线，
+  // 同时保留足够的全角空白供孩子书写。
+  const parts = expandAnswerSpace(text).split(/([＿_]+)/u);
+  return parts.filter(Boolean).map((part) => /[＿_]/u.test(part)
+    ? new TextRun({ text: "　".repeat(Math.max(12, part.length)), font: FONT, bold, size: 22, color: "2F2A27", underline: { type: UnderlineType.SINGLE } })
+    : run(part, { bold }));
+}
+
 function body(text: string, bold = false) {
-  return new Paragraph({ spacing: { after: 100, line: 360 }, children: [run(expandAnswerSpace(text), { bold })] });
+  return new Paragraph({ spacing: { after: 100, line: 360 }, children: bodyRuns(text, bold) });
 }
 
 // 题目中的空括号和占位下划线必须给孩子留下可书写的空间，而不是只留两个字符。
@@ -186,7 +199,7 @@ function lessonSections(lesson: LessonContent, input: HandoutDocumentInput) {
   const p1 = section([
     ...lessonTitleBlock(lesson),
     heading("🎯 一、本讲要学什么"),
-    calloutTable(["本讲对标", printableCourseAlignment(lesson.courseAlignment), "学习目标", ...lesson.learningGoals.map((goal, index) => `${index + 1}. ${goal}`)])
+    calloutTable(["本讲对标", printableCourseAlignment(lesson.courseAlignment), "学习目标", ...lesson.learningGoals.map((goal, index) => `${index + 1}. ${printableLearningGoal(goal)}`)])
   ], pickBackground(input, "LESSON_HOME"), input);
   const p2 = section([
     ...title("💡 二、家长使用提示", "【二选一】"), studentParentChoiceTable(),
@@ -260,7 +273,7 @@ function answerSections(input: HandoutDocumentInput) {
 
 export async function generateHandoutDocx(input: HandoutDocumentInput) {
   const sections = input.mode === "parent" ? parentSections(input) : input.mode === "answers" ? answerSections(input) : [
-    ...(input.includeFrontMatter ? [...coverSections(input), ...parentSections(input)] : []),
+    ...(input.includeParentManual ? parentSections(input) : []),
     ...input.lessons.flatMap((lesson) => lessonSections(lesson, input))
   ];
   const document = new Document({
