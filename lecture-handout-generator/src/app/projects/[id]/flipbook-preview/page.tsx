@@ -39,7 +39,7 @@ export default async function FlipbookPreviewPage({
   const { id } = await params;
   const project = await db.project.findFirst({
     where: { id, ownerId: user.id },
-    include: { lessons: { orderBy: { lessonNumber: "asc" } }, backgroundPack: { include: { assets: true } } },
+    include: { lessons: { orderBy: { lessonNumber: "asc" } }, backgroundPack: { include: { assets: true } }, teacher: true },
   });
   if (!project) redirect("/");
 
@@ -80,11 +80,12 @@ export default async function FlipbookPreviewPage({
     ];
   });
   const parentBackground = pageBackground(project, "PARENT_MANUAL");
+  const teacherName = project.teacher?.formalName ?? "主讲";
+  const teacherPortraitSrc = `/teacher-defaults/${({ "0升1": "0l1", "1升2": "1l2", "2升3": "2l3", "3升4": "3l4", "4升5": "4l5" }[project.grade] ?? "1l2")}-portrait.png`;
   const parentPages = [
-    { collection: "parent", kind: "parent", title: "家长使用手册", subtitle: "—— 真读书 · 有深度 · 用得上 ——", backgroundSrc: parentBackground, body: ["🤝 双师陪伴｜主讲老师＋班主任老师", "主讲老师负责课程讲解、阅读方法和表达写作训练；班主任老师负责直播跟课、日常答疑、阶段反馈、薄弱点跟踪和学习规划。"] },
-    { collection: "parent", kind: "parent", title: "五讲课程带来的能力提升", backgroundSrc: parentBackground, body: ["五讲合起来，孩子练习的是：读懂故事 → 找到证据 → 学会方法 → 说清楚 → 写完整。", ...project.lessons.map((savedLesson) => { const lesson = lessonContentSchema.parse(savedLesson.structuredContent); return `第${savedLesson.lessonNumber}讲《${lesson.title}》：${lesson.subtitle ?? lesson.technique}`; })] },
-    { collection: "parent", kind: "parent", title: "五讲学习安排", backgroundSrc: parentBackground, body: project.lessons.map((savedLesson) => { const lesson = lessonContentSchema.parse(savedLesson.structuredContent); return `第${savedLesson.lessonNumber}讲《${lesson.title}》｜${lesson.technique}｜${lesson.learningGoals.map((goal) => goal.replace(/^我[们]?/u, "")).join("；")}`; }) },
-    { collection: "parent", kind: "parent", title: `🎯 ${project.grade}阶段，最需要关注什么？`, backgroundSrc: parentBackground, body: ["基础：从“会认字”走向“会用字词”。", "阅读：从“听故事”走向“读懂故事”，能说清人物、事情、证据和道理。", "表达：从“说一句话”走向“完整表达”。", "💡 家长怎么配合？正课前后按讲义完成复述、笔记或书面练习，并由班主任给予跟踪反馈。"] }
+    { collection: "parent", kind: "parent", title: "家长使用手册", subtitle: "—— 真读书 · 有深度 · 用得上 ——", teacherPortraitSrc, backgroundSrc: parentBackground, body: [`${teacherName}老师｜主讲老师`, project.teacher?.introduction ?? "负责阅读方法、表达写作和课堂互动引导。", "🤝 双师陪伴｜主讲老师＋班主任老师", `${teacherName}老师负责课程讲解、阅读方法和表达写作训练；班主任老师负责直播跟课、日常答疑、阶段反馈、薄弱点跟踪和学习规划，两位老师共同陪伴一个孩子。`] },
+    { collection: "parent", kind: "parent", title: "五讲课程带来的能力提升", backgroundSrc: parentBackground, body: ["五讲合起来，孩子练习的是：读懂故事 → 找到证据 → 学会方法 → 说清楚 → 写完整。", "五讲学习安排", ...project.lessons.map((savedLesson) => { const lesson = lessonContentSchema.parse(savedLesson.structuredContent); return `第${savedLesson.lessonNumber}讲《${lesson.title}》｜${lesson.technique}｜${lesson.learningGoals.map((goal) => goal.replace(/^我[们]?/u, "")).join("；")}`; })] },
+    { collection: "parent", kind: "parent", title: `🎯 ${project.grade}阶段，最需要关注什么？`, backgroundSrc: parentBackground, body: ["基础：从“会认字”走向“会用字词”——在故事语境中认识并积累字词，并能用到自己的口头和书面表达中。", "阅读：从“听故事”走向“读懂故事”——说清人物、事情、结果与道理，并从原文中找到具体词句作证据。", "表达：从“说一句话”走向“完整表达”——借助课堂方法，把人物、事情、动作、语言、心情和结果说完整、写清楚。", "💡 家长怎么配合？正课前后按讲义完成复述、笔记或书面练习，并由班主任给予跟踪反馈。"] }
   ];
   const answerPages = project.lessons.flatMap((savedLesson) => {
     const lesson = lessonContentSchema.parse(savedLesson.structuredContent);

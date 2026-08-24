@@ -30,7 +30,7 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
   const parsed = publishSchema.safeParse(await _request.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "请至少选择一种电子翻页书内容" }, { status: 400 });
   const { id } = await context.params;
-  const project = await db.project.findFirst({ where: { id, ownerId: session.userId }, include: { lessons: { orderBy: { lessonNumber: "asc" } }, backgroundPack: { include: { assets: true } }, flipbooks: { orderBy: { updatedAt: "desc" }, take: 1 } } });
+  const project = await db.project.findFirst({ where: { id, ownerId: session.userId }, include: { lessons: { orderBy: { lessonNumber: "asc" } }, backgroundPack: { include: { assets: true } }, teacher: true, flipbooks: { orderBy: { updatedAt: "desc" }, take: 1 } } });
   if (!project) return NextResponse.json({ error: "项目不存在" }, { status: 404 });
   if (project.lessons.length === 0 || project.lessons.some((lesson) => !lesson.textApprovedAt)) return NextResponse.json({ error: "所有课程通过文字审核后才能发布" }, { status: 409 });
   const lessons = project.lessons.map((lesson) => lessonContentSchema.parse(lesson.structuredContent));
@@ -39,7 +39,13 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
     const asset = project.backgroundPack?.assets.find((item) => item.role === role) ?? project.backgroundPack?.assets.find((item) => item.role === "SIMPLE");
     return asset ? `/api/book/${slug}/background/${asset.id}` : `/handout-backgrounds/${role === "READING" ? "mint-school.png" : role === "CONVERSATION" || role === "LITTLE_TEACHER" ? "blush-school.png" : "butter-school.png"}`;
   };
-  const parent = [{ collection: "parent", kind: "parent", title: "家长使用手册", subtitle: "—— 真读书 · 有深度 · 用得上 ——", backgroundSrc: background("PARENT_MANUAL"), body: ["双师陪伴：主讲老师负责课程讲解、阅读方法和表达写作训练；班主任老师负责直播跟课、答疑、反馈和学习规划。", "五讲合起来，孩子练习的是：读懂故事 → 找到证据 → 学会方法 → 说清楚 → 写完整。"] }];
+  const teacherName = project.teacher?.formalName ?? "主讲";
+  const teacherPortraitSrc = `/teacher-defaults/${({ "0升1": "0l1", "1升2": "1l2", "2升3": "2l3", "3升4": "3l4", "4升5": "4l5" }[project.grade] ?? "1l2")}-portrait.png`;
+  const parent = [
+    { collection: "parent", kind: "parent", title: "家长使用手册", subtitle: "—— 真读书 · 有深度 · 用得上 ——", teacherPortraitSrc, backgroundSrc: background("PARENT_MANUAL"), body: [`${teacherName}老师｜主讲老师`, project.teacher?.introduction ?? "负责阅读方法、表达写作和课堂互动引导。", "🤝 双师陪伴｜主讲老师＋班主任老师", `${teacherName}老师负责课程讲解、阅读方法和表达写作训练；班主任老师负责直播跟课、日常答疑、阶段反馈、薄弱点跟踪和学习规划，两位老师共同陪伴一个孩子。`] },
+    { collection: "parent", kind: "parent", title: "五讲课程带来的能力提升", backgroundSrc: background("PARENT_MANUAL"), body: ["五讲合起来，孩子练习的是：读懂故事 → 找到证据 → 学会方法 → 说清楚 → 写完整。", "五讲学习安排", ...lessons.map((lesson) => `第${lesson.lessonNumber}讲《${lesson.title}》｜${lesson.technique}｜${lesson.learningGoals.map((goal) => goal.replace(/^我[们]?/u, "")).join("；")}`)] },
+    { collection: "parent", kind: "parent", title: `🎯 ${project.grade}阶段，最需要关注什么？`, backgroundSrc: background("PARENT_MANUAL"), body: ["基础：从“会认字”走向“会用字词”——在故事语境中认识并积累字词，并能用到自己的口头和书面表达中。", "阅读：从“听故事”走向“读懂故事”——说清人物、事情、结果与道理，并从原文中找到具体词句作证据。", "表达：从“说一句话”走向“完整表达”——借助课堂方法，把人物、事情、动作、语言、心情和结果说完整、写清楚。", "💡 家长怎么配合？正课前后按讲义完成复述、笔记或书面练习，并由班主任给予跟踪反馈。"] },
+  ];
   const student = lessons.flatMap((lesson) => [
     { collection: "student", kind: "home", title: `第${lesson.lessonNumber}讲 ${lesson.title}`, subtitle: lesson.subtitle, body: lesson.learningGoals, technique: lesson.technique, richHtml: richPage(project.layoutConfig, lesson.lessonNumber, 0), backgroundSrc: background("LESSON_HOME") },
     { collection: "student", kind: "conversation", title: "课后交流话题", topics: lesson.conversationTopics, richHtml: richPage(project.layoutConfig, lesson.lessonNumber, 1), backgroundSrc: background("CONVERSATION") },

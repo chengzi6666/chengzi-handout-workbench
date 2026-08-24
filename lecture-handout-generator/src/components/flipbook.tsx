@@ -22,6 +22,7 @@ function PageContent({ page, pageNumber, headerText, footerText }: { page?: Reco
   return <>
     <span className="book-kicker">{String(page.headerText ?? headerText ?? "电子讲义")}</span><h2>{String(page.title ?? "")}</h2>
     {page.subtitle ? <h3>{String(page.subtitle)}</h3> : null}
+    {typeof page.teacherPortraitSrc === "string" ? <img className="book-parent-teacher" src={page.teacherPortraitSrc} alt="主讲老师" /> : null}
     {page.technique ? <div className="book-callout">核心方法：{String(page.technique)}</div> : null}
     {Array.isArray(page.body) ? <ol>{page.body.map((item, index) => <li key={index}>{String(item)}</li>)}</ol> : null}
     {Array.isArray(page.pinyinUnits) ? <PinyinText units={page.pinyinUnits as Array<{ char: string; pinyin: string }>} /> : typeof page.text === "string" ? <p className="book-reading">{page.text}</p> : null}
