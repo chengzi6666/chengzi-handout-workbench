@@ -6,7 +6,7 @@ import { ArrowLeft, Bold, Download, Highlighter, ImagePlus, Italic, Save, Underl
 
 const roles = [
   ["SIMPLE", "简单模式·全文"],
-  ["COVER", "封面"],
+  ["COVER", "电子翻页书／微信封面"],
   ["PARENT_MANUAL", "家长手册"],
   ["LESSON_HOME", "课程首页"],
   ["CONVERSATION", "交流话题"],

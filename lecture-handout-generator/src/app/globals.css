@@ -337,6 +337,11 @@ button { cursor: pointer; }
 .book-rich-content h2 { color: #b85c31; font-size: 28px; margin: 0 0 16px; }
 .book-rich-content h3 { color: #d66538; margin: 15px 0 8px; }
 .book-rich-content p { margin: 8px 0; }
+.wechat-card-preview { display: flex; gap: 14px; align-items: stretch; max-width: 680px; margin: 14px auto 22px; padding: 12px; background: #fff; border: 1px solid #e6d5c7; border-radius: 12px; color: #4b3830; box-shadow: 0 8px 22px rgba(96, 56, 37, .08); }
+.wechat-card-image { width: 180px; min-height: 94px; flex: 0 0 180px; display: grid; place-items: center; overflow: hidden; border-radius: 8px; background: linear-gradient(135deg, #f68a51, #aa593e); background-size: cover; background-position: center; color: #fff; font-size: 12px; }
+.wechat-card-preview div:last-child { display: flex; flex: 1; flex-direction: column; gap: 4px; min-width: 0; }
+.wechat-card-preview strong { font-size: 17px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wechat-card-preview p, .wechat-card-preview small { margin: 0; color: #806d63; line-height: 1.45; }
 .teacher-placeholder { display: grid; place-items: center; border: 2px dashed #f3a37d; color: #b47052; background: #fff3ebbb; font-size: 10px; text-align: center; }
 .export-panel a { margin-top: 8px; padding: 10px; display: flex; align-items: center; gap: 7px; border-radius: 8px; color: #fff; background: var(--orange); font-size: 10px; font-weight: 700; }
 .export-note { margin-top: 15px !important; }
