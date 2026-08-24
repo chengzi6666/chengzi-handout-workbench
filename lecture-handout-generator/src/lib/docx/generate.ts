@@ -60,7 +60,7 @@ function printableCourseAlignment(value?: string) {
 }
 
 function printableLearningGoal(goal: string) {
-  return goal.replace(/^\s*(?:我|我们)\s*(?:要|能|可以|学会)?\s*/u, "").replace(/^能/u, "能够");
+  return goal.replace(/^\s*(?:我|我们)\s*(?:要|能|可以|学会)?\s*/u, "").replace(/^能(?!够)/u, "能够");
 }
 
 function lessonTitleBlock(lesson: LessonContent) {
@@ -199,10 +199,10 @@ function lessonSections(lesson: LessonContent, input: HandoutDocumentInput) {
   const p1 = section([
     ...lessonTitleBlock(lesson),
     heading("🎯 一、本讲要学什么"),
-    calloutTable(["本讲对标", printableCourseAlignment(lesson.courseAlignment), "学习目标", ...lesson.learningGoals.map((goal, index) => `${index + 1}. ${printableLearningGoal(goal)}`)])
+    calloutTable(["本讲对标", printableCourseAlignment(lesson.courseAlignment), "学习目标", ...lesson.learningGoals.map((goal, index) => `${index + 1}. ${printableLearningGoal(goal)}`)]),
+    ...title("💡 二、家长使用提示", "【二选一】"), studentParentChoiceTable()
   ], pickBackground(input, "LESSON_HOME"), input);
   const p2 = section([
-    ...title("💡 二、家长使用提示", "【二选一】"), studentParentChoiceTable(),
     heading("💬 下课后，建议家长可以和孩子交流的话题"),
     ...lesson.conversationTopics.flatMap((topic, index) => [heading(`${index + 1}. ${topic.question}`), body(`参考：${topic.referenceAnswer}`)])
   ], pickBackground(input, "CONVERSATION"), input);
@@ -244,7 +244,7 @@ function parentSections(input: HandoutDocumentInput) {
     ...input.lessons.map((lesson) => new TableRow({ children: [
       `第${lesson.lessonNumber}讲`, lessonBookTitle(lesson.title), lesson.technique,
       lesson.learningGoals.map((goal, index) => `${index + 1}. ${printableLearningGoal(goal)}`).join("\n")
-    ].map((value) => new TableCell({ children: String(value).split("\n").map((line) => new Paragraph({ spacing: { after: 40 }, children: [run(line, { size: 18 })] })) })) }))
+    ].map((value) => new TableCell({ margins: { top: 90, bottom: 90, left: 80, right: 80 }, children: String(value).split("\n").map((line) => new Paragraph({ spacing: { after: 90, line: 300 }, children: [run(line, { size: 20 })] })) })) }))
   ];
   const schedule = section([
     ...title("五讲学习安排", "每讲学什么 · 家长怎么陪"),
@@ -252,9 +252,9 @@ function parentSections(input: HandoutDocumentInput) {
   ], pickBackground(input, "PARENT_MANUAL"), input);
   const stage = section([
     heading(`🎯 ${gradeName}阶段，最需要关注什么？`),
-    body(`基础：结合${input.teachingYear}年课程学习节奏，从“会认字”走向“会用字词”，让孩子在故事语境中把字词读懂、用上。`),
-    body("阅读：从“听故事”走向“读懂故事”，能说清人物、事情、证据和道理。"),
-    body("表达：从“说一句话”走向“完整表达”，逐步写清人物、事情、动作、语言、心情和结果。"),
+    heading("☁️ 基础：从“会认字”走向“会用字词”"), body(`结合${input.teachingYear}年课程学习节奏，在故事语境中认识并积累字词；不只会读，还能联系人物、动作和情节理解词义，并把常用表达用到口头和书面表达中。`),
+    heading("📚 阅读：从“听故事”走向“读懂故事”"), body("不止复述热闹情节，还能说清“谁做了什么、为什么这样做、结果怎样”，并从原文中找到具体词句作证据，逐步形成整本书阅读习惯。"),
+    heading("✍️ 表达：从“说一句话”走向“完整表达”"), body("借助课堂方法，把人物、事情、动作、语言、心情和结果说完整、写清楚；每周完成一次口头表达或简短书面练习，形成可迁移的表达框架。"),
     heading("💡 家长怎么配合？"), parentCooperationTable()
   ], pickBackground(input, "PARENT_MANUAL"), input);
   return [overview, ability, schedule, stage];

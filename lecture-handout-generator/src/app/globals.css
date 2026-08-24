@@ -310,6 +310,7 @@ button { cursor: pointer; }
 .preview-kind-tabs button, .lesson-tabs button, .page-tabs button { min-height: 36px; padding: 0 12px; border: 1px solid #e4cbbb; border-radius: 18px; color: #7d5d4e; background: #fff; font-size: 13px; cursor: pointer; }
 .preview-kind-tabs button.active, .lesson-tabs button.active, .page-tabs button.active { color: #fff; border-color: #f06f36; background: #ff6b2d; }
 .page-canvas { position: relative; aspect-ratio: 210 / 297; max-height: calc(100vh - 250px); margin: auto; overflow: hidden; border: 1px solid #d8d0c9; box-shadow: 0 10px 30px #7e6c5a25; background: #fff center/100% 100% no-repeat; }
+.page-canvas.answer-canvas { overflow: auto; }
 .canvas-copy { min-height: 100%; padding: 14% 10% 12%; color: #453d38; outline: none; cursor: text; }
 .preview-running-header, .preview-running-footer { position: absolute; z-index: 4; left: 10%; right: 10%; color: #a07c68; letter-spacing: .06em; pointer-events: none; }
 .preview-running-header { top: 4%; text-align: center; }

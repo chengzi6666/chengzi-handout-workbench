@@ -86,7 +86,7 @@ function formatCourseAlignment(value?: string) {
 }
 
 function printableLearningGoal(value: string) {
-  return value.replace(/^\s*(?:我|我们)\s*(?:要|能|可以|学会)?\s*/u, "").replace(/^能/u, "能够");
+  return value.replace(/^\s*(?:我|我们)\s*(?:要|能|可以|学会)?\s*/u, "").replace(/^能(?!够)/u, "能够");
 }
 
 function ReadingText({ text, grade, units }: { text: string; grade: string; units?: Array<{ char: string; pinyin: string }> }) {
@@ -198,6 +198,10 @@ export function LayoutWorkspace({
   const teacherPreviewSrc = activeAsset
     ? `/api/assets/teacher/${activeAsset.id}`
     : `/teacher-defaults/${defaultTeacherKey}-expression.png`;
+  const parentPortraitAsset = teacher?.assets.find((asset) => asset.kind === "PORTRAIT");
+  const parentPortraitSrc = parentPortraitAsset
+    ? `/api/assets/teacher/${parentPortraitAsset.id}`
+    : `/teacher-defaults/${defaultTeacherKey}-portrait.png`;
   const uploadedBackground =
     backgrounds.find((asset) => asset.role === currentRole) ??
     backgrounds.find((asset) => asset.role === "SIMPLE");
@@ -483,7 +487,7 @@ export function LayoutWorkspace({
             )}
           </div>
           <div
-            className="page-canvas"
+            className={`page-canvas${previewKind === "answers" ? " answer-canvas" : ""}`}
             ref={canvas}
             onPointerMove={move}
             onPointerUp={() => {
@@ -514,12 +518,12 @@ export function LayoutWorkspace({
                 <>
                   {parentPage === 0 && <>
                     <h2 style={{ fontSize: `${currentTitleSize}pt` }}>家长使用手册</h2><p className="parent-slogan">—— 真读书 · 有深度 · 用得上 ——</p>
-                    <section className="parent-teacher-card">{teacher?.assets[0] ? <img src={`/api/assets/teacher/${teacher.assets[0].id}`} alt={`${teacher.formalName}老师`} /> : null}<div><h3>{teacher?.formalName ?? "主讲"}老师｜主讲老师</h3><p>{teacher?.introduction ?? "负责阅读方法、表达写作和课堂互动引导。"}</p></div></section>
+                    <section className="parent-teacher-card"><img src={parentPortraitSrc} alt={`${teacher?.formalName ?? "主讲"}老师`} /><div><h3>{teacher?.formalName ?? "主讲"}老师｜主讲老师</h3><p>{teacher?.introduction ?? "负责阅读方法、表达写作和课堂互动引导。"}</p></div></section>
                     <h3>🤝 双师陪伴｜主讲老师＋班主任老师</h3><section className="lesson-callout"><p>{teacher?.formalName ?? "主讲"}老师负责课程讲解、阅读方法和表达写作训练；班主任老师负责直播跟课、日常答疑、阶段反馈、薄弱点跟踪和学习规划，两位老师共同陪伴一个孩子。</p></section>
                   </>}
                   {parentPage === 1 && <><h2 style={{ fontSize: `${currentTitleSize}pt` }}>五讲课程带来的能力提升</h2><p>五讲合起来，孩子练习的是：读懂故事 → 找到证据 → 学会方法 → 说清楚 → 写完整。</p><h3>五讲合起来，孩子练习的是：</h3><p>{lessons.map((lesson) => `第${lesson.lessonNumber}讲：${lesson.technique}`).join("；")}</p></>}
                   {parentPage === 2 && <><h2 style={{ fontSize: `${currentTitleSize}pt` }}>五讲学习安排</h2><table className="parent-schedule"><thead><tr><th>讲次</th><th>讲次名称</th><th>讲次技法</th><th>具体学习内容</th></tr></thead><tbody>{lessons.map((lesson) => <tr key={lesson.lessonNumber}><td>第{lesson.lessonNumber}讲</td><td>{bookTitle(lesson.title)}</td><td>{lesson.technique}</td><td>{lesson.learningGoals.map((goal, index) => <div key={index}>{index + 1}. {printableLearningGoal(goal)}</div>)}</td></tr>)}</tbody></table></>}
-                  {parentPage === 3 && <><h2 style={{ fontSize: `${currentTitleSize}pt` }}>🎯 {project.grade}阶段，最需要关注什么？</h2><p>基础：从“会认字”走向“会用字词”；阅读：从“听故事”走向“读懂故事”；表达：从“说一句话”走向“完整表达”。</p><h3>💡 家长怎么配合？</h3><section className="lesson-callout"><p>正课时间：19:00-19:40。课前10分钟＋课后10分钟由班主任老师统一带领预习、复习，无需家长提前筹备。</p><p>课业紧张时，按第五部分口头框架录1分钟复习视频；学有余力时，完成第四部分书面练习并提交老师批改。</p></section></>}
+                  {parentPage === 3 && <><h2 style={{ fontSize: `${currentTitleSize}pt` }}>🎯 {project.grade}阶段，最需要关注什么？</h2><h3>☁️ 基础：从“会认字”走向“会用字词”</h3><p>在故事语境中认识并积累字词，不只会读，还能联系人物、动作和情节理解词义；通过圈画、复述与句式练习，把常用表达用到自己的口头和书面表达中。</p><h3>📚 阅读：从“听故事”走向“读懂故事”</h3><p>不止复述热闹情节，还要能说清“谁做了什么、为什么这样做、结果怎样”，并从原文中找到具体词句作证据，逐步形成整本书阅读习惯。</p><h3>✍️ 表达：从“说一句话”走向“完整表达”</h3><p>借助课堂方法，把人物、事情、动作、语言、心情和结果说完整、写清楚；每周完成一次口头表达或简短书面练习，形成可迁移的表达框架。</p><h3>💡 家长怎么配合？</h3><section className="lesson-callout"><p>正课时间：19:00-19:40。课前10分钟＋课后10分钟由班主任老师统一带领预习、复习，无需家长提前筹备。</p><p>课业紧张时，按第五部分口头框架录1分钟复习视频；学有余力时，完成第四部分书面练习并提交老师批改。</p></section></>}
                 </>
               ) : previewKind === "answers" ? (
                 <>
@@ -536,10 +540,10 @@ export function LayoutWorkspace({
                   <p className="lesson-subtitle">{currentLesson.subtitle}</p>
                   <h3>🎯 一、本讲要学什么</h3>
                   <section className="lesson-callout"><b>本讲对标</b>{formatCourseAlignment(currentLesson.courseAlignment).map((line, index) => <p key={index}>{line}</p>)}<b>学习目标：</b>{currentLesson.learningGoals.map((goal, index) => <p key={index}>{index + 1}. {printableLearningGoal(goal)}</p>)}</section>
+                  <h3>💡 二、家长使用提示　【二选一】</h3><section className="lesson-callout"><b>📱 忙碌时（5分钟搞定）</b><p>① 让孩子按第五部分【我是小老师】的口头框架讲一遍故事；</p><p>② 录1分钟左右的小视频，发到班级群；</p><p>③ 老师会1对1批改、点评。</p><b>📚 学有余力时（写一写）</b><p>① 让孩子完成第四部分【真题带练】的5行填空；</p><p>② 拍照或文档发到班级群／私发给老师；</p><p>③ 老师会1对1批改、点评。</p></section>
                 </>
               ) : pageIndex === 1 ? (
                 <>
-                  <h3>💡 二、家长使用提示　【二选一】</h3><section className="lesson-callout"><b>📱 忙碌时（5分钟搞定）</b><p>① 让孩子按第五部分【我是小老师】的口头框架讲一遍故事；</p><p>② 录1分钟左右的小视频，发到班级群；</p><p>③ 老师会1对1批改、点评。</p><b>📚 学有余力时（写一写）</b><p>① 让孩子完成第四部分【真题带练】的5行填空；</p><p>② 拍照或文档发到班级群／私发给老师；</p><p>③ 老师会1对1批改、点评。</p></section>
                   <h2 style={{ fontSize: `${currentTitleSize}pt` }}>下课后，建议家长可以和孩子交流的话题</h2>
                   {currentLesson.conversationTopics.map((item, index) => (
                     <section key={item.question}>
