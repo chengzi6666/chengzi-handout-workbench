@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { readSession } from "@/lib/auth/session";
 import { objectStore } from "@/lib/storage/object-store";
 import { projectSourceKey } from "@/lib/storage/keys";
+import { extractWordText } from "@/lib/word/extract";
 
 const MAX_FILE_BYTES = 100 * 1024 * 1024;
 
@@ -50,6 +51,18 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
   const source = await db.sourceFile.create({
     data: { projectId: id, kind: sourceKind, originalName: file.name, objectKey: key, mimeType: file.type || "application/octet-stream", size: file.size, checksum, lessonNumber: Number.isInteger(lessonNumber) ? lessonNumber : null }
   });
+  // DOCX is a zip/XML container, not an OCR job. Parse it while the upload request is still
+  // open so Word files never wait behind a long-running scanned-PDF vision queue.
+  if (sourceKind === "DOCUMENT") {
+    try {
+      const text = await extractWordText(body);
+      await db.sourcePage.create({ data: { sourceFileId: source.id, pageNumber: 1, extractedText: text } });
+    } catch (error) {
+      await db.sourceFile.delete({ where: { id: source.id } }).catch(() => undefined);
+      await objectStore().delete(key).catch(() => undefined);
+      return NextResponse.json({ error: error instanceof Error ? `DOCX文字提取失败：${error.message}` : "DOCX文字提取失败" }, { status: 422 });
+    }
+  }
   return NextResponse.json({ file: source, duplicate: false }, { status: 201 });
 }
 
