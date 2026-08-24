@@ -2,7 +2,7 @@ import type { LessonContent } from "./content-schema";
 
 // A4 页面上的一个括号空格要可写、也不能把右括号挤到下一行。
 const PAREN_SPACE = "　".repeat(24);
-const UNDERLINE_SPACE = "＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿";
+const UNDERLINE_SPACE = "＿".repeat(24);
 
 export function formatStudentBlank(text: string) {
   return text
