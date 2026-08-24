@@ -11,6 +11,7 @@ import {
   LogOut,
   Settings2,
   Sparkles,
+  Trash2,
 } from "lucide-react";
 import { ProjectSidebar } from "./project-sidebar";
 import {
@@ -393,6 +394,22 @@ export function WorkspaceShell({ initialProjects, user }: WorkspaceShellProps) {
     setUploading(false);
   }
 
+  async function deleteSourceFile(file: { id: string; originalName: string }) {
+    if (!selectedId) return;
+    if (!window.confirm(`确定删除“${file.originalName}”吗？\n\n该文件的解析页和正在进行的解析任务会一并移除；已保存的文字初稿不会自动删除。`)) return;
+    setUploadMessage("");
+    const response = await fetch(`/api/projects/${selectedId}/files?fileId=${encodeURIComponent(file.id)}`, { method: "DELETE" });
+    const payload = await response.json();
+    if (!response.ok) {
+      setUploadMessage(payload.error ?? "删除失败，请稍后重试");
+      return;
+    }
+    setSourceFiles((items) => items.filter((item) => item.id !== file.id));
+    setParseProgress(null);
+    setProcessMessage("已删除主讲文件；如需重新生成，请先解析剩余文件。");
+    setUploadMessage(`已删除：${file.originalName}`);
+  }
+
   async function confirmYear() {
     if (!selected || selected.teachingYearConfirmed) return true;
     if (
@@ -625,7 +642,17 @@ export function WorkspaceShell({ initialProjects, user }: WorkspaceShellProps) {
                       <FileText size={14} />
                       <span>{file.originalName}</span>
                       <small>{(file.size / 1024 / 1024).toFixed(1)} MB</small>
-                      <CheckCircle2 size={14} />
+                      <CheckCircle2 className="source-file-ready" size={14} />
+                      <button
+                        type="button"
+                        className="source-file-delete"
+                        onClick={() => void deleteSourceFile(file)}
+                        aria-label={`删除${file.originalName}`}
+                        title="删除此主讲文件"
+                        disabled={uploading || processing || generating}
+                      >
+                        <Trash2 size={15} />
+                      </button>
                     </div>
                   ))}
                 </div>

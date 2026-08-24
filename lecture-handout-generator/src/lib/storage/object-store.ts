@@ -1,5 +1,5 @@
-import { GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { DeleteObjectCommand, GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { dirname, join, normalize } from "node:path";
 
 interface PutInput {
@@ -11,6 +11,7 @@ interface PutInput {
 export interface ObjectStore {
   put(input: PutInput): Promise<void>;
   get(key: string): Promise<Uint8Array>;
+  delete(key: string): Promise<void>;
 }
 
 function safeLocalPath(root: string, key: string) {
@@ -28,6 +29,9 @@ class LocalObjectStore implements ObjectStore {
   }
   async get(key: string) {
     return new Uint8Array(await readFile(safeLocalPath(this.root, key)));
+  }
+  async delete(key: string) {
+    await rm(safeLocalPath(this.root, key), { force: true });
   }
 }
 
@@ -52,6 +56,9 @@ class S3ObjectStore implements ObjectStore {
     if (!response.Body) throw new Error("Object body is empty");
     return new Uint8Array(await response.Body.transformToByteArray());
   }
+  async delete(key: string) {
+    await this.client.send(new DeleteObjectCommand({ Bucket: this.bucket, Key: key }));
+  }
 }
 
 let cached: ObjectStore | undefined;
@@ -67,4 +74,3 @@ export function objectStore() {
   cached = new LocalObjectStore(join(process.cwd(), "storage"));
   return cached;
 }
-

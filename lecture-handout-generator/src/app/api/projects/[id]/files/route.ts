@@ -52,3 +52,34 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
   });
   return NextResponse.json({ file: source, duplicate: false }, { status: 201 });
 }
+
+/** Delete one uploaded source and its derived pages. Existing lesson drafts are retained for
+ * comparison, but the project returns to draft status so it cannot silently generate from a
+ * removed source. */
+export async function DELETE(request: Request, context: { params: Promise<{ id: string }> }) {
+  const session = await readSession();
+  if (!session) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  const { id } = await context.params;
+  if (process.env.LOCAL_DEMO_MODE === "true") return NextResponse.json({ error: "本地演示模式不删除示例文件" }, { status: 409 });
+  if (!(await ownedProject(id, session.userId))) return NextResponse.json({ error: "项目不存在" }, { status: 404 });
+  const fileId = new URL(request.url).searchParams.get("fileId");
+  if (!fileId) return NextResponse.json({ error: "缺少文件ID" }, { status: 400 });
+  const source = await db.sourceFile.findFirst({ where: { id: fileId, projectId: id } });
+  if (!source) return NextResponse.json({ error: "文件不存在或不属于当前项目" }, { status: 404 });
+
+  const jobs = await db.processingJob.findMany({
+    where: { projectId: id, kind: "PDF_PARSE", status: { in: ["QUEUED", "RUNNING"] } },
+    select: { id: true, payload: true }
+  });
+  const relatedJobIds = jobs
+    .filter((job) => (job.payload as { sourceFileId?: string }).sourceFileId === source.id)
+    .map((job) => job.id);
+  await db.$transaction([
+    ...(relatedJobIds.length ? [db.processingJob.deleteMany({ where: { id: { in: relatedJobIds } } })] : []),
+    db.sourcePage.deleteMany({ where: { sourceFileId: source.id } }),
+    db.sourceFile.delete({ where: { id: source.id } }),
+    db.project.update({ where: { id }, data: { status: "DRAFT" } })
+  ]);
+  await objectStore().delete(source.objectKey).catch(() => undefined);
+  return NextResponse.json({ ok: true, fileId: source.id });
+}
