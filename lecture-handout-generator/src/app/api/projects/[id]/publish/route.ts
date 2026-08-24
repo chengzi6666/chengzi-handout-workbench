@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { readSession } from "@/lib/auth/session";
 import { lessonContentSchema } from "@/lib/handout/content-schema";
 import { z } from "zod";
+import { createPinyinReview, validatePinyinReview } from "@/lib/handout/pinyin";
 
 const publishSchema = z.object({ includes: z.array(z.enum(["parent", "student", "answers"])).min(1) });
 
@@ -24,22 +25,26 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
   const parsed = publishSchema.safeParse(await _request.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "请至少选择一种电子翻页书内容" }, { status: 400 });
   const { id } = await context.params;
-  const project = await db.project.findFirst({ where: { id, ownerId: session.userId }, include: { lessons: { orderBy: { lessonNumber: "asc" } }, flipbooks: { orderBy: { updatedAt: "desc" }, take: 1 } } });
+  const project = await db.project.findFirst({ where: { id, ownerId: session.userId }, include: { lessons: { orderBy: { lessonNumber: "asc" } }, backgroundPack: { include: { assets: true } }, flipbooks: { orderBy: { updatedAt: "desc" }, take: 1 } } });
   if (!project) return NextResponse.json({ error: "项目不存在" }, { status: 404 });
   if (project.lessons.length === 0 || project.lessons.some((lesson) => !lesson.textApprovedAt)) return NextResponse.json({ error: "所有课程通过文字审核后才能发布" }, { status: 409 });
   const lessons = project.lessons.map((lesson) => lessonContentSchema.parse(lesson.structuredContent));
   const latest = project.flipbooks[0]; const slug = latest?.slug ?? randomBytes(6).toString("base64url");
-  const parent = [{ collection: "parent", kind: "parent", title: "家长使用手册", subtitle: "—— 真读书 · 有深度 · 用得上 ——", body: ["双师陪伴：主讲老师负责课程讲解、阅读方法和表达写作训练；班主任老师负责直播跟课、答疑、反馈和学习规划。", "五讲合起来，孩子练习的是：读懂故事 → 找到证据 → 学会方法 → 说清楚 → 写完整。"] }];
+  const background = (role: string) => {
+    const asset = project.backgroundPack?.assets.find((item) => item.role === role) ?? project.backgroundPack?.assets.find((item) => item.role === "SIMPLE");
+    return asset ? `/api/book/${slug}/background/${asset.id}` : `/handout-backgrounds/${role === "READING" ? "mint-school.png" : role === "CONVERSATION" || role === "LITTLE_TEACHER" ? "blush-school.png" : "butter-school.png"}`;
+  };
+  const parent = [{ collection: "parent", kind: "parent", title: "家长使用手册", subtitle: "—— 真读书 · 有深度 · 用得上 ——", backgroundSrc: background("PARENT_MANUAL"), body: ["双师陪伴：主讲老师负责课程讲解、阅读方法和表达写作训练；班主任老师负责直播跟课、答疑、反馈和学习规划。", "五讲合起来，孩子练习的是：读懂故事 → 找到证据 → 学会方法 → 说清楚 → 写完整。"] }];
   const student = lessons.flatMap((lesson) => [
-    { collection: "student", kind: "home", title: `第${lesson.lessonNumber}讲 ${lesson.title}`, subtitle: lesson.subtitle, body: lesson.learningGoals, technique: lesson.technique, richHtml: richPage(project.layoutConfig, lesson.lessonNumber, 0) },
-    { collection: "student", kind: "conversation", title: "课后交流话题", topics: lesson.conversationTopics, richHtml: richPage(project.layoutConfig, lesson.lessonNumber, 1) },
-    { collection: "student", kind: "reading", title: "阅读文段", text: lesson.readingExcerpt.text, questions: lesson.closeReadingQuestions, richHtml: richPage(project.layoutConfig, lesson.lessonNumber, 2) },
-    { collection: "student", kind: "practice", title: "课堂方法与真题带练", method: lesson.methodSummary, practice: publicPractice(lesson.practice, slug), richHtml: richPage(project.layoutConfig, lesson.lessonNumber, 3) },
-    { collection: "student", kind: "teacher", title: "我是小老师", steps: lesson.littleTeacherSteps, framework: lesson.oralFramework, richHtml: richPage(project.layoutConfig, lesson.lessonNumber, 4) }
+    { collection: "student", kind: "home", title: `第${lesson.lessonNumber}讲 ${lesson.title}`, subtitle: lesson.subtitle, body: lesson.learningGoals, technique: lesson.technique, richHtml: richPage(project.layoutConfig, lesson.lessonNumber, 0), backgroundSrc: background("LESSON_HOME") },
+    { collection: "student", kind: "conversation", title: "课后交流话题", topics: lesson.conversationTopics, richHtml: richPage(project.layoutConfig, lesson.lessonNumber, 1), backgroundSrc: background("CONVERSATION") },
+    { collection: "student", kind: "reading", title: "阅读文段", text: lesson.readingExcerpt.text, pinyinUnits: project.grade === "1升2" ? (() => { const row = project.lessons.find((item) => item.lessonNumber === lesson.lessonNumber); try { return row?.pinyinReview ? validatePinyinReview(lesson.readingExcerpt.text, row.pinyinReview as Array<{ char: string; pinyin: string }>) : createPinyinReview(lesson.readingExcerpt.text); } catch { return createPinyinReview(lesson.readingExcerpt.text); } })() : undefined, questions: lesson.closeReadingQuestions, richHtml: richPage(project.layoutConfig, lesson.lessonNumber, 2), backgroundSrc: background("READING") },
+    { collection: "student", kind: "practice", title: "课堂方法与真题带练", method: lesson.methodSummary, practice: publicPractice(lesson.practice, slug), richHtml: richPage(project.layoutConfig, lesson.lessonNumber, 3), backgroundSrc: background("PRACTICE") },
+    { collection: "student", kind: "teacher", title: "我是小老师", steps: lesson.littleTeacherSteps, framework: lesson.oralFramework, richHtml: richPage(project.layoutConfig, lesson.lessonNumber, 4), backgroundSrc: background("LITTLE_TEACHER") }
   ]);
   const answers = lessons.flatMap((lesson) => [
-    { collection: "answers", kind: "answer", title: `第${lesson.lessonNumber}讲参考答案`, topics: lesson.conversationTopics },
-    { collection: "answers", kind: "answer", title: "真题带练参考", practice: publicPractice(lesson.practice, slug) }
+    { collection: "answers", kind: "answer", title: `第${lesson.lessonNumber}讲参考答案`, topics: lesson.conversationTopics, backgroundSrc: background("SIMPLE") },
+    { collection: "answers", kind: "answer", title: "真题带练参考", practice: publicPractice(lesson.practice, slug), backgroundSrc: background("SIMPLE") }
   ]);
   const content = [...(parsed.data.includes.includes("parent") ? parent : []), ...(parsed.data.includes.includes("student") ? student : []), ...(parsed.data.includes.includes("answers") ? answers : [])];
   const flipbook = latest ? await db.publishedFlipbook.update({ where: { id: latest.id }, data: { title: project.name, description: `${project.grade}五讲读写课程电子讲义`, content } }) : await db.publishedFlipbook.create({ data: { projectId: project.id, slug, title: project.name, description: `${project.grade}五讲读写课程电子讲义`, content } });
