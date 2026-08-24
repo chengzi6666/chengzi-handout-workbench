@@ -17,6 +17,8 @@ export type HandoutDocumentInput = {
   teachingYear: number;
   teacherFormalName?: string;
   teacherNickname?: string;
+  headerText?: string;
+  footerText?: string;
   lessons: LessonContent[];
   pinyinReviews?: Record<number, PinyinUnit[]>;
   backgrounds?: Partial<Record<"SIMPLE" | "COVER" | "PARENT_MANUAL" | "LESSON_HOME" | "CONVERSATION" | "READING" | "PRACTICE" | "LITTLE_TEACHER", ImageAsset>>;
@@ -42,6 +44,19 @@ function title(text: string, subtitle?: string) {
   ];
 }
 
+function lessonBookTitle(value: string) {
+  const match = value.match(/《[^》]+》/u);
+  return match?.[0] ?? value.replace(/^第\s*\d+\s*讲[：:、\s]*/u, "").trim();
+}
+
+function lessonTitleBlock(lesson: LessonContent) {
+  return [
+    new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 80, after: 70 }, children: [run(lessonBookTitle(lesson.title), { bold: true, size: 36, color: orange })] }),
+    new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 60 }, children: [run(`— “${lesson.technique.replace(/[—“”]/g, "").trim()}” —`, { bold: true, size: 24, color: "5B4B42" })] }),
+    ...(lesson.subtitle ? [new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 180 }, children: [run(lesson.subtitle, { size: 22, color: gray })] })] : [])
+  ];
+}
+
 function heading(text: string) {
   return new Paragraph({ spacing: { before: 180, after: 90 }, keepNext: true, children: [run(text, { bold: true, size: 25, color: orange })] });
 }
@@ -59,20 +74,22 @@ function numbered(items: string[]) {
   return items.map((item, index) => body(`${index + 1}. ${item}`));
 }
 
-function footer() {
-  return new Footer({ children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [run("橙子讲义工坊  ·  ", { size: 17, color: "A79D96" }), new TextRun({ children: [PageNumber.CURRENT], font: FONT, size: 17, color: "A79D96" })] })] });
+function footer(text?: string) {
+  return new Footer({ children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [run(`${text ?? "真读书 · 有深度 · 用得上"}  ·  `, { size: 17, color: "A79D96" }), new TextRun({ children: [PageNumber.CURRENT], font: FONT, size: 17, color: "A79D96" })] })] });
 }
 
-function backgroundHeader(image?: ImageAsset) {
-  if (!image) return undefined;
-  return new Header({ children: [new Paragraph({ children: [new ImageRun({ ...image, transformation: { width: 794, height: 1123 }, floating: { horizontalPosition: { relative: HorizontalPositionRelativeFrom.PAGE, offset: 0 }, verticalPosition: { relative: VerticalPositionRelativeFrom.PAGE, offset: 0 }, behindDocument: true, allowOverlap: true } })] })] });
+function backgroundHeader(image?: ImageAsset, text?: string) {
+  const children: Paragraph[] = [];
+  if (image) children.push(new Paragraph({ children: [new ImageRun({ ...image, transformation: { width: 794, height: 1123 }, floating: { horizontalPosition: { relative: HorizontalPositionRelativeFrom.PAGE, offset: 0 }, verticalPosition: { relative: VerticalPositionRelativeFrom.PAGE, offset: 0 }, behindDocument: true, allowOverlap: true } })] }));
+  if (text) children.push(new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 40 }, children: [run(text, { size: 16, color: "A79D96" })] }));
+  return children.length ? new Header({ children }) : undefined;
 }
 
-function section(children: Array<Paragraph | Table>, background?: ImageAsset): ISectionOptions {
+function section(children: Array<Paragraph | Table>, background?: ImageAsset, input?: HandoutDocumentInput): ISectionOptions {
   return {
     properties: { type: SectionType.NEXT_PAGE, page: { margin: { top: 850, right: 850, bottom: 760, left: 850, header: 0, footer: 360 } } },
-    headers: background ? { default: backgroundHeader(background) } : undefined,
-    footers: { default: footer() },
+    headers: background || input?.headerText ? { default: backgroundHeader(background, input?.headerText) } : undefined,
+    footers: { default: footer(input?.footerText) },
     children
   };
 }
@@ -110,30 +127,56 @@ function practiceImage(input: HandoutDocumentInput, pageId?: string, fileId?: st
   return image ? [new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 120 }, children: [new ImageRun({ ...image, transformation: { width: 480, height: 320 } })] })] : [];
 }
 
+function calloutTable(lines: string[], fill = "FFF8F2") {
+  const paragraphs = lines.map((line, index) => new Paragraph({
+    spacing: { after: index === lines.length - 1 ? 30 : 70 },
+    children: [run(line, { bold: index === 0, size: index === 0 ? 24 : 21, color: index === 0 ? orange : "493D36" })]
+  }));
+  return new Table({ width: { size: 7600, type: WidthType.DXA }, rows: [new TableRow({ children: [new TableCell({
+    width: { size: 7600, type: WidthType.DXA }, shading: { type: ShadingType.CLEAR, color: "F5E1D5", fill }, children: paragraphs
+  })] })] });
+}
+
+function studentParentChoiceTable() {
+  return calloutTable([
+    "📱 忙碌时（5分钟搞定）",
+    "① 让孩子按第五部分【我是小老师】的口头框架讲一遍故事；② 录1分钟左右的小视频，发到班级群；③ 老师会1对1批改、点评。",
+    "📚 学有余力时（写一写）",
+    "① 让孩子完成第四部分【真题带练】的书面练习；② 拍照或文档发到班级群/私发给老师；③ 老师会1对1批改、点评。"
+  ], "FFFDF8");
+}
+
+function noteTable() {
+  return new Table({ width: { size: 7600, type: WidthType.DXA }, rows: [new TableRow({ children: [new TableCell({ width: { size: 7600, type: WidthType.DXA }, shading: { type: ShadingType.CLEAR, color: "F2E5D9", fill: "FFFCF8" }, children: [
+    new Paragraph({ children: [run("📖 笔记", { bold: true, size: 23, color: orange })] }),
+    new Paragraph({ spacing: { before: 50, after: 560 }, children: [run("________________________________________________________________________________", { size: 22, color: "B6AAA0" })] }),
+    new Paragraph({ spacing: { after: 560 }, children: [run("________________________________________________________________________________", { size: 22, color: "B6AAA0" })] }),
+    new Paragraph({ children: [run("________________________________________________________________________________", { size: 22, color: "B6AAA0" })] })
+  ] })] })] });
+}
+
 function lessonSections(lesson: LessonContent, input: HandoutDocumentInput) {
   const p1 = section([
-    ...title(`第${lesson.lessonNumber}讲  ${lesson.title}`, lesson.subtitle),
-    heading("🎯 一、本讲要学什么"), ...numbered(lesson.learningGoals),
-    heading("本讲方法"), body(lesson.technique, true)
-  ], pickBackground(input, "LESSON_HOME"));
+    ...lessonTitleBlock(lesson),
+    heading("🎯 一、本讲要学什么"),
+    calloutTable(["本讲对标", lesson.courseAlignment ?? lesson.curriculumAlignment[0]?.claim ?? "请结合本讲内容核对教材对标。", `学习目标：${lesson.learningGoals.join("；")}`])
+  ], pickBackground(input, "LESSON_HOME"), input);
   const p2 = section([
-    ...title("💡 二、家长使用提示", "忙碌时口头复述 · 学有余力书面练习"),
-    heading("忙碌时（5分钟）"), ...numbered(lesson.parentBusySteps),
-    heading("学有余力时"), ...numbered(lesson.parentExtendedSteps),
+    ...title("💡 二、家长使用提示", "【二选一】"), studentParentChoiceTable(),
     heading("💬 下课后，建议家长可以和孩子交流的话题"),
     ...lesson.conversationTopics.flatMap((topic, index) => [heading(`${index + 1}. ${topic.question}`), body(`参考：${topic.referenceAnswer}`)])
-  ], pickBackground(input, "CONVERSATION"));
+  ], pickBackground(input, "CONVERSATION"), input);
   const p3 = section([
-    ...title("📖 三、精读片段：读原文，找证据"), heading("课文片段"), body(lesson.readingExcerpt.text),
-    heading("💡 精读批注"), ...numbered(lesson.closeReadingQuestions), heading("精读小笔记"), body(lesson.methodSummary)
-  ], pickBackground(input, "READING"));
+    ...title("📖 三、精读片段"), heading("📖 课文片段"), body(lesson.readingExcerpt.text),
+    heading("💡 精读批注"), ...numbered(lesson.closeReadingQuestions), noteTable()
+  ], pickBackground(input, "READING"), input);
   const p4 = section([
-    ...title("🌟 四、哈哈老师课堂 · 真题带练"), heading("本讲方法"), body(lesson.methodSummary), heading("练一练"),
+    ...title(`🌟 四、${input.teacherNickname ?? "主讲"}老师课堂 · 真题带练`), heading("本讲方法"), body(lesson.methodSummary), heading("练一练"),
     ...lesson.practice.flatMap((item, index) => [body(`${index + 1}. ${item.prompt}`, true), ...practiceImage(input, item.imageSourcePageId, item.imageSourceFileId), body("我的作答：________________________________________________________________")]), ...teacherParagraph(input)
-  ], pickBackground(input, "PRACTICE"));
+  ], pickBackground(input, "PRACTICE"), input);
   const p5 = section([
-    ...title("🎤 五、我是今天的小老师"), heading("作答步骤"), ...numbered(lesson.littleTeacherSteps), heading("口头表达题干"), body(studentOralFramework(lesson))
-  ], pickBackground(input, "LITTLE_TEACHER"));
+    ...title("🎤 五、我是小老师"), heading("🎯 作答步骤"), ...numbered(lesson.littleTeacherSteps), heading("🎤 口头表达示范框架"), body(studentOralFramework(lesson))
+  ], pickBackground(input, "LITTLE_TEACHER"), input);
   return [p1, p2, p3, p4, p5];
 }
 

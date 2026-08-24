@@ -49,7 +49,7 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
     CONVERSATION: "blush", READING: "mint", PRACTICE: "butter", LITTLE_TEACHER: "blush",
   };
   for (const [role, palette] of Object.entries(defaultRoles)) backgrounds[role] ??= defaults[palette];
-  const layout = project.layoutConfig as { teacherImage?: { assetId?: string; x: number; y: number; width: number; height: number }; fontSize?: number; fontFamily?: "Microsoft YaHei" | "SimSun" | "KaiTi" | "FangSong" } | null;
+  const layout = project.layoutConfig as { teacherImage?: { assetId?: string; x: number; y: number; width: number; height: number }; fontSize?: number; fontFamily?: "Microsoft YaHei" | "SimSun" | "KaiTi" | "FangSong"; headerText?: string; footerText?: string } | null;
   const gradeKey = ({ "0升1": "0l1", "1升2": "1l2", "2升3": "2l3", "3升4": "3l4", "4升5": "4l5" } as Record<string, string>)[project.grade] ?? "1l2";
   const defaultTeacher = async (kind: "expression" | "portrait") => ({ data: await readFile(join(process.cwd(), "public", "teacher-defaults", `${gradeKey}-${kind}.png`)), type: "png" as const });
   const expressionAsset = project.teacher?.assets.find((asset) => asset.id === layout?.teacherImage?.assetId) ?? project.teacher?.assets.find((asset) => asset.kind === "EXPRESSION");
@@ -66,7 +66,7 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
   const manualImageIds = lessons.flatMap(({ content }) => content.practice.map((item) => item.imageSourceFileId).filter((value): value is string => Boolean(value)));
   const manualImages = manualImageIds.length ? await db.sourceFile.findMany({ where: { id: { in: manualImageIds }, projectId: project.id, kind: "QUESTION_IMAGE" } }) : [];
   for (const image of manualImages) practiceImages[image.id] = { data: Buffer.from(await objectStore().get(image.objectKey)), type: typeOf(image.objectKey) };
-  const buffer = await generateHandoutDocx({ projectName: project.name, grade: project.grade, teachingYear: project.teachingYear, teacherFormalName: project.teacher?.formalName, teacherNickname: project.teacher?.nickname, lessons: lessons.map((item) => item.content), pinyinReviews, backgrounds, teacherImage, teacherPortrait, teacherPosition: layout?.teacherImage, fontSize: layout?.fontSize, fontFamily: layout?.fontFamily, practiceImages, includeFrontMatter: kind === "combined_student", mode });
+  const buffer = await generateHandoutDocx({ projectName: project.name, grade: project.grade, teachingYear: project.teachingYear, teacherFormalName: project.teacher?.formalName, teacherNickname: project.teacher?.nickname, headerText: layout?.headerText, footerText: layout?.footerText, lessons: lessons.map((item) => item.content), pinyinReviews, backgrounds, teacherImage, teacherPortrait, teacherPosition: layout?.teacherImage, fontSize: layout?.fontSize, fontFamily: layout?.fontFamily, practiceImages, includeFrontMatter: kind === "combined_student", mode });
   const fileName = `${project.name}-${kind}${lessonNumber ? `-第${lessonNumber}讲` : ""}.docx`.replace(/[\\/:*?"<>|]/g, "-");
   return new NextResponse(buffer, { headers: { "content-type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "content-disposition": `attachment; filename*=UTF-8''${encodeURIComponent(fileName)}` } });
 }

@@ -33,6 +33,7 @@ type LessonPreview = {
   title: string;
   subtitle?: string;
   technique: string;
+  courseAlignment?: string;
   learningGoals: string[];
   conversationTopics: Array<{ question: string; referenceAnswer: string }>;
   readingExcerpt: { text: string };
@@ -58,6 +59,10 @@ const defaultBackgrounds: Record<(typeof pageRoles)[number], string> = {
   LITTLE_TEACHER: "/handout-backgrounds/blush-school.png",
 };
 
+function bookTitle(value: string) {
+  return value.match(/《[^》]+》/u)?.[0] ?? value.replace(/^第\s*\d+\s*讲[：:、\s]*/u, "").trim();
+}
+
 export function LayoutWorkspace({
   project,
   backgrounds: initialBackgrounds,
@@ -80,6 +85,8 @@ export function LayoutWorkspace({
   const [position, setPosition] = useState<Position>(initial);
   const [fontSize, setFontSize] = useState((project.layoutConfig as { fontSize?: number } | null)?.fontSize ?? 11);
   const [fontFamily, setFontFamily] = useState((project.layoutConfig as { fontFamily?: string } | null)?.fontFamily ?? "Microsoft YaHei");
+  const [headerText, setHeaderText] = useState((project.layoutConfig as { headerText?: string } | null)?.headerText ?? "");
+  const [footerText, setFooterText] = useState((project.layoutConfig as { footerText?: string } | null)?.footerText ?? "真读书 · 有深度 · 用得上");
   const [richPreviewHtml, setRichPreviewHtml] = useState((project.layoutConfig as { richPreviewHtml?: Record<string, string> } | null)?.richPreviewHtml ?? {});
   const [teacherId, setTeacherId] = useState(
     project.teacherId ??
@@ -185,7 +192,7 @@ export function LayoutWorkspace({
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           teacherImage: { ...position, assetId: activeAsset?.id },
-          fontFamily, fontSize, richPreviewHtml: nextRichPreviewHtml,
+          fontFamily, fontSize, headerText, footerText, richPreviewHtml: nextRichPreviewHtml,
         }),
       }),
     ]);
@@ -288,6 +295,14 @@ export function LayoutWorkspace({
                 {[10, 11, 12, 13, 14, 15, 16, 17, 18].map((size) => <option key={size} value={size}>{size} 号</option>)}
               </select>
             </label>
+            <label>
+              页眉文字
+              <input value={headerText} maxLength={80} placeholder="留空则不显示" onChange={(event) => setHeaderText(event.target.value)} />
+            </label>
+            <label>
+              页脚文字
+              <input value={footerText} maxLength={80} onChange={(event) => setFooterText(event.target.value)} />
+            </label>
             <div className="inline-format-tools" aria-label="文字调整">
               <span>文字调整</span>
               <button type="button" title="加粗选中文字" onMouseDown={(event) => event.preventDefault()} onClick={() => formatSelection("bold")}><Bold size={15} /></button>
@@ -380,18 +395,11 @@ export function LayoutWorkspace({
                 </>
               ) : pageIndex === 0 ? (
                 <>
-                  <h2>
-                    第{currentLesson.lessonNumber}讲 {currentLesson.title}
-                  </h2>
-                  <p>{currentLesson.subtitle}</p>
-                  <h3>今天学什么</h3>
-                  <ol>
-                    {currentLesson.learningGoals.map((item) => (
-                      <li key={item}>{item}</li>
-                    ))}
-                  </ol>
-                  <h3>核心方法</h3>
-                  <p>{currentLesson.technique}</p>
+                  <h2 className="lesson-book-title">{bookTitle(currentLesson.title)}</h2>
+                  <p className="lesson-technique">— “{currentLesson.technique.replace(/[—“”]/g, "").trim()}” —</p>
+                  <p className="lesson-subtitle">{currentLesson.subtitle}</p>
+                  <h3>🎯 一、本讲要学什么</h3>
+                  <section className="lesson-callout"><b>本讲对标</b><p>{currentLesson.courseAlignment ?? "请在文字审核中补充本讲教材对标。"}</p><p><b>学习目标：</b>{currentLesson.learningGoals.join("；")}</p></section>
                 </>
               ) : pageIndex === 1 ? (
                 <>
@@ -420,10 +428,11 @@ export function LayoutWorkspace({
                       <li key={item}>{item}</li>
                     ))}
                   </ol>
+                  <section className="note-preview"><b>📖 笔记</b><p>________________________________________________</p><p>________________________________________________</p><p>________________________________________________</p></section>
                 </>
               ) : pageIndex === 3 ? (
                 <>
-                  <h2>课堂方法与真题带练</h2>
+                  <h2>🌟 四、{teacher?.nickname ?? "主讲"}老师课堂 · 真题带练</h2>
                   <h3>方法小结</h3>
                   <p>{currentLesson.methodSummary}</p>
                   <h3>练一练</h3>
@@ -434,20 +443,20 @@ export function LayoutWorkspace({
                           {index + 1}. {item.prompt}
                         </b>
                       </p>
-                      <p>参考答案：{item.answer}</p>
+                      <p>我的作答：________________________________________________</p>
                     </section>
                   ))}
                 </>
               ) : (
                 <>
-                  <h2>我是小老师</h2>
-                  <h3>讲解步骤</h3>
+                  <h2>🎤 五、我是小老师</h2>
+                  <h3>🎯 作答步骤</h3>
                   <ol>
                     {currentLesson.littleTeacherSteps.map((item) => (
                       <li key={item}>{item}</li>
                     ))}
                   </ol>
-                  <h3>表达小支架</h3>
+                  <h3>🎤 口头表达示范框架</h3>
                   <p>{currentLesson.oralFramework}</p>
                 </>
               )}

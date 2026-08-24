@@ -294,7 +294,8 @@ button { cursor: pointer; }
 .asset-upload input { display: none; }
 .layout-toolbar { margin-bottom: 12px; display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; }
 .layout-toolbar label { display: grid; gap: 5px; color: #716861; font-size: 12px; font-weight: 700; }
-.layout-toolbar select { height: 38px; padding: 0 10px; border: 1px solid var(--line); border-radius: 8px; background: #fff; font-size: 14px; }
+.layout-toolbar select, .layout-toolbar input { height: 38px; padding: 0 10px; border: 1px solid var(--line); border-radius: 8px; background: #fff; font-size: 14px; }
+.layout-toolbar label:has(input) { min-width: 150px; }
 .inline-format-tools { display: flex; align-items: center; gap: 5px; min-height: 38px; padding: 4px 6px; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
 .inline-format-tools span { margin-right: 2px; color: #716861; font-size: 12px; font-weight: 700; }
 .inline-format-tools button { display: grid; width: 29px; height: 29px; place-items: center; border: 0; border-radius: 6px; color: #5f5148; background: #fff7f1; cursor: pointer; }
@@ -314,6 +315,13 @@ button { cursor: pointer; }
 .canvas-copy section { max-width: 100%; margin: 12px 0; }
 .canvas-copy section h3 { margin-top: 0; }
 .canvas-copy .reading-preview { white-space: pre-wrap; }
+.lesson-book-title, .lesson-technique, .lesson-subtitle { text-align: center; }
+.lesson-technique { font-weight: 800; color: #5b4b42; }
+.lesson-subtitle { color: #6e655f; }
+.lesson-callout, .note-preview { padding: 14px 16px; border: 1px solid #ead8cc; border-radius: 10px; background: #fffaf5; }
+.lesson-callout p, .note-preview p { margin: 7px 0; }
+.note-preview { min-height: 160px; }
+.note-preview p { color: #b6aaa0; }
 .floating-teacher, .teacher-placeholder { position: absolute; object-fit: contain; touch-action: none; cursor: move; user-select: none; }
 .teacher-placeholder { display: grid; place-items: center; border: 2px dashed #f3a37d; color: #b47052; background: #fff3ebbb; font-size: 10px; text-align: center; }
 .export-panel a { margin-top: 8px; padding: 10px; display: flex; align-items: center; gap: 7px; border-radius: 8px; color: #fff; background: var(--orange); font-size: 10px; font-weight: 700; }

@@ -10,6 +10,7 @@ export const lessonContentSchema = z.object({
   title: z.string().trim().min(1),
   subtitle: z.string().trim().optional(),
   technique: z.string().trim().min(1),
+  courseAlignment: z.string().trim().min(1).optional(),
   learningGoals: z.array(z.string().trim().min(1)).min(3),
   curriculumAlignment: z.array(z.object({
     claim: z.string().trim().min(1),
