@@ -211,7 +211,9 @@ export async function generateProjectContent(
         title: textOf(draft.title, lessonTitleFromSource(wholeSourceText, index + 1)),
         source: wholeSourceText
       });
-      courseAlignment = repairedAlignment?.courseAlignment ?? "待教研核对：当前模型接口未返回可验证的教材单元/课文来源。";
+      // 不把内部状态或“待核对”字样写进面向家长/学生的讲义；
+      // 真正的联网工具接入完成前，保留模型生成的课程表述供文字审核页人工改写。
+      courseAlignment = repairedAlignment?.courseAlignment ?? textOf(draft.courseAlignment);
     }
     const content = lessonContentSchema.parse({
       ...draft,
