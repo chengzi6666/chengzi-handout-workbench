@@ -32,8 +32,9 @@ export async function POST(request: Request) {
       ownerId: session.userId,
       outputs: {
         create: [
-          { kind: "LESSON_STUDENT" },
-          { kind: "COMBINED_STUDENT" }
+          { kind: "COMBINED_STUDENT" },
+          { kind: "COMBINED_ANSWERS" },
+          { kind: "PARENT_MANUAL" }
         ]
       }
     }

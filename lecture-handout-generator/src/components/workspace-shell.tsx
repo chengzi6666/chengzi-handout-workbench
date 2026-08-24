@@ -26,12 +26,15 @@ interface WorkspaceShellProps {
 }
 
 export function WorkspaceShell({ initialProjects, user }: WorkspaceShellProps) {
+  // 仅用于“新建项目”。已存在项目始终读取其已保存的输出选择。
+  const defaultOutputKinds: OutputKind[] = [
+    "combined_student",
+    "combined_answers",
+    "parent_manual",
+  ];
   const [projects, setProjects] = useState(initialProjects);
   const [selectedId, setSelectedId] = useState(initialProjects[0]?.id ?? "");
-  const [outputs, setOutputs] = useState<OutputKind[]>([
-    "lesson_student",
-    "combined_student",
-  ]);
+  const [outputs, setOutputs] = useState<OutputKind[]>(defaultOutputKinds);
   const [sourceFiles, setSourceFiles] = useState<
     Array<{ id: string; originalName: string; size: number }>
   >([]);
@@ -397,7 +400,7 @@ export function WorkspaceShell({ initialProjects, user }: WorkspaceShellProps) {
       teachingYear: project.teachingYear,
       season: project.season ?? newProjectSeason,
       teachingYearConfirmed: false,
-      outputKinds: ["lesson_student", "combined_student"],
+      outputKinds: defaultOutputKinds,
       status: "draft",
       pinned: project.pinned,
       updatedAt: "刚刚",
