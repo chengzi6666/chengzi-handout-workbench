@@ -16,7 +16,7 @@ function PageContent({ page, pageNumber }: { page?: Record<string, unknown>; pag
     {Array.isArray(page.pinyinUnits) ? <PinyinText units={page.pinyinUnits as Array<{ char: string; pinyin: string }>} /> : typeof page.text === "string" ? <p className="book-reading">{page.text}</p> : null}
     {Array.isArray(page.topics) ? <div>{(page.topics as Array<{ question: string; referenceAnswer: string }>).map((item, index) => <section key={index}><b>{index + 1}. {item.question}</b></section>)}</div> : null}
     {page.method ? <p>{String(page.method)}</p> : null}
-    {Array.isArray(page.practice) ? <div>{(page.practice as Array<{ prompt: string; answer: string }>).map((item, index) => <section key={index}><b>{index + 1}. {item.prompt}</b><p>我的作答：＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿</p></section>)}</div> : null}
+    {Array.isArray(page.practice) ? <div>{(page.practice as Array<{ prompt: string; answer: string; imageUrl?: string }>).map((item, index) => <section key={index}><b>{index + 1}. {item.prompt}</b>{item.imageUrl ? <img className="book-question-image" src={item.imageUrl} alt={`第${index + 1}题题图`} /> : null}<p>我的作答：＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿</p></section>)}</div> : null}
     {Array.isArray(page.steps) ? <ol>{page.steps.map((item, index) => <li key={index}>{String(item)}</li>)}</ol> : null}
     {page.framework ? <div className="book-callout">{String(page.framework)}</div> : null}
     <footer>{pageNumber}</footer>

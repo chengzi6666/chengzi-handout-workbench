@@ -39,7 +39,7 @@ type LessonPreview = {
   readingExcerpt: { text: string };
   closeReadingQuestions: string[];
   methodSummary: string;
-  practice: Array<{ prompt: string; answer: string }>;
+  practice: Array<{ prompt: string; answer: string; imageSourceFileId?: string; imageSourcePageId?: string }>;
   littleTeacherSteps: string[];
   oralFramework: string;
 };
@@ -516,6 +516,7 @@ export function LayoutWorkspace({
                           {index + 1}. {item.prompt}
                         </b>
                       </p>
+                      {item.imageSourceFileId ? <img className="practice-question-image" src={`/api/assets/source-file/${item.imageSourceFileId}`} alt={`真题带练第${index + 1}题题图`} /> : null}
                       <p>我的作答：＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿</p>
                     </section>
                   ))}

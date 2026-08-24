@@ -108,13 +108,21 @@ export function ReviewWorkspace({
     });
     const payload = await response.json();
     if (!response.ok) return setMessage(payload.error ?? "题图上传失败");
-    update((content) => {
-      if (content.practice[questionIndex]) {
-        content.practice[questionIndex].imageSourceFileId = payload.file.id;
-        delete content.practice[questionIndex].imageSourcePageId;
-      }
+    const contentForSave = copy(draft);
+    if (!contentForSave.practice[questionIndex]) return;
+    contentForSave.practice[questionIndex].imageSourceFileId = payload.file.id;
+    delete contentForSave.practice[questionIndex].imageSourcePageId;
+    // 上传不是“暂存操作”：题图必须立即写回本讲，进入版式/翻页预览时才能找到它。
+    const saveResponse = await fetch(`/api/lessons/${selected.id}`, {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ content: contentForSave }),
     });
-    setMessage(`题图已关联到真题带练第${questionIndex + 1}题`);
+    const saved = await saveResponse.json().catch(() => ({}));
+    if (!saveResponse.ok) return setMessage(saved.error ?? "题图已上传，但关联保存失败");
+    setDraft(contentForSave);
+    setLessons((items) => items.map((item) => item.id === selected.id ? { ...item, content: contentForSave } : item));
+    setMessage(`题图已上传并关联到真题带练第${questionIndex + 1}题，版式预览会立即显示。`);
   }
   async function regenerateAllLessons() {
     setMessage(`正在根据主讲文件重新生成${project.lessonCount}讲初稿…`);

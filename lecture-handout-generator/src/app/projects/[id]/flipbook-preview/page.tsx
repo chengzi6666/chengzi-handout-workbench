@@ -8,6 +8,13 @@ import { createPinyinReview, validatePinyinReview } from "@/lib/handout/pinyin";
 
 export const dynamic = "force-dynamic";
 
+function previewPractice<T extends { imageSourceFileId?: string }>(items: T[]) {
+  return items.map((item) => ({
+    ...item,
+    ...(item.imageSourceFileId ? { imageUrl: `/api/assets/source-file/${item.imageSourceFileId}` } : {}),
+  }));
+}
+
 export default async function FlipbookPreviewPage({
   params,
 }: {
@@ -47,7 +54,7 @@ export default async function FlipbookPreviewPage({
         collection: "student", kind: "practice",
         title: "课堂方法与真题带练",
         method: lesson.methodSummary,
-        practice: lesson.practice,
+        practice: previewPractice(lesson.practice),
       },
       {
         collection: "student", kind: "teacher",
@@ -65,7 +72,7 @@ export default async function FlipbookPreviewPage({
     const lesson = lessonContentSchema.parse(savedLesson.structuredContent);
     return [
       { collection: "answers", kind: "answer", title: `第${savedLesson.lessonNumber}讲参考答案`, topics: lesson.conversationTopics },
-      { collection: "answers", kind: "answer", title: "真题带练参考", practice: lesson.practice }
+      { collection: "answers", kind: "answer", title: "真题带练参考", practice: previewPractice(lesson.practice) }
     ];
   });
   const pages = [...parentPages, ...studentPages, ...answerPages];

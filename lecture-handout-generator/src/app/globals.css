@@ -331,6 +331,8 @@ button { cursor: pointer; }
 .note-own-page-toggle { margin-top: 10px; display: inline-flex; align-items: center; gap: 7px; color: #75655b; font-size: 13px; }
 .inline-format-tools input[type="color"] { width: 29px; min-width: 29px; height: 29px; padding: 2px; border: 0; border-radius: 6px; cursor: pointer; }
 .floating-teacher, .teacher-placeholder { position: absolute; object-fit: contain; touch-action: none; cursor: move; user-select: none; }
+.practice-question-image { display: block; max-width: 82%; max-height: 190px; width: auto; margin: 9px 0 12px; object-fit: contain; border: 1px solid #e6cabb; border-radius: 8px; background: #fff; }
+.book-question-image { display: block; max-width: 86%; max-height: 210px; width: auto; margin: 10px auto; object-fit: contain; border-radius: 7px; border: 1px solid #e3cdb7; background: #fff; }
 .teacher-placeholder { display: grid; place-items: center; border: 2px dashed #f3a37d; color: #b47052; background: #fff3ebbb; font-size: 10px; text-align: center; }
 .export-panel a { margin-top: 8px; padding: 10px; display: flex; align-items: center; gap: 7px; border-radius: 8px; color: #fff; background: var(--orange); font-size: 10px; font-weight: 700; }
 .export-note { margin-top: 15px !important; }
