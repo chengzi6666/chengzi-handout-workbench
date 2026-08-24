@@ -39,3 +39,13 @@ test("practice blanks reserve student writing space", () => {
   assert.equal(expandAnswerSpace("（ ）"), `（${"　".repeat(40)}）`);
   assert.equal(expandAnswerSpace("答案：*"), "答案：____________________");
 });
+
+test("parent manual follows the family guidance structure", async () => {
+  const output = await generateHandoutDocx({ projectName: "测试", grade: "1升2", teachingYear: 2026, teacherFormalName: "高远", lessons: [lesson], mode: "parent" });
+  const zip = await JSZip.loadAsync(output); const xml = await zip.file("word/document.xml")!.async("string");
+  assert.match(xml, /家长使用手册/);
+  assert.match(xml, /双师陪伴/);
+  assert.match(xml, /五讲课程带来的能力提升/);
+  assert.match(xml, /家长怎么配合/);
+  assert.match(xml, /高远老师/);
+});
