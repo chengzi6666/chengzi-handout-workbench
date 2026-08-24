@@ -9,3 +9,11 @@ test("one combined course document is split into five lessons", () => {
   assert.match(parts[3].pages[0].extractedText, /第四讲/);
   assert.doesNotMatch(parts[3].pages[0].extractedText, /第五讲/);
 });
+
+test("season-number lesson headings in a combined Word are split into five lessons", () => {
+  const source = { id: "source", originalName: "L2合订.docx", pages: [{ id: "page", pageNumber: 1, extractedText: "秋 01 讲《没头脑和不高兴》——人事理法\n第一讲内容\n秋 02 讲《没头脑和不高兴》——举例法\n第二讲内容\n秋 03 讲《没头脑和不高兴》——小手小脚法\n第三讲内容\n秋 04 讲《没头脑和不高兴》——帮帮礼法\n第四讲内容\n秋 05 讲《笨狼的故事》——口诀法\n第五讲内容" }] };
+  const parts = sourcesForLessons([source], 5);
+  assert.equal(parts.length, 5);
+  assert.match(parts[0].pages[0].extractedText, /秋 01 讲/);
+  assert.match(parts[4].pages[0].extractedText, /秋 05 讲/);
+});

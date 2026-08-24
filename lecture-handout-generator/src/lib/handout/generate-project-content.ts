@@ -16,7 +16,11 @@ export function sourcesForLessons(sources: SourceForGeneration[], lessonCount: n
   if (sources.length >= lessonCount || sources.length !== 1 || lessonCount < 2) return sources.slice(0, lessonCount);
   const source = sources[0];
   const wholeText = source.pages.map((page) => page.extractedText).join("\n");
-  const starts = [...wholeText.matchAll(/(?:^|\n)\s*(?:第\s*(?:0?[1-5]|[一二三四五])\s*讲|[一二三四五]\s*、\s*第?\s*(?:0?[1-5]|[一二三四五])\s*讲)/gmu)].map((match) => match.index ?? 0);
+  // Real course handouts use variants such as “第一讲”, “秋 01 讲” and “暑03讲”.
+  // Restrict this to the beginning of a paragraph so questions mentioning “第X讲”
+  // never split the lesson body by mistake.
+  const lessonHeading = /(?:^|\n)\s*(?:(?:春季?|夏季?|秋季?|冬季?|暑期?)\s*)?(?:(?:第\s*)?(?:0?[1-9]|[一二三四五六七八九十])\s*讲|[一二三四五六七八九十]\s*[、.．]\s*(?:第\s*)?(?:0?[1-9]|[一二三四五六七八九十])\s*讲)(?=(?:\s+\S|[《“"【—－\-:：]|$))/gmu;
+  const starts = [...wholeText.matchAll(lessonHeading)].map((match) => match.index ?? 0);
   // Course maps sometimes mention all five lessons at the beginning. The last complete set is the actual five-lesson body.
   const bodyStarts = starts.length > lessonCount ? starts.slice(-lessonCount) : starts;
   if (bodyStarts.length !== lessonCount) return sources;
@@ -95,7 +99,7 @@ function normalizePractice(value: unknown) {
 }
 
 function lessonTitleFromSource(source: string, lessonNumber: number) {
-  const match = source.match(/第\s*0?\d+\s*讲\s*([^\n]{2,80})/u);
+  const match = source.match(/(?:(?:春季?|夏季?|秋季?|冬季?|暑期?)\s*)?(?:第\s*)?0?\d+\s*讲\s*([^\n]{2,80})/u);
   return match?.[1]?.trim() || `第${lessonNumber}讲阅读课`;
 }
 
