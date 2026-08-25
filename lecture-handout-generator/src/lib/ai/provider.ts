@@ -82,7 +82,15 @@ export class OpenAiCompatibleProvider implements AiProvider {
         });
       } catch (error) {
         if (controller.signal.aborted) throw new Error(`AI provider ${this.displayName} 请求超时（90秒），请重试或更换模型`);
-        throw error;
+        // 公司网络、VPN 切换和低 RPM 网关都可能主动断开 keep-alive socket。
+        // 这类瞬时连接错误不能原样泄露为 "fetch failed"，也不应立刻中断五讲任务。
+        if (attempt < 4) {
+          await new Promise((resolve) => setTimeout(resolve, 3_000 * (attempt + 1)));
+          continue;
+        }
+        const cause = error instanceof Error && "cause" in error ? (error as Error & { cause?: { code?: string; message?: string } }).cause : undefined;
+        const detail = cause?.code ?? cause?.message ?? (error instanceof Error ? error.message : "unknown network error");
+        throw new Error(`无法连接集团模型网关（${detail}）。请检查公司内网／VPN后重试；当前主讲文件已保留，无需重新上传。`);
       } finally {
         clearTimeout(timeout);
       }
