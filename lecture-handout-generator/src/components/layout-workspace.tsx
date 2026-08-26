@@ -145,7 +145,7 @@ export function LayoutWorkspace({
   );
   const [backgrounds, setBackgrounds] = useState(initialBackgrounds);
   const [backgroundCrop, setBackgroundCrop] = useState((project.layoutConfig as { backgroundCrop?: BackgroundCrop } | null)?.backgroundCrop ?? {});
-  const [cropRole, setCropRole] = useState("COVER");
+  const [cropDialog, setCropDialog] = useState<{ role: string; src: string } | null>(null);
   const [draggingBackgroundRole, setDraggingBackgroundRole] = useState<string | null>(null);
   const [message, setMessage] = useState("");
   const [downloading, setDownloading] = useState<string | null>(null);
@@ -209,7 +209,7 @@ export function LayoutWorkspace({
   const previewBackground = uploadedBackground
     ? `url(/api/assets/background/${uploadedBackground.id})`
     : `url(${defaultBackgroundPath(currentRole)})`;
-  const currentCrop = backgroundCrop[cropRole] ?? { x: 50, y: 50 };
+  const currentCrop = backgroundCrop[cropDialog?.role ?? "COVER"] ?? { x: 50, y: 50 };
   const previewCrop = backgroundCrop[currentRole] ?? { x: 50, y: 50 };
   async function upload(role: string, files: FileList | null) {
     const file = files?.[0];
@@ -231,7 +231,8 @@ export function LayoutWorkspace({
       ...items.filter((item) => item.role !== role),
       payload.asset,
     ]);
-    setMessage("背景已保存");
+    setCropDialog({ role, src: `/api/assets/background/${payload.asset.id}` });
+    setMessage("图片已上传，请在弹窗中裁切后确认");
   }
   function move(event: React.PointerEvent<HTMLDivElement>) {
     if (!dragging.current || !canvas.current) return;
@@ -371,7 +372,6 @@ export function LayoutWorkspace({
               />
             </label>
           ))}
-          {backgrounds.length > 0 && <div className="background-crop-controls"><b>图片裁切</b><span>选择用途后调整焦点；封面与微信封面可分别裁切。</span><select value={cropRole} onChange={(event) => setCropRole(event.target.value)}>{roles.filter(([role]) => backgrounds.some((asset) => asset.role === role)).map(([role, label]) => <option value={role} key={role}>{label}</option>)}</select><label>横向 <input type="range" min="0" max="100" value={currentCrop.x} onChange={(event) => setBackgroundCrop((value) => ({ ...value, [cropRole]: { ...currentCrop, x: Number(event.target.value) } }))} /></label><label>纵向 <input type="range" min="0" max="100" value={currentCrop.y} onChange={(event) => setBackgroundCrop((value) => ({ ...value, [cropRole]: { ...currentCrop, y: Number(event.target.value) } }))} /></label></div>}
         </aside>
         <section className="layout-center">
           <div className="layout-toolbar" id="format">
@@ -683,6 +683,7 @@ export function LayoutWorkspace({
           </p>
         </aside>
       </div>
+      {cropDialog && <div className="crop-modal-backdrop" role="dialog" aria-modal="true" aria-label="图片裁切"><section className="crop-modal"><header><div><b>裁切图片</b><span>{roles.find(([role]) => role === cropDialog.role)?.[1]}</span></div></header><div className="crop-live-preview" style={{ backgroundImage: `url(${cropDialog.src})`, backgroundPosition: `${currentCrop.x}% ${currentCrop.y}%` }}><i>实时裁切预览</i></div><p>拖动焦点，确保重要文字和人物出现在目标页面中央。</p><label>横向焦点 <input type="range" min="0" max="100" value={currentCrop.x} onChange={(event) => setBackgroundCrop((value) => ({ ...value, [cropDialog.role]: { ...currentCrop, x: Number(event.target.value) } }))} /></label><label>纵向焦点 <input type="range" min="0" max="100" value={currentCrop.y} onChange={(event) => setBackgroundCrop((value) => ({ ...value, [cropDialog.role]: { ...currentCrop, y: Number(event.target.value) } }))} /></label><footer><button type="button" className="secondary-button" onClick={() => setCropDialog(null)}>稍后裁切</button><button type="button" className="primary-button" onClick={() => { void save(); setCropDialog(null); }}>确认裁切并保存</button></footer></section></div>}
     </main>
   );
 }
