@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { objectStore } from "@/lib/storage/object-store";
+import { objectStore } from "@/lib/object-store";
 
 /** Public only after the owning project has published this exact book slug. */
 export async function GET(_request: Request, context: { params: Promise<{ slug: string; id: string }> }) {

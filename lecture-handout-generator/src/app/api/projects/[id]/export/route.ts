@@ -6,7 +6,7 @@ import { readSession } from "@/lib/auth/session";
 import { assertReadyForLayout, lessonContentSchema } from "@/lib/handout/content-schema";
 import { generateHandoutDocx } from "@/lib/docx/generate";
 import { validatePinyinReview, type PinyinUnit } from "@/lib/handout/pinyin";
-import { objectStore } from "@/lib/storage/object-store";
+import { objectStore } from "@/lib/object-store";
 import { getOrCreateSourcePageImage } from "@/lib/pdf/source-page-image";
 import { DEFAULT_BACKGROUND_FILE } from "@/lib/handout/backgrounds";
 

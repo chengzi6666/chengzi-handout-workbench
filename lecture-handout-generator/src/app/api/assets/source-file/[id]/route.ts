@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { readSession } from "@/lib/auth/session";
 import { db } from "@/lib/db";
-import { objectStore } from "@/lib/storage/object-store";
+import { objectStore } from "@/lib/object-store";
 
 /** Serves a manually uploaded replacement question image to authenticated previews. */
 export async function GET(_request: Request, context: { params: Promise<{ id: string }> }) {

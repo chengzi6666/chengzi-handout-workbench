@@ -1,6 +1,5 @@
 .next
 node_modules
-storage
 .tmp*
 *.docx
 *.pdf

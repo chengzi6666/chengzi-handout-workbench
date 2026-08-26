@@ -1,6 +1,6 @@
 import { Prisma, type ProcessingJob } from "@prisma/client";
 import { db } from "@/lib/db";
-import { objectStore } from "@/lib/storage/object-store";
+import { objectStore } from "@/lib/object-store";
 import { extractPdfTextPages, renderPdfPage } from "@/lib/pdf/extract";
 import { extractWordText } from "@/lib/word/extract";
 import { generateProjectContent } from "@/lib/handout/generate-project-content";

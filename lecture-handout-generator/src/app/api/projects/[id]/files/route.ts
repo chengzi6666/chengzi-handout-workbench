@@ -2,8 +2,8 @@ import { createHash } from "node:crypto";
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { readSession } from "@/lib/auth/session";
-import { objectStore } from "@/lib/storage/object-store";
-import { projectSourceKey } from "@/lib/storage/keys";
+import { objectStore } from "@/lib/object-store";
+import { projectSourceKey } from "@/lib/storage-keys";
 import { extractWordText } from "@/lib/word/extract";
 
 const MAX_FILE_BYTES = 100 * 1024 * 1024;

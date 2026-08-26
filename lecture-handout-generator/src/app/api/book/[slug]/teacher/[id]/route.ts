@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { objectStore } from "@/lib/storage/object-store";
+import { objectStore } from "@/lib/object-store";
 
 /** Public only when the teacher asset belongs to the project that published this slug. */
 export async function GET(_request: Request, context: { params: Promise<{ slug: string; id: string }> }) {

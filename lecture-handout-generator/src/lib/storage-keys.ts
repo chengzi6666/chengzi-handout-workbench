@@ -7,4 +7,3 @@ export function safeFileName(name: string) {
 export function projectSourceKey(projectId: string, fileName: string) {
   return `projects/${projectId}/sources/${randomUUID()}-${safeFileName(fileName)}`;
 }
-

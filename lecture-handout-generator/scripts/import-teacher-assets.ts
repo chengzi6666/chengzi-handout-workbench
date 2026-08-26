@@ -1,8 +1,8 @@
 import { access, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { db } from "../src/lib/db";
-import { objectStore } from "../src/lib/storage/object-store";
-import { safeFileName } from "../src/lib/storage/keys";
+import { objectStore } from "../src/lib/object-store";
+import { safeFileName } from "../src/lib/storage-keys";
 
 const defaultRoot = "D:\\物料\\【【【进校】】】】\\0元大阅读\\0转299\\主讲介绍+表情包等";
 const records = [

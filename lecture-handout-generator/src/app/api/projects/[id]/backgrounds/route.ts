@@ -2,8 +2,8 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { readSession } from "@/lib/auth/session";
-import { objectStore } from "@/lib/storage/object-store";
-import { safeFileName } from "@/lib/storage/keys";
+import { objectStore } from "@/lib/object-store";
+import { safeFileName } from "@/lib/storage-keys";
 
 const roles = ["SIMPLE", "COVER", "WECHAT_SHARE", "PARENT_MANUAL", "LESSON_HOME", "CONVERSATION", "READING", "PRACTICE", "LITTLE_TEACHER"] as const;
 const roleSchema = z.enum(roles);

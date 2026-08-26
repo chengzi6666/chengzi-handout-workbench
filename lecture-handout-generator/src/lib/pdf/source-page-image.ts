@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import { renderPdfPage } from "@/lib/pdf/extract";
-import { objectStore } from "@/lib/storage/object-store";
+import { objectStore } from "@/lib/object-store";
 
 export async function getOrCreateSourcePageImage(pageId: string) {
   const page = await db.sourcePage.findUnique({ where: { id: pageId }, include: { sourceFile: true } });

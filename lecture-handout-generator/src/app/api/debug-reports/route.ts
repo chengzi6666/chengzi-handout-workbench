@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { readSession } from "@/lib/auth/session";
-import { objectStore } from "@/lib/storage/object-store";
-import { safeFileName } from "@/lib/storage/keys";
+import { objectStore } from "@/lib/object-store";
+import { safeFileName } from "@/lib/storage-keys";
 
 export async function GET() {
   const session = await readSession();

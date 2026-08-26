@@ -2,8 +2,8 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { readSession } from "@/lib/auth/session";
-import { objectStore } from "@/lib/storage/object-store";
-import { safeFileName } from "@/lib/storage/keys";
+import { objectStore } from "@/lib/object-store";
+import { safeFileName } from "@/lib/storage-keys";
 
 const kindSchema = z.enum(["PORTRAIT", "EXPRESSION"]);
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
