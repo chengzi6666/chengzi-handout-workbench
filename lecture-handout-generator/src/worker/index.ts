@@ -1,10 +1,25 @@
-import { Prisma, type ProcessingJob } from "@prisma/client";
+import { JobKind, Prisma, type ProcessingJob } from "@prisma/client";
 import { db } from "@/lib/db";
 import { objectStore } from "@/lib/object-store";
 import { extractPdfTextPages, renderPdfPage } from "@/lib/pdf/extract";
 import { extractWordText } from "@/lib/word/extract";
 import { generateProjectContent } from "@/lib/handout/generate-project-content";
 import { getConfiguredProvider } from "@/lib/ai/configured-provider";
+import { EnvHttpProxyAgent, setGlobalDispatcher } from "undici";
+
+if (process.env.OUTBOUND_PROXY_URL) {
+  process.env.HTTP_PROXY = process.env.OUTBOUND_PROXY_URL;
+  process.env.HTTPS_PROXY = process.env.OUTBOUND_PROXY_URL;
+  setGlobalDispatcher(new EnvHttpProxyAgent());
+  console.log("company model bridge: outbound proxy enabled");
+}
+
+const allowedJobKinds = new Set<JobKind>(
+  (process.env.WORKER_JOB_KINDS ?? "PDF_PARSE,CONTENT_GENERATE")
+    .split(",")
+    .map((value) => value.trim())
+    .filter((value): value is JobKind => Object.values(JobKind).includes(value as JobKind)),
+);
 
 let stopping = false;
 process.on("SIGINT", () => { stopping = true; });
@@ -22,7 +37,10 @@ async function recoverInterruptedJobs() {
 async function claimJob() {
   for (let attempt = 0; attempt < 5; attempt += 1) {
     // 回收站项目不再领取任务；已删除项目可能仍保留历史任务记录。
-    const job = await db.processingJob.findFirst({ where: { status: "QUEUED", project: { deletedAt: null } }, orderBy: { createdAt: "asc" } });
+    const job = await db.processingJob.findFirst({
+      where: { status: "QUEUED", kind: { in: [...allowedJobKinds] }, project: { deletedAt: null } },
+      orderBy: { createdAt: "asc" },
+    });
     if (!job) return null;
     const claimed = await db.processingJob.updateMany({
       where: { id: job.id, status: "QUEUED" },
@@ -169,6 +187,20 @@ async function complete(job: ProcessingJob) {
       }
     }
   } catch (error) {
+    const message = error instanceof Error ? error.message : "未知错误";
+    if (process.env.BRIDGE_REQUEUE_NETWORK_ERRORS === "true" && /连接|网关|fetch|timeout|超时|ENOTFOUND|ECONN/u.test(message)) {
+      await db.processingJob.updateMany({
+        where: { id: job.id, status: "RUNNING" },
+        data: {
+          status: "QUEUED",
+          startedAt: null,
+          error: null,
+          result: { stage: "waiting-company-network", percent: 80, message: "等待电脑连接公司网络后继续" } as Prisma.InputJsonValue,
+        },
+      });
+      await new Promise((resolve) => setTimeout(resolve, 15_000));
+      return;
+    }
     await db.processingJob.updateMany({ where: { id: job.id, status: "RUNNING" }, data: { status: "FAILED", error: error instanceof Error ? error.stack?.slice(0, 8000) ?? error.message : "未知错误", finishedAt: new Date() } });
     await db.project.updateMany({ where: { id: job.projectId, deletedAt: null }, data: { status: "FAILED" } });
   }

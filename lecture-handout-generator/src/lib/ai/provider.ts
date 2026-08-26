@@ -59,14 +59,12 @@ export class OpenAiCompatibleProvider implements AiProvider {
 
   private async request(input: GenerateTextInput, userMessage: unknown): Promise<GenerateTextResult> {
     const endpoint = `${this.options.baseUrl.replace(/\/$/, "")}/chat/completions`;
-    const endpointHost = new URL(endpoint).hostname.toLowerCase();
-    // 好未来星图网关与普通 OpenAI 接口的认证头不同。漫画系统在 Railway
-    // 上能够调用同一网关，靠的正是 api-key，而不是 Authorization: Bearer。
-    const authHeaders: Record<string, string> = endpointHost === "ai-service.tal.com" || endpointHost.endsWith(".tal.com")
-      ? { "api-key": this.options.apiKey }
-      : this.options.useTokenHeader
-        ? { token: this.options.apiKey }
-        : { authorization: `Bearer ${this.options.apiKey}` };
+    // 文本模型的 OpenAI-compatible 与 /claw 网关都使用 Bearer。
+    // 漫画项目中 `api-key` 是 images/generations 生图接口的专用规则，
+    // 不能套用到 chat/completions，否则团队 APPID Key 会被错误认证。
+    const authHeaders: Record<string, string> = this.options.useTokenHeader
+      ? { token: this.options.apiKey }
+      : { authorization: `Bearer ${this.options.apiKey}` };
     // 集团模型默认 RPM 很低。五讲生成会连续请求，必须由客户端主动退避，
     // 不能把一次 429 当作整份讲义失败。
     const maxAttempts = Math.max(1, this.options.maxAttempts ?? 5);

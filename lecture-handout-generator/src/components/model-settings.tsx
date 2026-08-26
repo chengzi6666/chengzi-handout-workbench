@@ -91,9 +91,9 @@ export function ModelSettings() {
         <section className="panel">
           <div className="panel-title"><span><KeyRound size={16} /></span><div><h3>接入集团模型</h3><p>系统已预设集团网关与模型，只需要填写你的 Token Plan Key</p></div></div>
           <form className="provider-form" onSubmit={submit}>
-            <div className="group-model-preset"><strong>GPT-5.4（当前默认模型）</strong><span>集团应用已开通 · 长上下文 · 适合结构化讲义生成与审核</span><small>接口：ai-service.tal.com/openai-compatible/v1；认证：api-key</small></div>
+            <div className="group-model-preset"><strong>团队应用 GPT-5.4</strong><span>使用未来云团队 APPID 下已开通的模型权限</span><small>接口：ai-service.tal.com/openai-compatible/v1；认证：Bearer APPID:API Key</small></div>
             <label><span>应用 API Key</span><input name="apiKey" type="password" autoComplete="new-password" placeholder="粘贴未来云“账号管理”中的 APPID:API Key" required /></label>
-            <p className="key-help">在未来云 → 星图应用开发平台 → <b>账号管理</b> 中复制 <b>APPID:API Key</b>（通常以 300… 开头）。系统会通过集团网关要求的 <b>api-key</b> 请求头安全传递该 Key。保存会覆盖旧的集团模型配置，不会新增重复条目。</p>
+            <p className="key-help">这里必须填写团队应用的完整 <b>APPID:API Key</b>（包含冒号），不是 WorkBuddy 的个人 Key。WorkBuddy 使用的是本机内网中的 <b>/claw + 个人 Key</b>；本系统使用团队应用的 <b>/openai-compatible/v1 + GPT-5.4</b>。</p>
             <button disabled={saving}><Save size={16} />{saving ? "正在保存…" : "覆盖并启用"}</button>
             {message && <p className="settings-message">{message}</p>}
           </form>
