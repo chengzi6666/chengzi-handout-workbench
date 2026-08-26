@@ -18,7 +18,9 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
   const lesson = await ownedLesson(id, session.userId);
   if (!lesson) return NextResponse.json({ error: "课程不存在" }, { status: 404 });
   if (!requiresPinyinReview(lesson.project.grade)) return NextResponse.json({ error: "本年级不需要添加拼音" }, { status: 409 });
-  const units = lesson.pinyinReview ?? createPinyinReview(lesson.readingExcerpt ?? "");
+  // An unapproved draft is disposable. Rebuild it with the current phrase
+  // dictionary so old per-character drafts do not keep resurfacing.
+  const units = lesson.pinyinApprovedAt && lesson.pinyinReview ? lesson.pinyinReview : createPinyinReview(lesson.readingExcerpt ?? "");
   return NextResponse.json({ units, approved: Boolean(lesson.pinyinApprovedAt) });
 }
 
