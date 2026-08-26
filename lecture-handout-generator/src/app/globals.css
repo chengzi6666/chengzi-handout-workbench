@@ -339,8 +339,14 @@ button { cursor: pointer; }
 .parent-teacher-card img { width: 100%; max-height: 150px; object-fit: contain; }
 .parent-teacher-card h3 { margin: 0 0 8px; }
 .parent-teacher-card p { margin: 0; white-space: pre-wrap; }
-.parent-schedule { width: 100%; border-collapse: collapse; font-size: .83em; }
-.parent-schedule th, .parent-schedule td { padding: 6px; border: 1px solid #efcdb8; vertical-align: top; text-align: left; }
+.parent-schedule { width: 100%; table-layout: fixed; border-collapse: separate; border-spacing: 0; overflow: hidden; border: 1px solid #efcdb8; border-radius: 10px; font-size: clamp(10px, .9em, 13px); line-height: 1.62; background: rgba(255,253,248,.92); }
+.parent-schedule th, .parent-schedule td { padding: 9px 8px; border: 0; border-right: 1px solid #efcdb8; border-bottom: 1px solid #efcdb8; vertical-align: top; text-align: left; overflow-wrap: anywhere; }
+.parent-schedule th:last-child, .parent-schedule td:last-child { border-right: 0; }
+.parent-schedule tbody tr:last-child td { border-bottom: 0; }
+.parent-schedule th:nth-child(1), .parent-schedule td:nth-child(1) { width: 12%; text-align: center; }
+.parent-schedule th:nth-child(2), .parent-schedule td:nth-child(2) { width: 25%; }
+.parent-schedule th:nth-child(3), .parent-schedule td:nth-child(3) { width: 19%; }
+.parent-schedule th:nth-child(4), .parent-schedule td:nth-child(4) { width: 44%; }
 .parent-schedule th { color: #fff; background: var(--orange); }
 .note-own-page-toggle { margin-top: 10px; display: inline-flex; align-items: center; gap: 7px; color: #75655b; font-size: 13px; }
 .inline-format-tools input[type="color"] { width: 29px; min-width: 29px; height: 29px; padding: 2px; border: 0; border-radius: 6px; cursor: pointer; }

@@ -1,5 +1,5 @@
 import {
-  AlignmentType, Document, Footer, Header, HorizontalPositionRelativeFrom, ImageRun, PageNumber, Paragraph, Packer,
+  AlignmentType, Document, Footer, Header, HorizontalPositionRelativeFrom, ImageRun, Paragraph, Packer,
   SectionType, ShadingType, Table, TableCell, TableRow, TextRun, UnderlineType, VerticalPositionRelativeFrom, WidthType, type ISectionOptions
 } from "docx";
 import JSZip from "jszip";
@@ -99,7 +99,10 @@ function numbered(items: string[]) {
 
 function footer(text?: string, size = 8) {
   const halfPoint = Math.round(size * 2);
-  return new Footer({ children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [run(`${text ?? "真读书 · 有深度 · 用得上"}  ·  `, { size: halfPoint, color: "A79D96" }), new TextRun({ children: [PageNumber.CURRENT], font: FONT, size: halfPoint, color: "A79D96" })] })] });
+  // Page numbers are intentionally not injected: the editable preview and the
+  // flipbook do not add them, and a generated number made the three views
+  // visibly disagree. A user can still put any desired number text in footer.
+  return new Footer({ children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [run(text ?? "真读书 · 有深度 · 用得上", { size: halfPoint, color: "A79D96" })] })] });
 }
 
 function backgroundHeader(image?: ImageAsset, text?: string, size = 8) {
@@ -244,16 +247,27 @@ function parentSections(input: HandoutDocumentInput) {
     body(capability),
     heading("五讲合起来，孩子练习的是："), body("读懂故事 → 找到证据 → 学会方法 → 说清楚 → 写完整。")
   ], pickBackground(input, "PARENT_MANUAL"), input);
+  const scheduleWidths = [850, 1900, 1500, 3350];
+  const scheduleCell = (value: string, index: number, header = false) => new TableCell({
+    width: { size: scheduleWidths[index], type: WidthType.DXA },
+    margins: { top: header ? 130 : 150, bottom: header ? 130 : 150, left: 120, right: 120 },
+    shading: header ? { type: ShadingType.CLEAR, color: "F5E1D5", fill: "FFE8DB" } : undefined,
+    children: String(value).split("\n").map((line) => new Paragraph({
+      alignment: index === 0 ? AlignmentType.CENTER : AlignmentType.LEFT,
+      spacing: { after: 95, line: 320 },
+      children: [run(line, { bold: header, size: header ? 20 : 19, color: header ? orange : "2F2A27" })]
+    }))
+  });
   const scheduleRows = [
-    new TableRow({ children: ["讲次", "讲次名称", "讲次技法", "具体学习内容"].map((value) => new TableCell({ shading: { type: ShadingType.CLEAR, color: "F5E1D5", fill: "FFE8DB" }, children: [new Paragraph({ children: [run(value, { bold: true, size: 20, color: orange })] })] })) }),
+    new TableRow({ children: ["讲次", "讲次名称", "讲次技法", "具体学习内容"].map((value, index) => scheduleCell(value, index, true)) }),
     ...input.lessons.map((lesson) => new TableRow({ children: [
       `第${lesson.lessonNumber}讲`, lessonBookTitle(lesson.title), lesson.technique,
       lesson.learningGoals.map((goal, index) => `${index + 1}. ${printableLearningGoal(goal)}`).join("\n")
-    ].map((value) => new TableCell({ margins: { top: 90, bottom: 90, left: 80, right: 80 }, children: String(value).split("\n").map((line) => new Paragraph({ spacing: { after: 90, line: 300 }, children: [run(line, { size: 20 })] })) })) }))
+    ].map((value, index) => scheduleCell(value, index)) }))
   ];
   const schedule = section([
     ...title("五讲学习安排", "每讲学什么 · 家长怎么陪"),
-    new Table({ width: { size: 7600, type: WidthType.DXA }, rows: scheduleRows })
+    new Table({ width: { size: 7600, type: WidthType.DXA }, columnWidths: scheduleWidths, rows: scheduleRows })
   ], pickBackground(input, "PARENT_MANUAL"), input);
   const stage = section([
     heading(`🎯 ${gradeName}阶段，最需要关注什么？`),

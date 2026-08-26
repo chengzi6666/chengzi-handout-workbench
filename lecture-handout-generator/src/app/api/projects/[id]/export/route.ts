@@ -8,6 +8,7 @@ import { generateHandoutDocx } from "@/lib/docx/generate";
 import { validatePinyinReview, type PinyinUnit } from "@/lib/handout/pinyin";
 import { objectStore } from "@/lib/storage/object-store";
 import { getOrCreateSourcePageImage } from "@/lib/pdf/source-page-image";
+import { DEFAULT_BACKGROUND_FILE } from "@/lib/handout/backgrounds";
 
 const allowed = new Set(["combined_student", "combined_answers", "parent_manual", "combined_parent_student", "lesson_student", "lesson_answers"]);
 
@@ -39,16 +40,11 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
   for (const asset of project.backgroundPack?.assets ?? []) backgrounds[asset.role] = { data: Buffer.from(await objectStore().get(asset.objectKey)), type: typeOf(asset.objectKey) };
   // 没有上传背景时也不能退化成白纸。内置背景来自经确认的二年级成品讲义；用户上传的同用途背景始终优先。
   const bundledBackground = async (name: string) => ({ data: await readFile(join(process.cwd(), "public", "handout-backgrounds", name)), type: "png" as const });
-  const defaults = {
-    blush: await bundledBackground("blush-school.png"),
-    mint: await bundledBackground("mint-school.png"),
-    butter: await bundledBackground("butter-school.png"),
-  };
-  const defaultRoles: Record<string, keyof typeof defaults> = {
-    SIMPLE: "blush", COVER: "butter", PARENT_MANUAL: "mint", LESSON_HOME: "butter",
-    CONVERSATION: "blush", READING: "mint", PRACTICE: "butter", LITTLE_TEACHER: "blush",
-  };
-  for (const [role, palette] of Object.entries(defaultRoles)) backgrounds[role] ??= defaults[palette];
+  // The preview and flipbook import the same role map. Keep the DOCX on that
+  // map too, otherwise a user sees three different documents for one project.
+  for (const [role, fileName] of Object.entries(DEFAULT_BACKGROUND_FILE)) {
+    backgrounds[role] ??= await bundledBackground(fileName);
+  }
   const layout = project.layoutConfig as { teacherImage?: { assetId?: string; x: number; y: number; width: number; height: number }; fontSize?: number; fontFamily?: "Microsoft YaHei" | "SimSun" | "KaiTi" | "FangSong"; headerText?: string; headerSize?: number; footerText?: string; footerSize?: number; noteOwnPage?: boolean } | null;
   const gradeKey = ({ "0升1": "0l1", "1升2": "1l2", "2升3": "2l3", "3升4": "3l4", "4升5": "4l5" } as Record<string, string>)[project.grade] ?? "1l2";
   const defaultTeacher = async (kind: "expression" | "portrait") => ({ data: await readFile(join(process.cwd(), "public", "teacher-defaults", `${gradeKey}-${kind}.png`)), type: "png" as const });

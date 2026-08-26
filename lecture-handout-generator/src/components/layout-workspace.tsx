@@ -5,6 +5,7 @@ import { useMemo, useRef, useState } from "react";
 import { ArrowLeft, Bold, Download, Highlighter, ImagePlus, Italic, Save, Underline } from "lucide-react";
 import { createPinyinReview } from "@/lib/handout/pinyin";
 import { formatStudentBlank } from "@/lib/handout/student-format";
+import { defaultBackgroundPath } from "@/lib/handout/backgrounds";
 
 const roles = [
   ["SIMPLE", "简单模式·全文"],
@@ -62,14 +63,6 @@ const WPS_SIZES = [
   ["六号", 7.5], ["小六", 6.5], ["七号", 5.5], ["八号", 5],
 ] as const;
 type PageTypography = Record<string, { bodySize?: number; titleSize?: number }>;
-const defaultBackgrounds: Record<(typeof pageRoles)[number] | "PARENT_MANUAL", string> = {
-  LESSON_HOME: "/handout-backgrounds/butter-school.png",
-  CONVERSATION: "/handout-backgrounds/blush-school.png",
-  READING: "/handout-backgrounds/mint-school.png",
-  PRACTICE: "/handout-backgrounds/butter-school.png",
-  LITTLE_TEACHER: "/handout-backgrounds/blush-school.png",
-  PARENT_MANUAL: "/handout-backgrounds/blush-school.png",
-};
 
 function bookTitle(value: string) {
   return value.match(/《[^》]+》/u)?.[0] ?? value.replace(/^第\s*\d+\s*讲[：:、\s]*/u, "").trim();
@@ -182,7 +175,11 @@ export function LayoutWorkspace({
         }
       : undefined;
   }, [lessons, lessonIndex]);
-  const previewKey = `${previewKind}-${currentLesson?.lessonNumber ?? 0}-${pageIndex}`;
+  // These keys are read by the flipbook too. Parent and answer views do not
+  // use student-page navigation, so save them with their real stable page.
+  const previewLessonNumber = previewKind === "parent" ? 0 : currentLesson?.lessonNumber ?? 0;
+  const previewPageIndex = previewKind === "student" ? pageIndex : previewKind === "parent" ? parentPage : 0;
+  const previewKey = `${previewKind}-${previewLessonNumber}-${previewPageIndex}`;
   const currentTypography = pageTypography[previewKey] ?? {};
   const currentBodySize = currentTypography.bodySize ?? Math.min(fontSize, defaultBodySize(pageIndex, currentLesson));
   const currentTitleSize = currentTypography.titleSize ?? 20;
@@ -208,7 +205,7 @@ export function LayoutWorkspace({
     backgrounds.find((asset) => asset.role === "SIMPLE");
   const previewBackground = uploadedBackground
     ? `url(/api/assets/background/${uploadedBackground.id})`
-    : `url(${defaultBackgrounds[currentRole]})`;
+    : `url(${defaultBackgroundPath(currentRole)})`;
   async function upload(role: string, files: FileList | null) {
     const file = files?.[0];
     if (!file) return;
@@ -620,7 +617,7 @@ export function LayoutWorkspace({
             {previewKind === "student" && pageIndex === 2 && noteOwnPage ? <section className="note-own-page note-editable" style={{ minHeight: `${noteHeight}px`, resize: "vertical", overflow: "auto" }} contentEditable suppressContentEditableWarning onPointerUp={(event) => setNoteHeight(Math.round(event.currentTarget.getBoundingClientRect().height))} onKeyDown={(event) => {
               if (event.key === "Enter") { event.preventDefault(); document.execCommand("insertLineBreak"); event.currentTarget.style.minHeight = `${Math.min(620, event.currentTarget.offsetHeight + 28)}px`; }
             }}><b contentEditable={false}>📖 笔记</b><br /></section> : null}
-            {footerText ? <div className="preview-running-footer" style={{ fontFamily, fontSize: `${footerSize}pt` }}>{footerText}　·　第{pageIndex + 1}页</div> : null}
+            {footerText ? <div className="preview-running-footer" style={{ fontFamily, fontSize: `${footerSize}pt` }}>{footerText}</div> : null}
             {previewKind === "student" && pageIndex === 3 ? (
               <img
                 className="floating-teacher"

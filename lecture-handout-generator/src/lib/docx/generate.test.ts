@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
 import test from "node:test";
 import JSZip from "jszip";
 import { expandAnswerSpace, generateHandoutDocx } from "./generate";
@@ -70,6 +72,19 @@ test("parent manual follows the family guidance structure", async () => {
   assert.match(xml, /高远老师/);
   assert.match(xml, /讲次名称/);
   assert.ok((xml.match(/w:type w:val="nextPage"/g) ?? []).length >= 4);
+});
+
+test("every generated Word section can carry the same page background as the preview", async () => {
+  const background = { data: Buffer.from(await readFile(join(process.cwd(), "public", "handout-backgrounds", "blush-school.png"))), type: "png" as const };
+  const output = await generateHandoutDocx({
+    projectName: "测试", grade: "1升2", teachingYear: 2026, lessons: [lesson], mode: "parent",
+    backgrounds: { PARENT_MANUAL: background },
+  });
+  const zip = await JSZip.loadAsync(output);
+  const xml = await zip.file("word/document.xml")!.async("string");
+  assert.match(xml, /w:headerReference/u);
+  assert.ok(Object.keys(zip.files).some((name) => /^word\/header\d+\.xml$/u.test(name)));
+  assert.ok(Object.keys(zip.files).some((name) => /^word\/media\//u.test(name)));
 });
 
 test("combined parent and student export keeps every handbook and lesson section", async () => {
