@@ -43,7 +43,7 @@ function run(text: string, options: { bold?: boolean; size?: number; color?: str
 
 function title(text: string, subtitle?: string) {
   return [
-    new Paragraph({ spacing: { before: 260, after: 110 }, children: [run(text, { bold: true, size: 36, color: orange })] }),
+    new Paragraph({ spacing: { before: 260, after: 110 }, children: [run(text, { bold: true, size: 40, color: orange })] }),
     ...(subtitle ? [new Paragraph({ spacing: { after: 180 }, children: [run(subtitle, { size: 22, color: gray })] })] : [])
   ];
 }
@@ -65,7 +65,7 @@ function printableLearningGoal(goal: string) {
 
 function lessonTitleBlock(lesson: LessonContent) {
   return [
-    new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 80, after: 70 }, children: [run(lessonBookTitle(lesson.title), { bold: true, size: 36, color: orange })] }),
+    new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 80, after: 70 }, children: [run(lessonBookTitle(lesson.title), { bold: true, size: 40, color: orange })] }),
     new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 60 }, children: [run(`— “${lesson.technique.replace(/[—“”]/g, "").trim()}” —`, { bold: true, size: 24, color: "5B4B42" })] }),
     ...(lesson.subtitle ? [new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 180 }, children: [run(lesson.subtitle, { size: 22, color: gray })] })] : [])
   ];
@@ -215,19 +215,19 @@ function lessonSections(lesson: LessonContent, input: HandoutDocumentInput) {
     ...lesson.conversationTopics.flatMap((topic, index) => [heading(`${index + 1}. ${topic.question}`), body(`参考：${topic.referenceAnswer}`)])
   ], pickBackground(input, "CONVERSATION"), input);
   const p3 = section([
-    ...title("📖 三、精读片段"), heading("📖 课文片段"), body(readingText),
-    heading("💡 精读批注"), ...numbered(lesson.closeReadingQuestions), ...(input.noteOwnPage ? [] : [noteTable()])
+    ...title("阅读文段"), body(readingText),
+    heading("精读思考"), ...numbered(lesson.closeReadingQuestions), ...(input.noteOwnPage ? [] : [noteTable()])
   ], pickBackground(input, "READING"), input);
   const notePage = input.noteOwnPage ? section([
     ...title("📖 阅读笔记"),
     noteTable()
   ], pickBackground(input, "READING"), input) : null;
   const p4 = section([
-    ...title(`🌟 四、${input.teacherNickname ?? "主讲"}老师课堂 · 真题带练`), heading("本讲方法"), body(lesson.methodSummary), heading("练一练"),
+    ...title(`🌟 四、${input.teacherNickname ?? "主讲"}老师课堂 · 真题带练`), heading("方法小结"), body(lesson.methodSummary), heading("练一练"),
     ...lesson.practice.flatMap((item, index) => [body(`${index + 1}. ${item.prompt}`, true), ...practiceImage(input, item.imageSourcePageId, item.imageSourceFileId)]), ...teacherParagraph(input)
   ], pickBackground(input, "PRACTICE"), input);
   const p5 = section([
-    ...title("🎤 五、我是小老师"), heading("🎯 作答步骤"), ...numbered(lesson.littleTeacherSteps), heading("🎤 口头表达示范框架"), body(studentOralFramework(lesson))
+    ...title("🎤 五、我是小老师"), heading("🎯 作答步骤"), ...numbered(lesson.littleTeacherSteps), heading("🎤 口头表达示范框架"), body(lesson.oralFramework)
   ], pickBackground(input, "LITTLE_TEACHER"), input);
   return [p1, p2, p3, ...(notePage ? [notePage] : []), p4, p5];
 }
@@ -236,7 +236,7 @@ function parentSections(input: HandoutDocumentInput) {
   const gradeName = input.grade.replace("升", "年级升").replace(/^0年级升1$/, "一年级").replace(/^(\d)年级升(\d)$/, "$2年级");
   const capability = input.lessons.map((lesson) => `第${lesson.lessonNumber}讲《${lesson.title}》：${lesson.subtitle || lesson.technique}`).join("；");
   const overview = section([
-    new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 80, after: 60 }, children: [run("家长使用手册", { bold: true, size: 36, color: orange })] }),
+    new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 80, after: 60 }, children: [run("家长使用手册", { bold: true, size: 40, color: orange })] }),
     new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 150 }, children: [run("—— 真读书 · 有深度 · 用得上 ——", { size: 22, color: gray })] }),
     parentTeacherTable(input),
     heading("🤝 双师陪伴｜主讲老师＋班主任老师"),
@@ -267,7 +267,7 @@ function parentSections(input: HandoutDocumentInput) {
     new Table({ width: { size: 7600, type: WidthType.DXA }, columnWidths: scheduleWidths, rows: scheduleRows })
   ], pickBackground(input, "PARENT_MANUAL"), input);
   const stage = section([
-    heading(`🎯 ${gradeName}阶段，最需要关注什么？`),
+    heading(`🎯 ${input.grade}阶段，最需要关注什么？`),
     heading("☁️ 基础：从“会认字”走向“会用字词”"), body(`结合${input.teachingYear}年课程学习节奏，在故事语境中认识并积累字词；不只会读，还能联系人物、动作和情节理解词义，并把常用表达用到口头和书面表达中。`),
     heading("📚 阅读：从“听故事”走向“读懂故事”"), body("不止复述热闹情节，还能说清“谁做了什么、为什么这样做、结果怎样”，并从原文中找到具体词句作证据，逐步形成整本书阅读习惯。"),
     heading("✍️ 表达：从“说一句话”走向“完整表达”"), body("借助课堂方法，把人物、事情、动作、语言、心情和结果说完整、写清楚；每周完成一次口头表达或简短书面练习，形成可迁移的表达框架。"),
@@ -286,11 +286,9 @@ function coverSections(input: HandoutDocumentInput) {
 
 function answerSections(input: HandoutDocumentInput) {
   return input.lessons.map((lesson) => section([
-    ...title(`第${lesson.lessonNumber}讲参考答案`, lesson.title),
-    body("使用说明：客观题给出明确答案；开放题提供一种完整示例，合理、有依据、表达通顺即可，不要求与示例完全一致。"),
-    heading("一、阅读与方法题"), ...lesson.closeReadingQuestions.flatMap((question, index) => [body(question, true), body(lesson.closeReadingAnswers[index] ?? "参考：请结合原文中的词句或具体情节作答。")]),
-    heading("二、真题带练／书面练习"), ...lesson.practice.flatMap((item, index) => [body(`${index + 1}. ${item.prompt}\n【参考作答】${item.answer}`, true)]),
-    heading("三、“我是小老师”口头表达示例"), body((lesson as LessonContent & { oralReferenceAnswer?: string }).oralReferenceAnswer ?? lesson.oralFramework), body("★ 开放题答案不唯一，重点看是否使用本讲方法。")
+    ...title(`第${lesson.lessonNumber}讲参考答案`),
+    heading("交流话题参考"), ...lesson.conversationTopics.flatMap((item, index) => [heading(`${index + 1}. ${item.question}`), body(`参考：${item.referenceAnswer}`)]),
+    heading("真题带练参考"), ...lesson.practice.flatMap((item, index) => [heading(`${index + 1}. ${item.prompt}`), body(`参考答案：${item.answer}`)])
   ], pickBackground(input, "SIMPLE"), input));
 }
 

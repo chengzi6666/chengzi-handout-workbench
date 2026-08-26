@@ -35,13 +35,14 @@ test("student docx contains five next-page sections and inline conversation answ
   assert.doesNotMatch(xml, /参考答案：/);
 });
 
-test("answer document includes reading, practice, and oral reference sections", async () => {
+test("answer document uses the same conversation and practice sections as preview", async () => {
   const output = await generateHandoutDocx({ projectName: "测试", grade: "1升2", teachingYear: 2026, lessons: [lesson], mode: "answers" });
   const zip = await JSZip.loadAsync(output); const xml = await zip.file("word/document.xml")!.async("string");
-  assert.match(xml, /一、阅读与方法题/);
-  assert.match(xml, /二、真题带练／书面练习/);
-  assert.match(xml, /三、“我是小老师”口头表达示例/);
-  assert.match(xml, /参考答案/);
+  assert.match(xml, /交流话题参考/);
+  assert.match(xml, /参考：答案1/);
+  assert.match(xml, /真题带练参考/);
+  assert.match(xml, /参考答案：参考/);
+  assert.doesNotMatch(xml, /我是小老师.*口头表达示例/);
 });
 
 test("grade two reviewed pinyin is emitted as native Word ruby", async () => {

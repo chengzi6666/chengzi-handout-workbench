@@ -83,6 +83,10 @@ function printableLearningGoal(value: string) {
   return value.replace(/^\s*(?:我|我们)\s*(?:要|能|可以|学会)?\s*/u, "").replace(/^能(?!够)/u, "能够");
 }
 
+function usableRichPreview(value?: string) {
+  return value && !/(?:请结合本讲|补充方法小结|方法小结。?\s*<)/u.test(value) ? value : undefined;
+}
+
 function ReadingText({ text, grade, units }: { text: string; grade: string; units?: Array<{ char: string; pinyin: string }> }) {
   if (grade !== "1升2") return <p className="reading-preview">{text}</p>;
   return <p className="reading-preview pinyin-reading">{(units ?? createPinyinReview(text)).map((unit, index) => unit.pinyin ? <ruby key={index}>{unit.char}<rt>{unit.pinyin}</rt></ruby> : <span key={index}>{unit.char}</span>)}</p>;
@@ -183,6 +187,7 @@ export function LayoutWorkspace({
   const previewLessonNumber = previewKind === "parent" ? 0 : currentLesson?.lessonNumber ?? 0;
   const previewPageIndex = previewKind === "student" ? pageIndex : previewKind === "parent" ? parentPage : 0;
   const previewKey = `${previewKind}-${previewLessonNumber}-${previewPageIndex}`;
+  const currentRichPreview = usableRichPreview(richPreviewHtml[previewKey]);
   const currentTypography = pageTypography[previewKey] ?? {};
   const currentBodySize = currentTypography.bodySize ?? Math.min(fontSize, defaultBodySize(pageIndex, currentLesson));
   const currentTitleSize = currentTypography.titleSize ?? 20;
@@ -521,8 +526,8 @@ export function LayoutWorkspace({
               style={{ fontFamily, fontSize: `${currentBodySize}pt` }}
               onInput={() => setMessage("文字已调整；保存版式审核后继续导出")}
             >
-              {richPreviewHtml[previewKey] ? (
-                <div dangerouslySetInnerHTML={{ __html: richPreviewHtml[previewKey] }} />
+              {currentRichPreview ? (
+                <div dangerouslySetInnerHTML={{ __html: currentRichPreview }} />
               ) : !currentLesson ? (
                 <>
                   <h2>尚无已审核内容</h2>

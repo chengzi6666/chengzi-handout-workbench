@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { ChevronLeft, ChevronRight, Share2, Upload } from "lucide-react";
+import type { SharedPage } from "@/lib/handout/page-spec";
 
 function PinyinText({ units }: { units: Array<{ char: string; pinyin: string }> }) {
   return <p className="book-reading pinyin-reading">{units.map((unit, index) => unit.pinyin ? <ruby key={index}>{unit.char}<rt>{unit.pinyin}</rt></ruby> : <span key={index}>{unit.char}</span>)}</p>;
@@ -9,14 +10,30 @@ function PinyinText({ units }: { units: Array<{ char: string; pinyin: string }> 
 function PageContent({ page, headerText, footerText }: { page?: Record<string, unknown>; headerText?: string; footerText?: string }) {
   if (!page) return <div className="book-empty" />;
   const showAnswers = page.collection === "answers";
+  const sharedPage = page.sharedPage as SharedPage | undefined;
   // 版式审核保存的逐页富文本（高光、加粗、斜体、下划线）优先展示；
   // 它来自本项目的编辑器，不接收外部 HTML。
   if (typeof page.richHtml === "string" && page.richHtml) return <>
     {(page.headerText ?? headerText) ? <span className="book-kicker">{String(page.headerText ?? headerText)}</span> : null}
-    <div className="book-rich-content" dangerouslySetInnerHTML={{ __html: page.richHtml }} />
+    <div className="book-rich-content" style={{ fontFamily: String(page.fontFamily ?? "Microsoft YaHei"), fontSize: `${Number(page.bodySize ?? 11)}pt` }} dangerouslySetInnerHTML={{ __html: page.richHtml }} />
     {Array.isArray(page.pinyinUnits) ? <PinyinText units={page.pinyinUnits as Array<{ char: string; pinyin: string }>} /> : null}
     {showAnswers && Array.isArray(page.topics) ? <div className="book-answer-supplement">{(page.topics as Array<{ question: string; referenceAnswer: string }>).map((item, index) => <section key={index}><b>{index + 1}. {item.question}</b><p><b>参考：</b>{item.referenceAnswer}</p></section>)}</div> : null}
     {showAnswers && Array.isArray(page.practice) ? <div className="book-answer-supplement">{(page.practice as Array<{ prompt: string; answer: string }>).map((item, index) => <section key={index}><b>{index + 1}. {item.prompt}</b><p><b>参考作答：</b>{item.answer}</p></section>)}</div> : null}
+    {page.footerText ?? footerText ? <footer>{String(page.footerText ?? footerText)}</footer> : null}
+  </>;
+  if (sharedPage) return <>
+    {(page.headerText ?? headerText) ? <span className="book-kicker">{String(page.headerText ?? headerText)}</span> : null}
+    <div className="book-rich-content book-shared-content" style={{ fontFamily: String(page.fontFamily ?? "Microsoft YaHei"), fontSize: `${Number(page.bodySize ?? 11)}pt` }}>
+      {sharedPage.blocks.map((block, index) => {
+        if (block.kind === "title") return <h2 key={index} style={{ fontSize: `${Number(page.titleSize ?? 20)}pt` }}>{block.text}</h2>;
+        if (block.kind === "heading") return <h3 key={index}>{block.text}</h3>;
+        if (block.kind === "numbered") return <ol key={index}>{(block.items ?? []).map((item, itemIndex) => <li key={itemIndex}>{item}</li>)}</ol>;
+        if (block.kind === "callout") return <section className="book-callout" key={index}><b>{block.text}</b>{(block.items ?? []).map((item, itemIndex) => <p key={itemIndex}>{item}</p>)}</section>;
+        if (sharedPage.role === "READING" && index === 1 && Array.isArray(page.pinyinUnits)) return <PinyinText key={index} units={page.pinyinUnits as Array<{ char: string; pinyin: string }>} />;
+        return block.text ? <div key={index}>{<p>{block.text}</p>}{sharedPage.role === "PARENT_MANUAL" && index === 1 && typeof page.teacherPortraitSrc === "string" ? <img className="book-parent-teacher" src={page.teacherPortraitSrc} alt="主讲老师" /> : null}</div> : null;
+      })}
+      {sharedPage.role === "PRACTICE" && Array.isArray(page.practice) ? <>{(page.practice as Array<{ imageUrl?: string }>).map((item, index) => item.imageUrl ? <img key={index} className="book-question-image" src={item.imageUrl} alt={`第${index + 1}题题图`} /> : null)}</> : null}
+    </div>
     {page.footerText ?? footerText ? <footer>{String(page.footerText ?? footerText)}</footer> : null}
   </>;
   return <>
