@@ -1,9 +1,0 @@
-.git
-**/.next
-**/node_modules
-**/.tmp*
-**/*.docx
-**/*.pdf
-**/*.png
-!lecture-handout-generator/public/**/*.png
-lecture-handout-generator/storage
