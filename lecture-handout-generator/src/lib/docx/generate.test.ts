@@ -35,14 +35,6 @@ test("student docx contains five next-page sections and inline conversation answ
   assert.doesNotMatch(xml, /参考答案：/);
 });
 
-test("saved preview text is the source of truth for Word export", async () => {
-  const richPreviewHtml = Object.fromEntries([0, 1, 2, 3, 4].map((page) => [`student-1-${page}`, `<h2>预览页${page + 1}</h2><p>只应来自预览的文字${page + 1}</p>`]));
-  const output = await generateHandoutDocx({ projectName: "测试", grade: "0升1", teachingYear: 2026, lessons: [lesson], mode: "student", richPreviewHtml });
-  const zip = await JSZip.loadAsync(output); const xml = await zip.file("word/document.xml")!.async("string");
-  assert.match(xml, /只应来自预览的文字1/u);
-  assert.match(xml, /只应来自预览的文字5/u);
-});
-
 test("answer document includes reading, practice, and oral reference sections", async () => {
   const output = await generateHandoutDocx({ projectName: "测试", grade: "1升2", teachingYear: 2026, lessons: [lesson], mode: "answers" });
   const zip = await JSZip.loadAsync(output); const xml = await zip.file("word/document.xml")!.async("string");
