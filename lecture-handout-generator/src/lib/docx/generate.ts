@@ -301,6 +301,7 @@ export async function generateHandoutDocx(input: HandoutDocumentInput) {
     creator: "橙子讲义工坊",
     title: input.projectName,
     description: "可编辑小学语文课程讲义",
+    compatibility: { applyBreakingRules: true },
     styles: { default: { document: { run: { font: FONT, size: 22 }, paragraph: { spacing: { line: 360 } } } } },
     sections
   });
@@ -310,7 +311,21 @@ export async function generateHandoutDocx(input: HandoutDocumentInput) {
   if (input.mode === "student" && input.pinyinReviews && Object.keys(input.pinyinReviews).length > 0) {
     buffer = await addNativeRuby(buffer, input.lessons, input.pinyinReviews);
   }
+  buffer = await applyChineseLineBreaking(buffer);
   return Buffer.from(buffer);
+}
+
+/** Word/WPS 中文避头尾规则：标点与前一个汉字保持在同一行。 */
+async function applyChineseLineBreaking(buffer: Buffer) {
+  const zip = await JSZip.loadAsync(buffer);
+  const entry = zip.file("word/document.xml");
+  if (!entry) return buffer;
+  let xml = await entry.async("string");
+  const rule = "<w:kinsoku/><w:wordWrap/><w:overflowPunct w:val=\"0\"/><w:topLinePunct w:val=\"0\"/>";
+  xml = xml.replace(/<w:pPr>/g, `<w:pPr>${rule}`);
+  xml = xml.replace(/(<w:p(?:\s[^>]*)?>)(?!<w:pPr>)/g, `$1<w:pPr>${rule}</w:pPr>`);
+  zip.file("word/document.xml", xml);
+  return Buffer.from(await zip.generateAsync({ type: "nodebuffer", compression: "DEFLATE" }));
 }
 
 async function replaceDocumentFont(buffer: Buffer, fontFamily: string) {

@@ -11,6 +11,12 @@
 
 * { box-sizing: border-box; }
 html, body { margin: 0; min-height: 100%; font-family: "Microsoft YaHei", "微软雅黑", Arial, sans-serif; color: var(--ink); background: var(--canvas); }
+/* 中文避头尾：句号、逗号、问号等不能独占下一行行首。 */
+:where(.page-canvas, .canvas-copy, .book-leaf, .book-rich-content, .review-workspace, .teacher-settings, .workspace-main) {
+  line-break: strict;
+  word-break: normal;
+  overflow-wrap: break-word;
+}
 button, input { font: inherit; }
 button { cursor: pointer; }
 .app-shell { min-height: 100vh; display: grid; grid-template-columns: 292px minmax(0, 1fr); }
@@ -342,7 +348,7 @@ button { cursor: pointer; }
 .parent-teacher-card h3 { margin: 0 0 8px; }
 .parent-teacher-card p { margin: 0; white-space: pre-wrap; }
 .parent-schedule { width: 100%; table-layout: fixed; border-collapse: separate; border-spacing: 0; overflow: hidden; border: 1px solid #efcdb8; border-radius: 10px; font-size: clamp(10px, .9em, 13px); line-height: 1.62; background: rgba(255,253,248,.92); }
-.parent-schedule th, .parent-schedule td { padding: 9px 8px; border: 0; border-right: 1px solid #efcdb8; border-bottom: 1px solid #efcdb8; vertical-align: top; text-align: left; overflow-wrap: anywhere; }
+.parent-schedule th, .parent-schedule td { padding: 9px 8px; border: 0; border-right: 1px solid #efcdb8; border-bottom: 1px solid #efcdb8; vertical-align: top; text-align: left; overflow-wrap: break-word; }
 .parent-schedule th:last-child, .parent-schedule td:last-child { border-right: 0; }
 .parent-schedule tbody tr:last-child td { border-bottom: 0; }
 .parent-schedule th:nth-child(1), .parent-schedule td:nth-child(1) { width: 12%; text-align: center; }

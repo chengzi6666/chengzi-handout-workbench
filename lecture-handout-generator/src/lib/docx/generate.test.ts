@@ -33,6 +33,7 @@ test("student docx contains five next-page sections and inline conversation answ
   assert.equal((xml.match(/w:type w:val="nextPage"/g) ?? []).length, 5);
   assert.match(xml, /参考：答案1/);
   assert.doesNotMatch(xml, /参考答案：/);
+  assert.equal((xml.match(/<w:p(?:\s[^>]*)?>/g) ?? []).length, (xml.match(/<w:kinsoku\/>/g) ?? []).length, "每个Word段落都应启用中文避头尾规则");
 });
 
 test("answer document uses the same conversation and practice sections as preview", async () => {
