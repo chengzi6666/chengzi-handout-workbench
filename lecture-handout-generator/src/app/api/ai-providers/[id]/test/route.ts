@@ -16,7 +16,9 @@ export async function POST(_: Request, context: { params: Promise<{ id: string }
       baseUrl: config.baseUrl,
       model: config.model,
       apiKey: decryptSecret(config.encryptedApiKey),
-      extraHeaders: (config.extraHeaders as Record<string, string> | null) ?? undefined
+      extraHeaders: (config.extraHeaders as Record<string, string> | null) ?? undefined,
+      requestTimeoutMs: 10_000,
+      maxAttempts: 1
     });
     const startedAt = Date.now();
     const result = await provider.generateText({ systemPrompt: "你是接口连通性测试助手。", userPrompt: "只回复：连接成功", temperature: 0 });
@@ -25,4 +27,3 @@ export async function POST(_: Request, context: { params: Promise<{ id: string }
     return NextResponse.json({ error: error instanceof Error ? error.message : "接口测试失败" }, { status: 502 });
   }
 }
-

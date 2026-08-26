@@ -21,6 +21,7 @@ export function ModelSettings() {
   const [providers, setProviders] = useState<ProviderRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [testingId, setTestingId] = useState<string | null>(null);
   const [message, setMessage] = useState("");
 
   async function load() {
@@ -53,10 +54,23 @@ export function ModelSettings() {
   }
 
   async function testProvider(id: string) {
+    if (testingId) return;
+    setTestingId(id);
     setMessage("正在测试接口…");
-    const response = await fetch(`/api/ai-providers/${id}/test`, { method: "POST" });
-    const result = await response.json();
-    setMessage(response.ok ? `连接成功，耗时 ${result.latencyMs} ms` : result.error ?? "连接失败");
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), 15_000);
+    try {
+      const response = await fetch(`/api/ai-providers/${id}/test`, { method: "POST", signal: controller.signal });
+      const result = await response.json().catch(() => ({})) as { latencyMs?: number; error?: string };
+      setMessage(response.ok ? `连接成功，耗时 ${result.latencyMs} ms` : result.error ?? "连接失败");
+    } catch (error) {
+      setMessage(error instanceof DOMException && error.name === "AbortError"
+        ? "测试已在15秒后停止：部署在 Railway 的公网服务无法直接访问公司内网接口。"
+        : "接口测试请求失败，请检查网络后重试。");
+    } finally {
+      window.clearTimeout(timeout);
+      setTestingId(null);
+    }
   }
 
   return (
@@ -70,7 +84,7 @@ export function ModelSettings() {
               <div><strong>{provider.displayName}</strong>{provider.isDefault && <em>默认</em>}<span>{provider.model}</span></div>
               <p>{provider.baseUrl}</p>
               <div className="capability-row"><span><KeyRound size={12} />{provider.apiKeyMask}</span>{provider.supportsVision && <span><Eye size={12} />图片</span>}{provider.supportsSearch && <span><Globe2 size={12} />联网</span>}{provider.supportsJson && <span><CheckCircle2 size={12} />JSON</span>}</div>
-              <button onClick={() => testProvider(provider.id)}><TestTube2 size={14} />测试连接</button>
+              <button disabled={testingId !== null} onClick={() => testProvider(provider.id)}>{testingId === provider.id ? <Loader2 className="spin" size={14} /> : <TestTube2 size={14} />}{testingId === provider.id ? "正在测试…" : "测试连接"}</button>
             </article>
           ))}
         </section>

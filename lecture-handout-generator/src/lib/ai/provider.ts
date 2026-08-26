@@ -29,6 +29,9 @@ export interface OpenAiCompatibleProviderOptions {
   model: string;
   extraHeaders?: Record<string, string>;
   useTokenHeader?: boolean;
+  /** Connectivity checks should fail fast; content generation keeps the longer defaults. */
+  requestTimeoutMs?: number;
+  maxAttempts?: number;
 }
 
 export class OpenAiCompatibleProvider implements AiProvider {
@@ -58,9 +61,11 @@ export class OpenAiCompatibleProvider implements AiProvider {
     const endpoint = `${this.options.baseUrl.replace(/\/$/, "")}/chat/completions`;
     // 集团模型默认 RPM 很低。五讲生成会连续请求，必须由客户端主动退避，
     // 不能把一次 429 当作整份讲义失败。
-    for (let attempt = 0; attempt < 5; attempt += 1) {
+    const maxAttempts = Math.max(1, this.options.maxAttempts ?? 5);
+    const requestTimeoutMs = Math.max(1_000, this.options.requestTimeoutMs ?? 90_000);
+    for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 90_000);
+      const timeout = setTimeout(() => controller.abort(), requestTimeoutMs);
       let response: Response;
       try {
         response = await fetch(endpoint, {
@@ -81,10 +86,10 @@ export class OpenAiCompatibleProvider implements AiProvider {
         })
         });
       } catch (error) {
-        if (controller.signal.aborted) throw new Error(`AI provider ${this.displayName} 请求超时（90秒），请重试或更换模型`);
+        if (controller.signal.aborted) throw new Error(`连接超时（${Math.ceil(requestTimeoutMs / 1000)}秒）。Railway 公网服务无法直接访问公司内网接口，请连接公司内网后使用本地版，或为 Railway 配置可访问内网的安全代理。`);
         // 公司网络、VPN 切换和低 RPM 网关都可能主动断开 keep-alive socket。
         // 这类瞬时连接错误不能原样泄露为 "fetch failed"，也不应立刻中断五讲任务。
-        if (attempt < 4) {
+        if (attempt < maxAttempts - 1) {
           await new Promise((resolve) => setTimeout(resolve, 3_000 * (attempt + 1)));
           continue;
         }
@@ -100,7 +105,7 @@ export class OpenAiCompatibleProvider implements AiProvider {
         if (!text) throw new Error(`AI provider ${this.displayName} returned empty content`);
         return { text, model: this.options.model, provider: this.id };
       }
-      if (response.status !== 429 || attempt === 4) throw new Error(`AI provider ${this.displayName} returned ${response.status}`);
+      if (response.status !== 429 || attempt === maxAttempts - 1) throw new Error(`AI provider ${this.displayName} returned ${response.status}`);
       const retryAfter = Number(response.headers.get("retry-after"));
       const delayMs = Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter * 1000 : 12_000 * (attempt + 1);
       await new Promise((resolve) => setTimeout(resolve, delayMs));
