@@ -123,6 +123,35 @@ function hasSpecificCourseAlignment(value: string) {
     && /(?:第.{1,4}单元|第.{1,4}课|快乐读书吧)/u.test(value);
 }
 
+function needsMethodRepair(value: string) {
+  return !value || /(?:请结合本讲|补充方法小结|方法小结。?$)/u.test(value);
+}
+
+async function repairMethodSummary(input: {
+  provider: Awaited<ReturnType<typeof getConfiguredProvider>>;
+  grade: string;
+  title: string;
+  technique: string;
+  source: string;
+}) {
+  try {
+    const result = await input.provider.generateText({
+      systemPrompt: "你是小学语文教研编辑。只输出 JSON，不要解释。",
+      userPrompt: `主讲初稿遗漏了“方法小结”。请直接根据本讲课堂证据补全，不能要求用户补写，不能写“请结合本讲”。面向${targetGradeName(input.grade)}学生，写2—3句可操作的方法，必须包含：先做什么、再做什么、最后如何表达或检验。方法名称是“${input.technique}”，课程题目是“${input.title}”。只输出 {"methodSummary":"..."}。\n\n课堂证据：\n${input.source.slice(0, 18000)}`,
+      temperature: 0.15,
+    });
+    const value = parseJsonResponse(result.text) as Record<string, unknown>;
+    const summary = textOf(value.methodSummary);
+    return needsMethodRepair(summary) ? "" : summary;
+  } catch {
+    return "";
+  }
+}
+
+function methodSummaryFallback(technique: string) {
+  return `本讲运用“${technique}”：先从文本中找出人物、事情和关键词句，再按“谁做了什么、结果怎样”的顺序整理信息，最后用原文证据说清自己的理解。`;
+}
+
 async function repairCourseAlignment(input: {
   provider: Awaited<ReturnType<typeof getConfiguredProvider>>;
   grade: string;
@@ -204,6 +233,11 @@ export async function generateProjectContent(
     const learningGoals = normalizeLearningGoals(draft.learningGoals);
     const parentBusySteps = normalizeStringList(draft.parentBusySteps);
     const parentExtendedSteps = normalizeStringList(draft.parentExtendedSteps);
+    const technique = textOf(draft.technique, "阅读方法");
+    const initialMethodSummary = textOf(draft.methodSummary);
+    const methodSummary = needsMethodRepair(initialMethodSummary)
+      ? await repairMethodSummary({ provider, grade: project.grade, title: textOf(draft.title, lessonTitleFromSource(wholeSourceText, index + 1)), technique, source: wholeSourceText }) || methodSummaryFallback(technique)
+      : initialMethodSummary;
     let courseAlignment = textOf(draft.courseAlignment);
     let repairedAlignment: { courseAlignment: string; claim: string; sourceUrl: string; sourceTitle: string } | null = null;
     if (!hasSpecificCourseAlignment(courseAlignment)) {
@@ -223,7 +257,7 @@ export async function generateProjectContent(
       ...draft,
       lessonNumber: index + 1,
       title: textOf(draft.title, lessonTitleFromSource(source.pages.map((page) => page.extractedText).join("\n"), index + 1)),
-      technique: textOf(draft.technique, "阅读方法"),
+      technique,
       courseAlignment,
       learningGoals: learningGoals.length >= 3 ? learningGoals : ["读懂本讲人物和事情。", "能用课堂方法梳理关键信息。", "能结合文本说出自己的理解。"],
       // A missing parent path must not abort all five lessons. The editor can refine these
@@ -252,7 +286,7 @@ export async function generateProjectContent(
         { question: "这件事给你什么提醒？", referenceAnswer: "可以联系自己的生活，说说以后会怎么做。" }
       ],
       practice: normalizePractice(draft.practice).length ? normalizePractice(draft.practice) : [{ prompt: "请用本讲方法梳理人物、事情和道理。", answer: "先写人物，再写事情，最后写出自己的理解。" }],
-      methodSummary: textOf(draft.methodSummary, "请结合本讲主讲内容补充方法小结。"),
+      methodSummary,
       oralFramework: textOf(draft.oralFramework, "我先说清人物和事情，再说一说道理。"),
       readingExcerpt: reading
     });
