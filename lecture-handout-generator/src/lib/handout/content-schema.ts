@@ -5,6 +5,10 @@ export const conversationTopicSchema = z.object({
   referenceAnswer: z.string().trim().min(1)
 });
 
+export function isMethodSummaryPlaceholder(value: string) {
+  return /(?:请结合本讲|请补充|补充方法小结|方法小结。?$)/u.test(value.trim());
+}
+
 export const lessonContentSchema = z.object({
   lessonNumber: z.number().int().positive(),
   title: z.string().trim().min(1),
@@ -32,7 +36,7 @@ export const lessonContentSchema = z.object({
   closeReadingQuestions: z.array(z.string().trim().min(1)).min(1),
   // 仅用于独立答案册；学生版只展示问题。default 保证旧项目仍可打开审核页。
   closeReadingAnswers: z.array(z.string().trim().min(1)).default([]),
-  methodSummary: z.string().trim().min(1),
+  methodSummary: z.string().trim().min(1).refine((value) => !isMethodSummaryPlaceholder(value), "方法小结必须根据本讲内容写完整，不能保留占位提示"),
   practice: z.array(z.object({ prompt: z.string().trim().min(1), answer: z.string().trim().min(1), imageSourceFileId: z.string().optional(), imageSourcePageId: z.string().optional() })).min(1),
   littleTeacherSteps: z.array(z.string().trim().min(1)).min(1),
   oralFramework: z.string().trim().min(1),

@@ -1,16 +1,18 @@
 import { db } from "../src/lib/db";
 import { getConfiguredProvider, parseJsonResponse } from "../src/lib/ai/configured-provider";
-import { lessonContentSchema } from "../src/lib/handout/content-schema";
+import { isMethodSummaryPlaceholder, lessonContentSchema } from "../src/lib/handout/content-schema";
 
-const placeholder = /请结合本讲主讲内容补充方法小结|补充方法小结/u;
+const placeholder = { test: isMethodSummaryPlaceholder };
 
 async function main() {
   const rows = await db.lesson.findMany({ include: { project: true }, orderBy: { updatedAt: "asc" } });
   const targets = rows.filter((row) => {
-    try { return placeholder.test(lessonContentSchema.parse(row.structuredContent).methodSummary); } catch { return false; }
+    const value = (row.structuredContent as { methodSummary?: unknown } | null)?.methodSummary;
+    return typeof value === "string" && placeholder.test(value);
   });
   for (const row of targets) {
-    const content = lessonContentSchema.parse(row.structuredContent);
+    const raw = row.structuredContent as Record<string, unknown>;
+    const content = lessonContentSchema.parse({ ...raw, methodSummary: "正在修复方法小结" });
     const provider = await getConfiguredProvider(row.project.selectedProviderId);
     let summary = "";
     try {

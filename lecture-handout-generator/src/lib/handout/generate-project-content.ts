@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { searchCurriculum } from "@/lib/curriculum/web-search";
 import { db } from "@/lib/db";
 import { getConfiguredProvider, parseJsonResponse } from "@/lib/ai/configured-provider";
-import { lessonContentSchema } from "@/lib/handout/content-schema";
+import { isMethodSummaryPlaceholder, lessonContentSchema } from "@/lib/handout/content-schema";
 import { patternPrompt } from "@/lib/handout/grade-handout-patterns";
 import { normalizeLessonSubtitle } from "@/lib/handout/subtitle";
 
@@ -124,7 +124,7 @@ function hasSpecificCourseAlignment(value: string) {
 }
 
 function needsMethodRepair(value: string) {
-  return !value || /(?:请结合本讲|补充方法小结|方法小结。?$)/u.test(value);
+  return !value || isMethodSummaryPlaceholder(value);
 }
 
 async function repairMethodSummary(input: {
