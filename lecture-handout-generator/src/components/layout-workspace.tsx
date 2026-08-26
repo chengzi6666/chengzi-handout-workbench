@@ -63,6 +63,7 @@ const WPS_SIZES = [
   ["六号", 7.5], ["小六", 6.5], ["七号", 5.5], ["八号", 5],
 ] as const;
 type PageTypography = Record<string, { bodySize?: number; titleSize?: number }>;
+type BackgroundCrop = Record<string, { x: number; y: number }>;
 
 function bookTitle(value: string) {
   return value.match(/《[^》]+》/u)?.[0] ?? value.replace(/^第\s*\d+\s*讲[：:、\s]*/u, "").trim();
@@ -143,6 +144,8 @@ export function LayoutWorkspace({
       "",
   );
   const [backgrounds, setBackgrounds] = useState(initialBackgrounds);
+  const [backgroundCrop, setBackgroundCrop] = useState((project.layoutConfig as { backgroundCrop?: BackgroundCrop } | null)?.backgroundCrop ?? {});
+  const [cropRole, setCropRole] = useState("COVER");
   const [draggingBackgroundRole, setDraggingBackgroundRole] = useState<string | null>(null);
   const [message, setMessage] = useState("");
   const [downloading, setDownloading] = useState<string | null>(null);
@@ -206,6 +209,8 @@ export function LayoutWorkspace({
   const previewBackground = uploadedBackground
     ? `url(/api/assets/background/${uploadedBackground.id})`
     : `url(${defaultBackgroundPath(currentRole)})`;
+  const currentCrop = backgroundCrop[cropRole] ?? { x: 50, y: 50 };
+  const previewCrop = backgroundCrop[currentRole] ?? { x: 50, y: 50 };
   async function upload(role: string, files: FileList | null) {
     const file = files?.[0];
     if (!file) return;
@@ -265,7 +270,7 @@ export function LayoutWorkspace({
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           teacherImage: { ...position, assetId: activeAsset?.id },
-          fontFamily, fontSize, pageTypography, noteOwnPage, noteHeight, headerText, footerText, headerSize, footerSize, richPreviewHtml: nextRichPreviewHtml,
+          fontFamily, fontSize, pageTypography, noteOwnPage, noteHeight, headerText, footerText, headerSize, footerSize, richPreviewHtml: nextRichPreviewHtml, backgroundCrop,
         }),
       }),
     ]);
@@ -366,6 +371,7 @@ export function LayoutWorkspace({
               />
             </label>
           ))}
+          {backgrounds.length > 0 && <div className="background-crop-controls"><b>图片裁切</b><span>选择用途后调整焦点；封面与微信封面可分别裁切。</span><select value={cropRole} onChange={(event) => setCropRole(event.target.value)}>{roles.filter(([role]) => backgrounds.some((asset) => asset.role === role)).map(([role, label]) => <option value={role} key={role}>{label}</option>)}</select><label>横向 <input type="range" min="0" max="100" value={currentCrop.x} onChange={(event) => setBackgroundCrop((value) => ({ ...value, [cropRole]: { ...currentCrop, x: Number(event.target.value) } }))} /></label><label>纵向 <input type="range" min="0" max="100" value={currentCrop.y} onChange={(event) => setBackgroundCrop((value) => ({ ...value, [cropRole]: { ...currentCrop, y: Number(event.target.value) } }))} /></label></div>}
         </aside>
         <section className="layout-center">
           <div className="layout-toolbar" id="format">
@@ -504,7 +510,7 @@ export function LayoutWorkspace({
             onPointerLeave={() => {
               dragging.current = false;
             }}
-            style={{ backgroundImage: previewBackground }}
+            style={{ backgroundImage: previewBackground, backgroundSize: "cover", backgroundPosition: `${previewCrop.x}% ${previewCrop.y}%` }}
           >
             {headerText ? <div className="preview-running-header" style={{ fontFamily, fontSize: `${headerSize}pt` }}>{headerText}</div> : null}
             <div

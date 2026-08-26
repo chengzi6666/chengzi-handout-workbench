@@ -297,6 +297,7 @@ button { cursor: pointer; }
 .asset-upload.is-dragging { border-color: var(--orange); background: #fff2eb; box-shadow: 0 0 0 3px rgba(255, 102, 45, .13); }
 .asset-upload span { display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 700; }
 .asset-upload em { color: #a08778; font-size: 9px; font-style: normal; }
+.background-crop-controls { margin-top: 10px; padding: 10px; display: grid; gap: 7px; border: 1px solid #efd5c6; border-radius: 9px; color: #6f5748; background: #fffaf6; font-size: 11px; }.background-crop-controls b { color: #b75a32; }.background-crop-controls span { color: #9a8274; line-height: 1.45; }.background-crop-controls label { display: grid; grid-template-columns: 32px 1fr; align-items: center; gap: 7px; }.background-crop-controls input { accent-color: var(--orange); }
 .asset-upload input { display: none; }
 .layout-toolbar { margin-bottom: 12px; display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; }
 .layout-toolbar label { display: grid; gap: 5px; color: #716861; font-size: 12px; font-weight: 700; }
