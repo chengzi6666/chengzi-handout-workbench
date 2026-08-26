@@ -22,6 +22,7 @@ export type HandoutDocumentInput = {
   headerSize?: number;
   footerText?: string;
   footerSize?: number;
+  richPreviewHtml?: Record<string, string>;
   noteOwnPage?: boolean;
   lessons: LessonContent[];
   pinyinReviews?: Record<number, PinyinUnit[]>;
@@ -121,6 +122,25 @@ function section(children: Array<Paragraph | Table>, background?: ImageAsset, in
   };
 }
 
+function decodeHtml(value: string) {
+  return value.replace(/&nbsp;/gu, " ").replace(/&amp;/gu, "&").replace(/&lt;/gu, "<").replace(/&gt;/gu, ">").replace(/&#(?:x([0-9a-f]+)|([0-9]+));/giu, (_all, hex, decimal) => String.fromCodePoint(Number.parseInt(hex || decimal, hex ? 16 : 10)));
+}
+
+// The layout canvas is contentEditable HTML. Preserve its actual visible text
+// and heading hierarchy in Word instead of regenerating a second document from
+// only the underlying lesson JSON.
+function richPreviewChildren(html: string): Paragraph[] {
+  const blocks = [...html.matchAll(/<(h2|h3|p|li)(?:\s[^>]*)?>([\s\S]*?)<\/\1>/giu)];
+  const parsed = blocks.map((match) => ({ tag: match[1].toLowerCase(), text: decodeHtml(match[2].replace(/<br\s*\/?>/giu, "\n").replace(/<[^>]+>/gu, "").replace(/\s+/gu, " ").trim()) })).filter((item) => item.text);
+  if (!parsed.length) return [body(decodeHtml(html.replace(/<[^>]+>/gu, " ").replace(/\s+/gu, " ").trim()))];
+  return parsed.map((item) => new Paragraph({ spacing: { before: item.tag === "h2" ? 180 : item.tag === "h3" ? 120 : 0, after: item.tag === "p" || item.tag === "li" ? 95 : 80, line: 360 }, children: [run(item.tag === "li" ? `• ${item.text}` : item.text, { bold: item.tag !== "p", size: item.tag === "h2" ? 36 : item.tag === "h3" ? 25 : 22, color: item.tag === "h2" || item.tag === "h3" ? orange : "2F2A27" })] }));
+}
+
+function savedRichSection(input: HandoutDocumentInput, key: string, role: keyof NonNullable<HandoutDocumentInput["backgrounds"]>) {
+  const html = input.richPreviewHtml?.[key];
+  return html ? section(richPreviewChildren(html), pickBackground(input, role), input) : null;
+}
+
 function pickBackground(input: HandoutDocumentInput, role: keyof NonNullable<HandoutDocumentInput["backgrounds"]>) { return input.backgrounds?.[role] ?? input.backgrounds?.SIMPLE; }
 
 function teacherParagraph(input: HandoutDocumentInput) {
@@ -199,6 +219,8 @@ function noteTable() {
 }
 
 function lessonSections(lesson: LessonContent, input: HandoutDocumentInput) {
+  const saved = [0, 1, 2, 3, 4].map((page) => savedRichSection(input, `student-${lesson.lessonNumber}-${page}`, ["LESSON_HOME", "CONVERSATION", "READING", "PRACTICE", "LITTLE_TEACHER"][page] as keyof NonNullable<HandoutDocumentInput["backgrounds"]>));
+  if (saved.every(Boolean)) return saved as ISectionOptions[];
   // 拼音是在 DOCX 打包完成后替换为 Word 原生 ruby。使用唯一占位符，绝不以全文正则跨段落匹配，
   // 否则五讲内容相似时会把多个 w:r / w:rt 嵌套在一起，生成损坏的 DOCX。
   const readingText = input.mode === "student" && input.pinyinReviews?.[lesson.lessonNumber]
