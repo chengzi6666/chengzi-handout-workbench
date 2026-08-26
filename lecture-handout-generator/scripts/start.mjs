@@ -7,7 +7,7 @@ const nextBin = require.resolve("next/dist/bin/next");
 const tsxBin = join(dirname(require.resolve("tsx/package.json")), "dist", "cli.mjs");
 const children = [
   spawn(process.execPath, [nextBin, "start"], { cwd: process.cwd(), env: process.env, stdio: "inherit" }),
-  spawn(process.execPath, [tsxBin, "--env-file=.env", "src/worker/index.ts"], { cwd: process.cwd(), env: process.env, stdio: "inherit" }),
+  spawn(process.execPath, [tsxBin, "src/worker/index.ts"], { cwd: process.cwd(), env: process.env, stdio: "inherit" }),
 ];
 
 let stopping = false;
