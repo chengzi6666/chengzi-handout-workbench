@@ -1,7 +1,7 @@
 FROM node:22-bookworm-slim AS deps
 WORKDIR /app
 RUN corepack enable
-COPY lecture-handout-generator/package.json lecture-handout-generator/pnpm-lock.yaml ./
+COPY lecture-handout-generator/package.json lecture-handout-generator/pnpm-lock.yaml lecture-handout-generator/pnpm-workspace.yaml ./
 RUN pnpm install --frozen-lockfile
 
 FROM node:22-bookworm-slim AS builder
