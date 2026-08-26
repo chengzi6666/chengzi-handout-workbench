@@ -22,7 +22,11 @@ export function studentOralFramework(content: LessonContent) {
 
 export function normalizeStudentFacingContent(content: LessonContent) {
   const next = JSON.parse(JSON.stringify(content)) as LessonContent & { oralReferenceAnswer?: string };
-  next.practice = next.practice.map((item) => ({ ...item, prompt: formatStudentBlank(item.prompt) }));
+  // 刷新可能发生在后台刚写完任务状态、但旧项目草稿字段尚未补齐的瞬间。
+  // 展示层不能因为缺少 practice 就崩溃；完整性仍由 lessonContentSchema 在保存/导出时把关。
+  next.practice = Array.isArray(next.practice)
+    ? next.practice.map((item) => ({ ...item, prompt: formatStudentBlank(item.prompt) }))
+    : [];
   if (!next.oralReferenceAnswer && next.oralFramework && !/[（(]\s*[）)]|[_＿-]{3,}|\*/.test(next.oralFramework)) next.oralReferenceAnswer = next.oralFramework;
   next.oralFramework = studentOralFramework(next);
   return next;

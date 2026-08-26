@@ -70,6 +70,12 @@ test("practice blanks reserve student writing space", () => {
   assert.equal(student.oralReferenceAnswer, lesson.oralFramework);
 });
 
+test("refreshing a partial legacy lesson never crashes student normalization", () => {
+  const partial = { lessonNumber: 1, title: "生成中", technique: "阅读方法" } as LessonContent;
+  assert.doesNotThrow(() => normalizeStudentFacingContent(partial));
+  assert.deepEqual(normalizeStudentFacingContent(partial).practice, []);
+});
+
 test("parent manual follows the family guidance structure", async () => {
   const output = await generateHandoutDocx({ projectName: "测试", grade: "1升2", teachingYear: 2026, teacherFormalName: "高远", lessons: [lesson], mode: "parent" });
   const zip = await JSZip.loadAsync(output); const xml = await zip.file("word/document.xml")!.async("string");
