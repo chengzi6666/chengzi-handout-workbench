@@ -447,8 +447,17 @@ button { cursor: pointer; }
 .book-reading { white-space: pre-wrap; }
 .book-callout { margin: 14px 0; padding: 12px; border-left: 4px solid #df7544; border-radius: 5px; background: #fff1e7; }
 .book-page footer { position: sticky; bottom: 0; margin-top: 25px; text-align: center; color: #a18f84; font-size: 10px; }
-@media (max-width: 650px) { .book-stage { padding: 12px; } .book-shell { gap: 4px; } .book-shell > button { width: 34px; height: 34px; } .book { width: 78vw; } }
-@media (max-width: 650px) { .spread-book { width: 78vw; aspect-ratio: 210 / 297; }.book-right { display: none; }.book-left { width: 100%; border-radius: 8px; }.book-spine { display: none; } }
+@media (max-width: 650px) { .book-stage { padding: 12px; } .book-shell { gap: 4px; } .book-shell > button { width: 38px; height: 38px; } .book { width: 90vw; } }
+@media (max-width: 650px) { .spread-book { width: 90vw; aspect-ratio: 210 / 297; }.book-right { display: none; }.book-left { width: 100%; border-radius: 8px; }.book-spine { display: none; } }
+/* 手机横屏：恢复双页阅读，封面与正文铺满屏幕，像电脑一样 */
+@media (orientation: landscape) and (max-width: 950px) {
+  .spread-book { width: 94vw; aspect-ratio: 420 / 297; }
+  .spread-book.has-cover:not(.opened) { width: min(46vw, 520px); aspect-ratio: 210 / 297; }
+  .book-right { display: block; }
+  .book-left { width: 50%; }
+  .book-spine { display: block; }
+  .book { width: 94vw; }
+}
 .debug-page { min-height: 100vh; padding: 30px max(24px, 5vw); color: #30251f; background: #f7f4f0; }
 .debug-header { max-width: 1240px; margin: 0 auto 20px; display: flex; align-items: center; gap: 18px; }.debug-header > a { color: #785e4f; font-size: 14px; text-decoration: none; }.debug-header > div { flex: 1; }.debug-header span { color: var(--orange); font-size: 12px; font-weight: 700; }.debug-header h1 { margin: 2px 0 0; font-size: 28px; }.debug-header button { min-width: 104px; }
 .debug-summary { max-width: 1240px; margin: 0 auto 18px; display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }.debug-summary > div { min-height: 92px; padding: 20px; display: grid; grid-template-columns: 30px 1fr; column-gap: 10px; border: 1px solid #eadbce; border-radius: 16px; background: #fffaf6; }.debug-summary svg { color: var(--orange); }.debug-summary strong { align-self: end; font-size: 17px; }.debug-summary small { grid-column: 2; color: #816f64; line-height: 1.5; }

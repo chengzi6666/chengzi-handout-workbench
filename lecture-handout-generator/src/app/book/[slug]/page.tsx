@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { Flipbook } from "@/components/flipbook";
@@ -9,7 +10,11 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const book = await db.publishedFlipbook.findUnique({ where: { slug }, include: { project: { include: { backgroundPack: { include: { assets: true } } } } } });
   if (!book) return { title: "电子讲义" };
   const uploadedShareCover = book.project.backgroundPack?.assets.find((asset) => asset.role === "WECHAT_SHARE");
-  const origin = process.env.PUBLIC_APP_URL?.replace(/\/$/u, "");
+  const requestHeaders = await headers();
+  const configuredOrigin = process.env.PUBLIC_APP_URL?.replace(/\/$/u, "");
+  const host = requestHeaders.get("host");
+  const proto = requestHeaders.get("x-forwarded-proto") ?? "https";
+  const origin = configuredOrigin || (host ? `${proto}://${host}` : "");
   const relativeImage = uploadedShareCover ? `/api/book/${slug}/background/${uploadedShareCover.id}?v=${book.updatedAt.getTime()}` : `/book/${slug}/opengraph-image?v=${book.updatedAt.getTime()}`;
   const imageUrl = origin ? `${origin}${relativeImage}` : relativeImage;
   return {
@@ -20,6 +25,12 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   };
 }
 export default async function BookPage({ params }: { params: Promise<{ slug: string }> }) {
-  const { slug } = await params; const book = await db.publishedFlipbook.findUnique({ where: { slug } }); if (!book) notFound();
-  return <Flipbook title={book.title} description={book.description} pages={book.content as Array<Record<string, unknown>>} />;
+  const { slug } = await params;
+  const book = await db.publishedFlipbook.findUnique({ where: { slug }, include: { project: { include: { backgroundPack: { include: { assets: true } } } } } });
+  if (!book) notFound();
+  const coverAsset = book.project.backgroundPack?.assets.find((asset) => asset.role === "COVER");
+  const shareCoverAsset = book.project.backgroundPack?.assets.find((asset) => asset.role === "WECHAT_SHARE");
+  const coverSrc = coverAsset ? `/api/book/${slug}/background/${coverAsset.id}` : undefined;
+  const shareCoverSrc = shareCoverAsset ? `/api/book/${slug}/background/${shareCoverAsset.id}` : undefined;
+  return <Flipbook title={book.title} description={book.description} pages={book.content as Array<Record<string, unknown>>} coverSrc={coverSrc} shareCoverSrc={shareCoverSrc} />;
 }
