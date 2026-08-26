@@ -198,7 +198,7 @@ async function complete(job: ProcessingJob) {
           result: { stage: "waiting-company-network", percent: 80, message: "等待电脑连接公司网络后继续" } as Prisma.InputJsonValue,
         },
       });
-      await new Promise((resolve) => setTimeout(resolve, 15_000));
+      await new Promise((resolve) => setTimeout(resolve, 60_000));
       return;
     }
     await db.processingJob.updateMany({ where: { id: job.id, status: "RUNNING" }, data: { status: "FAILED", error: error instanceof Error ? error.stack?.slice(0, 8000) ?? error.message : "未知错误", finishedAt: new Date() } });
