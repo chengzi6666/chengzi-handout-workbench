@@ -49,15 +49,17 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
   const layout = project.layoutConfig as { teacherImage?: TeacherPosition; teacherImages?: Record<string, TeacherPosition>; fontSize?: number; fontFamily?: "Microsoft YaHei" | "SimSun" | "KaiTi" | "FangSong"; pageTypography?: Record<string, { bodySize?: number; titleSize?: number }>; headerText?: string; headerSize?: number; footerText?: string; footerSize?: number; noteOwnPage?: boolean } | null;
   const gradeKey = ({ "0升1": "0l1", "1升2": "1l2", "2升3": "2l3", "3升4": "3l4", "4升5": "4l5" } as Record<string, string>)[project.grade] ?? "1l2";
   const defaultTeacher = async (kind: "expression" | "portrait") => ({ data: await readFile(join(process.cwd(), "public", "teacher-defaults", `${gradeKey}-${kind}.png`)), type: "png" as const });
-  const expressionAsset = project.teacher?.assets.find((asset) => asset.id === layout?.teacherImage?.assetId) ?? project.teacher?.assets.find((asset) => asset.kind === "EXPRESSION");
+  const expressionAssets = project.teacher?.assets.filter((asset) => asset.kind === "EXPRESSION") ?? [];
+  const expressionAsset = project.teacher?.assets.find((asset) => asset.id === layout?.teacherImage?.assetId) ?? expressionAssets[0];
   const portraitAsset = project.teacher?.assets.find((asset) => asset.kind === "PORTRAIT");
   const teacherImage = expressionAsset ? { data: Buffer.from(await objectStore().get(expressionAsset.objectKey)), type: typeOf(expressionAsset.objectKey) } : await defaultTeacher("expression");
   const teacherPortrait = portraitAsset ? { data: Buffer.from(await objectStore().get(portraitAsset.objectKey)), type: typeOf(portraitAsset.objectKey) } : await defaultTeacher("portrait");
   const teacherArtwork: NonNullable<Parameters<typeof generateHandoutDocx>[0]["teacherArtwork"]> = {};
   const expressionCache = new Map<string, typeof teacherImage>();
   for (const { content } of lessons) {
-    const position = layout?.teacherImages?.[String(content.lessonNumber)] ?? layout?.teacherImage ?? { x: 67, y: 57, width: 25, height: 30 };
-    const asset = project.teacher?.assets.find((item) => item.id === position.assetId) ?? expressionAsset;
+    const lessonTeacher = layout?.teacherImages?.[String(content.lessonNumber)];
+    const position = lessonTeacher ?? layout?.teacherImage ?? { x: 67, y: 57, width: 25, height: 30 };
+    const asset = expressionAssets.find((item) => item.id === lessonTeacher?.assetId) ?? expressionAssets[(content.lessonNumber - 1) % Math.max(1, expressionAssets.length)] ?? expressionAsset;
     let image = teacherImage;
     if (asset) {
       const cached = expressionCache.get(asset.id);

@@ -51,6 +51,7 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
   type TeacherPosition = { assetId?: string; x?: number; y?: number; width?: number; height?: number };
   const layout = project.layoutConfig as { teacherImage?: TeacherPosition; teacherImages?: Record<string, TeacherPosition> } | null;
   const defaultTeacherKey = ({ "0升1": "0l1", "1升2": "1l2", "2升3": "2l3", "3升4": "3l4", "4升5": "4l5" } as Record<string, string>)[project.grade] ?? "1l2";
+  const expressionAssets = project.teacher?.assets.filter((asset) => asset.kind === "EXPRESSION") ?? [];
   const parentSpecs = parentPageSpec(project.grade, lessons, teacherName, project.teacher?.introduction ?? undefined);
   const portraitAsset = project.teacher?.assets.find((asset) => asset.kind === "PORTRAIT");
   const teacherPortraitSrc = portraitAsset ? `/api/book/${slug}/teacher/${portraitAsset.id}` : `/teacher-defaults/${defaultTeacherKey}-portrait.png`;
@@ -61,8 +62,9 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
   ];
   const student = lessons.flatMap((lesson) => {
     const specs = lessonPageSpec(lesson, project.teacher?.nickname ?? "主讲");
-    const teacherPosition = layout?.teacherImages?.[String(lesson.lessonNumber)] ?? layout?.teacherImage ?? { x: 67, y: 57, width: 25, height: 30 };
-    const selectedExpression = project.teacher?.assets.find((asset) => asset.id === teacherPosition.assetId) ?? project.teacher?.assets.find((asset) => asset.kind === "EXPRESSION");
+    const lessonTeacher = layout?.teacherImages?.[String(lesson.lessonNumber)];
+    const teacherPosition = lessonTeacher ?? layout?.teacherImage ?? { x: 67, y: 57, width: 25, height: 30 };
+    const selectedExpression = expressionAssets.find((asset) => asset.id === lessonTeacher?.assetId) ?? expressionAssets[(lesson.lessonNumber - 1) % Math.max(1, expressionAssets.length)];
     const teacherExpressionSrc = selectedExpression ? `/api/book/${slug}/teacher/${selectedExpression.id}` : `/teacher-defaults/${defaultTeacherKey}-expression.png`;
     return [
     { collection: "student", kind: "home", title: `第${lesson.lessonNumber}讲 ${lesson.title}`, sharedPage: specs[0], ...pageType(project.layoutConfig, `student-${lesson.lessonNumber}-0`, defaultLessonBodySize(0, lesson)), richHtml: richPage(project.layoutConfig, "student", lesson.lessonNumber, 0), backgroundSrc: background("LESSON_HOME") },

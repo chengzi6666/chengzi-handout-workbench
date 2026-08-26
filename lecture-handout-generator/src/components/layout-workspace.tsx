@@ -150,10 +150,10 @@ export function LayoutWorkspace({
     (project.layoutConfig as { teacherImages?: Record<string, Position> } | null)?.teacherImages ?? {},
   );
   const teacherImageKey = String(lessons[lessonIndex]?.lessonNumber ?? 1);
-  const position = safeTeacherPosition(teacherImages[teacherImageKey] ?? initial);
+  const position = safeTeacherPosition(teacherImages[teacherImageKey] ?? { ...initial, assetId: undefined });
   function setPosition(update: Position | ((value: Position) => Position)) {
     setTeacherImages((values) => {
-      const current = safeTeacherPosition(values[teacherImageKey] ?? initial);
+      const current = safeTeacherPosition(values[teacherImageKey] ?? { ...initial, assetId: undefined });
       return { ...values, [teacherImageKey]: typeof update === "function" ? update(current) : update };
     });
   }
@@ -191,8 +191,8 @@ export function LayoutWorkspace({
   const activeAsset = useMemo(
     () =>
       expressions.find((asset) => asset.id === position.assetId) ??
-      expressions[0],
-    [expressions, position.assetId],
+      expressions[Math.max(0, (lessons[lessonIndex]?.lessonNumber ?? 1) - 1) % Math.max(1, expressions.length)],
+    [expressions, position.assetId, lessons, lessonIndex],
   );
   const currentRole = previewKind === "parent" ? "PARENT_MANUAL" : pageRoles[pageIndex];
   // Older generated projects may still contain model-produced ----- blanks.
