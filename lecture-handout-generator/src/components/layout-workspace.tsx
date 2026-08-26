@@ -376,19 +376,19 @@ export function LayoutWorkspace({
         <section className="layout-center">
           <div className="layout-toolbar" id="format">
             <div className="preview-kind-tabs" aria-label="预览文档类型">
-              <button type="button" className={previewKind === "student" ? "active" : ""} onClick={() => setPreviewKind("student")}>学生版讲义</button>
-              <button type="button" className={previewKind === "answers" ? "active" : ""} onClick={() => setPreviewKind("answers")}>参考答案</button>
-              <button type="button" className={previewKind === "parent" ? "active" : ""} onClick={() => setPreviewKind("parent")}>家长使用手册</button>
+              <button type="button" className={previewKind === "student" ? "active" : ""} onClick={() => { void save(); setPreviewKind("student"); }}>学生版讲义</button>
+              <button type="button" className={previewKind === "answers" ? "active" : ""} onClick={() => { void save(); setPreviewKind("answers"); }}>参考答案</button>
+              <button type="button" className={previewKind === "parent" ? "active" : ""} onClick={() => { void save(); setPreviewKind("parent"); }}>家长使用手册</button>
             </div>
             {previewKind !== "parent" && <div className="lesson-tabs" aria-label="讲次选择">
-              {lessons.map((lesson, index) => <button type="button" className={lessonIndex === index ? "active" : ""} onClick={() => setLessonIndex(index)} key={lesson.lessonNumber}>第{lesson.lessonNumber}讲</button>)}
+              {lessons.map((lesson, index) => <button type="button" className={lessonIndex === index ? "active" : ""} onClick={() => { void save(); setLessonIndex(index); }} key={lesson.lessonNumber}>第{lesson.lessonNumber}讲</button>)}
             </div>}
             {previewKind === "student" && <div className="page-tabs" aria-label="讲义预览页面">
               {pageLabels.map((label, index) => (
                 <button
                   type="button"
                   className={pageIndex === index ? "active" : ""}
-                  onClick={() => setPageIndex(index)}
+                  onClick={() => { void save(); setPageIndex(index); }}
                   key={label}
                 >
                   {index + 1}. {label}
@@ -396,7 +396,7 @@ export function LayoutWorkspace({
               ))}
             </div>}
             {previewKind === "parent" && <div className="page-tabs" aria-label="家长手册预览页面">
-              {["老师介绍", "能力提升与五讲安排", "阶段与配合"].map((label, index) => <button type="button" className={parentPage === index ? "active" : ""} onClick={() => setParentPage(index)} key={label}>{index + 1}. {label}</button>)}
+              {["老师介绍", "能力提升与五讲安排", "阶段与配合"].map((label, index) => <button type="button" className={parentPage === index ? "active" : ""} onClick={() => { void save(); setParentPage(index); }} key={label}>{index + 1}. {label}</button>)}
             </div>}
             <label>
               正文字体
