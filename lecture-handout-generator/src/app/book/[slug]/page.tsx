@@ -10,7 +10,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   if (!book) return { title: "电子讲义" };
   const uploadedShareCover = book.project.backgroundPack?.assets.find((asset) => asset.role === "WECHAT_SHARE");
   const origin = process.env.PUBLIC_APP_URL?.replace(/\/$/u, "");
-  const relativeImage = uploadedShareCover ? `/api/book/${slug}/background/${uploadedShareCover.id}` : `/book/${slug}/opengraph-image`;
+  const relativeImage = uploadedShareCover ? `/api/book/${slug}/background/${uploadedShareCover.id}?v=${book.updatedAt.getTime()}` : `/book/${slug}/opengraph-image?v=${book.updatedAt.getTime()}`;
   const imageUrl = origin ? `${origin}${relativeImage}` : relativeImage;
   return {
     title: book.title,
