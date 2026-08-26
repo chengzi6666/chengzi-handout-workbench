@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { LessonContent } from "./content-schema";
-import { answerPageSpec, lessonPageSpec, pageSpecText, parentPageSpec } from "./page-spec";
+import { answerPageSpec, isCurrentParentRichPage, lessonPageSpec, pageSpecText, parentPageSpec } from "./page-spec";
 
 const lesson: LessonContent = {
   lessonNumber: 1, title: "《没头脑和不高兴》", subtitle: "人事理法讲故事", technique: "人事理法讲故事", courseAlignment: "教材第一单元",
@@ -17,6 +17,11 @@ test("shared page specification contains every preview section without shortened
   assert.equal(student.length, 5);
   const text = student.flatMap(pageSpecText).join("\n");
   for (const expected of ["家长使用提示", "阅读原文。", "精读问题", "方法小结", "先人物，再事情，最后道理。", "故事里有______。"]) assert.match(text, new RegExp(expected.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
-  assert.equal(parentPageSpec("1升2", [lesson], "高远").length, 3);
+  const parent = parentPageSpec("1升2", [lesson], "高远");
+  assert.equal(parent.length, 3);
+  assert.match(pageSpecText(parent[0]).join("\n"), /家长使用手册[\s\S]*五讲课程带来的能力提升/u);
+  assert.doesNotMatch(pageSpecText(parent[1]).join("\n"), /五讲课程带来的能力提升/u);
+  assert.equal(isCurrentParentRichPage("家长使用手册 五讲课程带来的能力提升", 0), true);
+  assert.equal(isCurrentParentRichPage("五讲课程带来的能力提升 五讲学习安排", 1), false);
   assert.match(pageSpecText(answerPageSpec(lesson)).join("\n"), /参考答案：练习答案/);
 });

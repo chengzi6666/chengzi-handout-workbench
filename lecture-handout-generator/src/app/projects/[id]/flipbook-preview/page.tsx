@@ -6,14 +6,14 @@ import { db } from "@/lib/db";
 import { lessonContentSchema } from "@/lib/handout/content-schema";
 import { createPinyinReview, validatePinyinReview } from "@/lib/handout/pinyin";
 import { defaultBackgroundPath } from "@/lib/handout/backgrounds";
-import { answerPageSpec, defaultLessonBodySize, lessonPageSpec, parentPageSpec } from "@/lib/handout/page-spec";
+import { answerPageSpec, defaultLessonBodySize, isCurrentParentRichPage, lessonPageSpec, parentPageSpec } from "@/lib/handout/page-spec";
 
 export const dynamic = "force-dynamic";
 
 function richPage(layoutConfig: unknown, collection: "student" | "answers" | "parent", lessonNumber: number, pageIndex: number) {
   const config = layoutConfig as { richPreviewHtml?: Record<string, string> } | null;
   const value = config?.richPreviewHtml?.[`${collection}-${lessonNumber}-${pageIndex}`];
-  return value && !/(?:请结合本讲|补充方法小结)/u.test(value) ? value : undefined;
+  return value && !/(?:请结合本讲|补充方法小结)/u.test(value) && (collection !== "parent" || isCurrentParentRichPage(value, pageIndex)) ? value : undefined;
 }
 
 function pageChrome(layoutConfig: unknown) {

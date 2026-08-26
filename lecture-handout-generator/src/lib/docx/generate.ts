@@ -1,6 +1,6 @@
 import {
   AlignmentType, BorderStyle, Document, Footer, Header, HorizontalPositionRelativeFrom, ImageRun, Paragraph, Packer,
-  SectionType, ShadingType, Table, TableCell, TableRow, TextRun, UnderlineType, VerticalAlign, VerticalPositionRelativeFrom, WidthType, type ISectionOptions
+  SectionType, ShadingType, Table, TableCell, TableLayoutType, TableRow, TextRun, UnderlineType, VerticalAlign, VerticalPositionRelativeFrom, WidthType, type ISectionOptions
 } from "docx";
 import JSZip from "jszip";
 import type { LessonContent } from "@/lib/handout/content-schema";
@@ -10,6 +10,10 @@ import { formatStudentBlank, studentOralFramework } from "@/lib/handout/student-
 const FONT = "Microsoft YaHei";
 const orange = "F07A42";
 const gray = "6E655F";
+const A4_WIDTH_DXA = 11906;
+const A4_HEIGHT_DXA = 16838;
+const PAGE_MARGIN_DXA = 850;
+const CONTENT_WIDTH_DXA = A4_WIDTH_DXA - PAGE_MARGIN_DXA * 2;
 
 export type HandoutDocumentInput = {
   projectName: string;
@@ -119,7 +123,7 @@ function backgroundHeader(image?: ImageAsset, text?: string, size = 8) {
 
 function section(children: Array<Paragraph | Table>, background?: ImageAsset, input?: HandoutDocumentInput): ISectionOptions {
   return {
-    properties: { type: SectionType.NEXT_PAGE, page: { margin: { top: 850, right: 850, bottom: 760, left: 850, header: 0, footer: 360 } } },
+    properties: { type: SectionType.NEXT_PAGE, page: { size: { width: A4_WIDTH_DXA, height: A4_HEIGHT_DXA }, margin: { top: 850, right: PAGE_MARGIN_DXA, bottom: 760, left: PAGE_MARGIN_DXA, header: 0, footer: 360 } } },
     headers: background || input?.headerText ? { default: backgroundHeader(background, input?.headerText, input?.headerSize) } : undefined,
     footers: { default: footer(input?.footerText, input?.footerSize) },
     children
@@ -139,9 +143,10 @@ function parentTeacherTable(input: HandoutDocumentInput) {
   const introduction = input.teacherIntroduction?.trim() || teacherIntroduction(input.teacherFormalName);
   const border = { style: BorderStyle.SINGLE, size: 4, color: "EFCDB8" };
   const cellStyle = { margins: { top: 160, bottom: 160, left: 180, right: 180 }, verticalAlign: VerticalAlign.CENTER, shading: { type: ShadingType.CLEAR, color: "FFF8F2", fill: "FFF8F2" }, borders: { top: border, bottom: border, left: border, right: border } } as const;
-  return new Table({ width: { size: 7600, type: WidthType.DXA }, columnWidths: [2580, 5020], rows: [new TableRow({ children: [
-    new TableCell({ ...cellStyle, width: { size: 2580, type: WidthType.DXA }, children: image }),
-    new TableCell({ ...cellStyle, width: { size: 5020, type: WidthType.DXA }, children: [
+  const columnWidths = [3400, CONTENT_WIDTH_DXA - 3400];
+  return new Table({ width: { size: CONTENT_WIDTH_DXA, type: WidthType.DXA }, layout: TableLayoutType.FIXED, columnWidths, rows: [new TableRow({ children: [
+    new TableCell({ ...cellStyle, width: { size: columnWidths[0], type: WidthType.DXA }, children: image }),
+    new TableCell({ ...cellStyle, width: { size: columnWidths[1], type: WidthType.DXA }, children: [
       new Paragraph({ spacing: { after: 100 }, children: [run(`${input.teacherFormalName ?? "主讲"}老师｜主讲老师`, { bold: true, size: 24, color: orange })] }),
       new Paragraph({ alignment: AlignmentType.LEFT, spacing: { after: 20, line: 330 }, children: [run(introduction.replace(/^.*?老师[｜|].*?\n/u, ""), { size: 21, color: "4D423A" })] })
     ] })
@@ -170,8 +175,8 @@ function calloutTable(lines: string[], fill = "FFF8F2", firstBold = true) {
     children: [run(line, { bold: firstBold && index === 0, size: firstBold && index === 0 ? 24 : 21, color: firstBold && index === 0 ? orange : "493D36" })]
   }));
   const border = { style: BorderStyle.SINGLE, size: 4, color: "EFCDB8" };
-  return new Table({ width: { size: 7600, type: WidthType.DXA }, rows: [new TableRow({ children: [new TableCell({
-    width: { size: 7600, type: WidthType.DXA }, margins: { top: 150, bottom: 150, left: 180, right: 180 }, borders: { top: border, bottom: border, left: border, right: border }, shading: { type: ShadingType.CLEAR, color: "F5E1D5", fill }, children: paragraphs
+  return new Table({ width: { size: CONTENT_WIDTH_DXA, type: WidthType.DXA }, layout: TableLayoutType.FIXED, columnWidths: [CONTENT_WIDTH_DXA], rows: [new TableRow({ children: [new TableCell({
+    width: { size: CONTENT_WIDTH_DXA, type: WidthType.DXA }, margins: { top: 150, bottom: 150, left: 180, right: 180 }, borders: { top: border, bottom: border, left: border, right: border }, shading: { type: ShadingType.CLEAR, color: "F5E1D5", fill }, children: paragraphs
   })] })] });
 }
 
@@ -198,7 +203,7 @@ function parentCooperationTable() {
 }
 
 function noteTable() {
-  return new Table({ width: { size: 7600, type: WidthType.DXA }, rows: [new TableRow({ children: [new TableCell({ width: { size: 7600, type: WidthType.DXA }, shading: { type: ShadingType.CLEAR, color: "F2E5D9", fill: "FFFCF8" }, children: [
+  return new Table({ width: { size: CONTENT_WIDTH_DXA, type: WidthType.DXA }, layout: TableLayoutType.FIXED, columnWidths: [CONTENT_WIDTH_DXA], rows: [new TableRow({ children: [new TableCell({ width: { size: CONTENT_WIDTH_DXA, type: WidthType.DXA }, shading: { type: ShadingType.CLEAR, color: "F2E5D9", fill: "FFFCF8" }, children: [
     new Paragraph({ children: [run("📖 笔记", { bold: true, size: 23, color: orange })] }),
     // 一个可持续输入的笔记框。不要用多个空表格/段落模拟行数，否则回车会被误解为新增笔记框。
     new Paragraph({ spacing: { before: 80, after: 2200 }, children: [run("")] })
@@ -246,14 +251,16 @@ function lessonSections(lesson: LessonContent, input: HandoutDocumentInput) {
 function parentSections(input: HandoutDocumentInput) {
   const gradeName = input.grade.replace("升", "年级升").replace(/^0年级升1$/, "一年级").replace(/^(\d)年级升(\d)$/, "$2年级");
   const capability = input.lessons.map((lesson) => `第${lesson.lessonNumber}讲《${lesson.title}》：${lesson.subtitle || lesson.technique}`).join("；");
-  const overview = section([
+  const overviewChildren: Array<Paragraph | Table> = [
     new Paragraph({ alignment: AlignmentType.LEFT, spacing: { before: 80, after: 60 }, children: [run("家长使用手册", { bold: true, size: 40, color: orange })] }),
     new Paragraph({ alignment: AlignmentType.LEFT, spacing: { after: 150 }, children: [run("—— 真读书 · 有深度 · 用得上 ——", { size: 22, color: gray })] }),
     parentTeacherTable(input),
     heading("🤝 双师陪伴｜主讲老师＋班主任老师"),
     doubleTeacherTable(input),
-  ], pickBackground(input, "PARENT_MANUAL"), input);
-  const scheduleWidths = [850, 1900, 1500, 3350];
+    ...title("📚 五讲课程带来的能力提升"),
+    body("五讲合起来，孩子练习的是：读懂故事 → 找到证据 → 学会方法 → 说清楚 → 写完整。"),
+  ];
+  const scheduleWidths = [900, 1900, 1850, CONTENT_WIDTH_DXA - 4650];
   const scheduleCell = (value: string, index: number, header = false) => new TableCell({
     width: { size: scheduleWidths[index], type: WidthType.DXA },
     margins: { top: header ? 130 : 150, bottom: header ? 130 : 150, left: 120, right: 120 },
@@ -265,18 +272,20 @@ function parentSections(input: HandoutDocumentInput) {
     }))
   });
   const scheduleRows = [
-    new TableRow({ children: ["讲次", "讲次名称", "讲次技法", "具体学习内容"].map((value, index) => scheduleCell(value, index, true)) }),
+    new TableRow({ tableHeader: true, children: ["讲次", "讲次名称", "讲次技法", "具体学习内容"].map((value, index) => scheduleCell(value, index, true)) }),
     ...input.lessons.map((lesson) => new TableRow({ children: [
       `第${lesson.lessonNumber}讲`, lessonBookTitle(lesson.title), lesson.technique,
       lesson.learningGoals.map((goal, index) => `${index + 1}. ${printableLearningGoal(goal)}`).join("\n")
     ].map((value, index) => scheduleCell(value, index)) }))
   ];
-  const ability = section([
-    ...title("📚 五讲课程带来的能力提升"),
-    body("五讲合起来，孩子练习的是：读懂故事 → 找到证据 → 学会方法 → 说清楚 → 写完整。"),
+  const scheduleTable = new Table({ width: { size: CONTENT_WIDTH_DXA, type: WidthType.DXA }, layout: TableLayoutType.FIXED, columnWidths: scheduleWidths, rows: scheduleRows });
+  const scheduleIsLong = input.lessons.length >= 4 || input.lessons.reduce((sum, lesson) => sum + lesson.learningGoals.join("").length, 0) > 360;
+  if (!scheduleIsLong) overviewChildren.push(heading("五讲学习安排"), scheduleTable);
+  const overview = section(overviewChildren, pickBackground(input, "PARENT_MANUAL"), input);
+  const ability = scheduleIsLong ? section([
     heading("五讲学习安排"),
-    new Table({ width: { size: 7600, type: WidthType.DXA }, columnWidths: scheduleWidths, rows: scheduleRows })
-  ], pickBackground(input, "PARENT_MANUAL"), input);
+    scheduleTable
+  ], pickBackground(input, "PARENT_MANUAL"), input) : null;
   const stage = section([
     heading(`🎯 ${input.grade}阶段，最需要关注什么？`),
     heading("☁️ 基础：从“会认字”走向“会用字词”"), body(`结合${input.teachingYear}年课程学习节奏，在故事语境中认识并积累字词；不只会读，还能联系人物、动作和情节理解词义，并把常用表达用到口头和书面表达中。`),
@@ -284,7 +293,7 @@ function parentSections(input: HandoutDocumentInput) {
     heading("✍️ 表达：从“说一句话”走向“完整表达”"), body("借助课堂方法，把人物、事情、动作、语言、心情和结果说完整、写清楚；每周完成一次口头表达或简短书面练习，形成可迁移的表达框架。"),
     heading("💡 家长怎么配合？"), parentCooperationTable()
   ], pickBackground(input, "PARENT_MANUAL"), input);
-  return [overview, ability, stage];
+  return [overview, ...(ability ? [ability] : []), stage];
 }
 
 function coverSections(input: HandoutDocumentInput) {

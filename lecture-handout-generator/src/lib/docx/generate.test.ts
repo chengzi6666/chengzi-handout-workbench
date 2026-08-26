@@ -77,7 +77,8 @@ test("refreshing a partial legacy lesson never crashes student normalization", (
 });
 
 test("parent manual follows the family guidance structure", async () => {
-  const output = await generateHandoutDocx({ projectName: "测试", grade: "1升2", teachingYear: 2026, teacherFormalName: "高远", lessons: [lesson], mode: "parent" });
+  const lessons = Array.from({ length: 5 }, (_, index) => ({ ...lesson, lessonNumber: index + 1, title: `第${index + 1}讲测试课程` }));
+  const output = await generateHandoutDocx({ projectName: "测试", grade: "1升2", teachingYear: 2026, teacherFormalName: "高远", lessons, mode: "parent" });
   const zip = await JSZip.loadAsync(output); const xml = await zip.file("word/document.xml")!.async("string");
   assert.match(xml, /家长使用手册/);
   assert.match(xml, /双师陪伴/);
@@ -85,6 +86,13 @@ test("parent manual follows the family guidance structure", async () => {
   assert.match(xml, /家长怎么配合/);
   assert.match(xml, /高远老师/);
   assert.match(xml, /讲次名称/);
+  assert.match(xml, /w:pgSz w:w="11906" w:h="16838"/u);
+  assert.doesNotMatch(xml, /w:tblW w:type="dxa" w:w="7600"/u);
+  const tableWidths = [...xml.matchAll(/w:tblW w:type="dxa" w:w="(\d+)"/gu)].map((match) => Number(match[1]));
+  assert.ok(tableWidths.length >= 4);
+  assert.ok(tableWidths.every((width) => width === 10206));
+  assert.ok(xml.indexOf("五讲课程带来的能力提升") < xml.indexOf("五讲学习安排"));
+  assert.match(xml, /w:tblHeader/u);
   assert.ok((xml.match(/w:type w:val="nextPage"/g) ?? []).length >= 3);
 });
 
