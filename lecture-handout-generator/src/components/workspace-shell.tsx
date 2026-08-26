@@ -738,7 +738,7 @@ export function WorkspaceShell({ initialProjects, user }: WorkspaceShellProps) {
                     <div key={file.id}>
                       <FileText size={14} />
                       <span>{file.originalName}</span>
-                      <small>{(file.size / 1024 / 1024).toFixed(1)} MB</small>
+                      <small>{file.size < 1024 * 1024 ? `${Math.max(0, Math.round(file.size / 1024))} KB` : `${(file.size / 1024 / 1024).toFixed(1)} MB`}</small>
                       <CheckCircle2 className="source-file-ready" size={14} />
                       <button
                         type="button"
