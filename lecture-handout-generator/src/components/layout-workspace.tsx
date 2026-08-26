@@ -65,6 +65,20 @@ const WPS_SIZES = [
 type PageTypography = Record<string, { bodySize?: number; titleSize?: number }>;
 type BackgroundCrop = Record<string, { x: number; y: number }>;
 
+function safeTeacherPosition(value?: Position): Position {
+  const source = value ?? { x: 67, y: 57, width: 25, height: 30 };
+  const width = Math.max(10, Math.min(55, source.width));
+  const height = Math.max(12, Math.min(66, source.height));
+  // 真题页顶部属于标题安全区，卡通人物不能再被拖到标题上方或压住标题。
+  return {
+    ...source,
+    width,
+    height,
+    x: Math.max(0, Math.min(100 - width, source.x)),
+    y: Math.max(28, Math.min(100 - height, source.y)),
+  };
+}
+
 function bookTitle(value: string) {
   return value.match(/《[^》]+》/u)?.[0] ?? value.replace(/^第\s*\d+\s*讲[：:、\s]*/u, "").trim();
 }
@@ -126,8 +140,9 @@ export function LayoutWorkspace({
   teachers: Teacher[];
   lessons: LessonPreview[];
 }) {
-  const initial = (project.layoutConfig as { teacherImage?: Position } | null)
-    ?.teacherImage ?? { x: 67, y: 57, width: 25, height: 30 };
+  const initial = safeTeacherPosition(
+    (project.layoutConfig as { teacherImage?: Position } | null)?.teacherImage,
+  );
   const [position, setPosition] = useState<Position>(initial);
   const [fontSize, setFontSize] = useState((project.layoutConfig as { fontSize?: number } | null)?.fontSize ?? 11);
   const [pageTypography, setPageTypography] = useState((project.layoutConfig as { pageTypography?: PageTypography } | null)?.pageTypography ?? {});
@@ -252,7 +267,7 @@ export function LayoutWorkspace({
         ),
       ),
       y: Math.max(
-        0,
+        28,
         Math.min(
           100 - value.height,
           ((event.clientY - rect.top) / rect.height) * 100 - value.height / 2,
