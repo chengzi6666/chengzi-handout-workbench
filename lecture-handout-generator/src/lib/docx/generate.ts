@@ -255,6 +255,8 @@ function lessonSections(lesson: LessonContent, input: HandoutDocumentInput) {
 }
 
 function parentSections(input: HandoutDocumentInput) {
+  const saved = [0, 1, 2].map((page) => savedRichSection(input, `parent-0-${page}`, "PARENT_MANUAL"));
+  if (saved.every(Boolean)) return saved as ISectionOptions[];
   const gradeName = input.grade.replace("升", "年级升").replace(/^0年级升1$/, "一年级").replace(/^(\d)年级升(\d)$/, "$2年级");
   const capability = input.lessons.map((lesson) => `第${lesson.lessonNumber}讲《${lesson.title}》：${lesson.subtitle || lesson.technique}`).join("；");
   const overview = section([
