@@ -23,7 +23,7 @@ const proxyList = railwayJson(["tcp-proxy", "list", ...common, "-s", databaseSer
 const proxy = proxyList.proxies?.find((item) => item.applicationPort === 5432);
 if (!proxy) throw new Error("Railway Postgres 尚未配置 TCP 代理");
 
-const databaseUrl = `postgresql://${encodeURIComponent(dbVars.PGUSER)}:${encodeURIComponent(dbVars.PGPASSWORD)}@${proxy.domain}:${proxy.proxyPort}/${encodeURIComponent(dbVars.PGDATABASE)}?sslmode=require`;
+const databaseUrl = `postgresql://${encodeURIComponent(dbVars.PGUSER)}:${encodeURIComponent(dbVars.PGPASSWORD)}@${proxy.domain}:${proxy.proxyPort}/${encodeURIComponent(dbVars.PGDATABASE)}`;
 const require = createRequire(import.meta.url);
 const tsxBin = join(dirname(require.resolve("tsx/package.json")), "dist", "cli.mjs");
 const env = {
@@ -32,7 +32,7 @@ const env = {
   APP_ENCRYPTION_KEY: appVars.APP_ENCRYPTION_KEY,
   WORKER_JOB_KINDS: "CONTENT_GENERATE",
   BRIDGE_REQUEUE_NETWORK_ERRORS: "true",
-  OUTBOUND_PROXY_URL: process.env.OUTBOUND_PROXY_URL || "http://127.0.0.1:7890",
+  ...(process.env.OUTBOUND_PROXY_URL ? { OUTBOUND_PROXY_URL: process.env.OUTBOUND_PROXY_URL } : {}),
 };
 
 console.log("橙子讲义公司模型桥已启动：Railway 负责保存与分享，本机负责调用公司 GPT-5.4。");

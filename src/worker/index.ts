@@ -188,7 +188,7 @@ async function complete(job: ProcessingJob) {
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : "未知错误";
-    if (process.env.BRIDGE_REQUEUE_NETWORK_ERRORS === "true" && /连接|网关|fetch|timeout|超时|ENOTFOUND|ECONN/u.test(message)) {
+    if (process.env.BRIDGE_REQUEUE_NETWORK_ERRORS === "true" && /连接|网关|fetch|timeout|超时|ENOTFOUND|ECONN|returned 50[234]/u.test(message)) {
       await db.processingJob.updateMany({
         where: { id: job.id, status: "RUNNING" },
         data: {
@@ -208,11 +208,17 @@ async function complete(job: ProcessingJob) {
 
 async function main() {
   console.log("handout worker started");
-  await recoverInterruptedJobs();
+  try { await recoverInterruptedJobs(); }
+  catch (error) { console.warn("worker startup database unavailable; will retry", error instanceof Error ? error.message : error); }
   while (!stopping) {
-    const job = await claimJob();
-    if (job) await complete(job);
-    else await new Promise((resolve) => setTimeout(resolve, 1500));
+    try {
+      const job = await claimJob();
+      if (job) await complete(job);
+      else await new Promise((resolve) => setTimeout(resolve, 1500));
+    } catch (error) {
+      console.warn("worker database connection unavailable; retrying in 10 seconds", error instanceof Error ? error.message : error);
+      await new Promise((resolve) => setTimeout(resolve, 10_000));
+    }
   }
   await db.$disconnect();
 }
