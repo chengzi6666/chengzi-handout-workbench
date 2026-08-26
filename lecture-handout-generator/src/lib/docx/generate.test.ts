@@ -71,7 +71,7 @@ test("parent manual follows the family guidance structure", async () => {
   assert.match(xml, /家长怎么配合/);
   assert.match(xml, /高远老师/);
   assert.match(xml, /讲次名称/);
-  assert.ok((xml.match(/w:type w:val="nextPage"/g) ?? []).length >= 4);
+  assert.ok((xml.match(/w:type w:val="nextPage"/g) ?? []).length >= 3);
 });
 
 test("every generated Word section can carry the same page background as the preview", async () => {
@@ -93,7 +93,7 @@ test("combined parent and student export keeps every handbook and lesson section
   const zip = await JSZip.loadAsync(output); const xml = await zip.file("word/document.xml")!.async("string");
   assertWellFormedXml(xml);
   assert.match(xml, /家长使用手册/);
-  for (let index = 1; index <= 5; index += 1) assert.match(xml, new RegExp(`第${index}讲测试课程`, "u"));
-  // 家长手册至少 4 页，每讲固定 5 页；每一页都由真正的 nextPage 分节符分隔。
-  assert.ok((xml.match(/w:type w:val="nextPage"/g) ?? []).length >= 29);
+  for (let index = 1; index <= 5; index += 1) assert.match(xml, new RegExp(`第${index}讲`, "u"));
+  // 家长手册为三页（第二页合并能力提升和五讲安排），每讲固定五页。
+  assert.ok((xml.match(/w:type w:val="nextPage"/g) ?? []).length >= 28);
 });

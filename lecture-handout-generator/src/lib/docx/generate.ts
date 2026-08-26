@@ -242,11 +242,6 @@ function parentSections(input: HandoutDocumentInput) {
     heading("🤝 双师陪伴｜主讲老师＋班主任老师"),
     doubleTeacherTable(input),
   ], pickBackground(input, "PARENT_MANUAL"), input);
-  const ability = section([
-    ...title("📚 五讲课程带来的能力提升"),
-    body(capability),
-    heading("五讲合起来，孩子练习的是："), body("读懂故事 → 找到证据 → 学会方法 → 说清楚 → 写完整。")
-  ], pickBackground(input, "PARENT_MANUAL"), input);
   const scheduleWidths = [850, 1900, 1500, 3350];
   const scheduleCell = (value: string, index: number, header = false) => new TableCell({
     width: { size: scheduleWidths[index], type: WidthType.DXA },
@@ -265,8 +260,10 @@ function parentSections(input: HandoutDocumentInput) {
       lesson.learningGoals.map((goal, index) => `${index + 1}. ${printableLearningGoal(goal)}`).join("\n")
     ].map((value, index) => scheduleCell(value, index)) }))
   ];
-  const schedule = section([
-    ...title("五讲学习安排", "每讲学什么 · 家长怎么陪"),
+  const ability = section([
+    ...title("📚 五讲课程带来的能力提升"),
+    body("五讲合起来，孩子练习的是：读懂故事 → 找到证据 → 学会方法 → 说清楚 → 写完整。"),
+    heading("五讲学习安排"),
     new Table({ width: { size: 7600, type: WidthType.DXA }, columnWidths: scheduleWidths, rows: scheduleRows })
   ], pickBackground(input, "PARENT_MANUAL"), input);
   const stage = section([
@@ -276,7 +273,7 @@ function parentSections(input: HandoutDocumentInput) {
     heading("✍️ 表达：从“说一句话”走向“完整表达”"), body("借助课堂方法，把人物、事情、动作、语言、心情和结果说完整、写清楚；每周完成一次口头表达或简短书面练习，形成可迁移的表达框架。"),
     heading("💡 家长怎么配合？"), parentCooperationTable()
   ], pickBackground(input, "PARENT_MANUAL"), input);
-  return [overview, ability, schedule, stage];
+  return [overview, ability, stage];
 }
 
 function coverSections(input: HandoutDocumentInput) {
