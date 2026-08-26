@@ -48,9 +48,15 @@ export default async function FlipbookPreviewPage({
   const { id } = await params;
   const project = await db.project.findFirst({
     where: { id, ownerId: user.id },
-    include: { lessons: { orderBy: { lessonNumber: "asc" } }, backgroundPack: { include: { assets: true } }, teacher: true },
+    include: { lessons: { orderBy: { lessonNumber: "asc" } }, backgroundPack: { include: { assets: true } }, teacher: { include: { assets: true } } },
   });
   if (!project) redirect("/");
+
+  const layout = project.layoutConfig as { teacherImage?: { assetId?: string; x?: number; y?: number; width?: number; height?: number } } | null;
+  const defaultTeacherKey = ({ "0升1": "0l1", "1升2": "1l2", "2升3": "2l3", "3升4": "3l4", "4升5": "4l5" } as Record<string, string>)[project.grade] ?? "1l2";
+  const selectedExpression = project.teacher?.assets.find((asset) => asset.id === layout?.teacherImage?.assetId) ?? project.teacher?.assets.find((asset) => asset.kind === "EXPRESSION");
+  const teacherExpressionSrc = selectedExpression ? `/api/assets/teacher/${selectedExpression.id}` : `/teacher-defaults/${defaultTeacherKey}-expression.png`;
+  const teacherPosition = layout?.teacherImage ?? { x: 67, y: 57, width: 25, height: 30 };
 
   const studentPages = project.lessons.flatMap((savedLesson) => {
     const lesson = lessonContentSchema.parse(savedLesson.structuredContent);
@@ -79,7 +85,7 @@ export default async function FlipbookPreviewPage({
         collection: "student", kind: "practice",
         title: "课堂方法与真题带练",
         method: lesson.methodSummary,
-        practice: previewPractice(lesson.practice), sharedPage: specs[3], ...pageType(project.layoutConfig, `student-${savedLesson.lessonNumber}-3`, defaultLessonBodySize(3, lesson)), richHtml: richPage(project.layoutConfig, "student", savedLesson.lessonNumber, 3), backgroundSrc: pageBackground(project, "PRACTICE"),
+        practice: previewPractice(lesson.practice), teacherExpressionSrc, teacherPosition, sharedPage: specs[3], ...pageType(project.layoutConfig, `student-${savedLesson.lessonNumber}-3`, defaultLessonBodySize(3, lesson)), richHtml: richPage(project.layoutConfig, "student", savedLesson.lessonNumber, 3), backgroundSrc: pageBackground(project, "PRACTICE"),
       },
       {
         collection: "student", kind: "teacher",
@@ -93,7 +99,8 @@ export default async function FlipbookPreviewPage({
   const teacherName = project.teacher?.formalName ?? "主讲";
   const parsedLessons = project.lessons.map((item) => lessonContentSchema.parse(item.structuredContent));
   const parentSpecs = parentPageSpec(project.grade, parsedLessons, teacherName, project.teacher?.introduction ?? undefined);
-  const teacherPortraitSrc = `/teacher-defaults/${({ "0升1": "0l1", "1升2": "1l2", "2升3": "2l3", "3升4": "3l4", "4升5": "4l5" }[project.grade] ?? "1l2")}-portrait.png`;
+  const portraitAsset = project.teacher?.assets.find((asset) => asset.kind === "PORTRAIT");
+  const teacherPortraitSrc = portraitAsset ? `/api/assets/teacher/${portraitAsset.id}` : `/teacher-defaults/${defaultTeacherKey}-portrait.png`;
   const parentPages = [
     { collection: "parent", kind: "parent", title: "家长使用手册", teacherPortraitSrc, sharedPage: parentSpecs[0], ...pageType(project.layoutConfig, "parent-0-0"), richHtml: richPage(project.layoutConfig, "parent", 0, 0), backgroundSrc: parentBackground },
     { collection: "parent", kind: "parent", title: "五讲课程带来的能力提升", sharedPage: parentSpecs[1], ...pageType(project.layoutConfig, "parent-0-1"), richHtml: richPage(project.layoutConfig, "parent", 0, 1), backgroundSrc: parentBackground },

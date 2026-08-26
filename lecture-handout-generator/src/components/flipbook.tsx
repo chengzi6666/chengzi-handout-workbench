@@ -8,6 +8,11 @@ import { shouldAppendGeneratedPinyin } from "@/lib/handout/flipbook-content";
 function PinyinText({ units }: { units: Array<{ char: string; pinyin: string }> }) {
   return <p className="book-reading pinyin-reading">{units.map((unit, index) => unit.pinyin ? <ruby key={index}>{unit.char}<rt>{unit.pinyin}</rt></ruby> : <span key={index}>{unit.char}</span>)}</p>;
 }
+function TeacherExpression({ page }: { page: Record<string, unknown> }) {
+  if (typeof page.teacherExpressionSrc !== "string") return null;
+  const position = (page.teacherPosition ?? {}) as { x?: number; y?: number; width?: number; height?: number };
+  return <img className="book-floating-teacher" src={page.teacherExpressionSrc} alt="主讲老师课堂表情" style={{ left: `${position.x ?? 67}%`, top: `${position.y ?? 57}%`, width: `${position.width ?? 25}%`, height: `${position.height ?? 30}%` }} />;
+}
 function PageContent({ page, headerText, footerText }: { page?: Record<string, unknown>; headerText?: string; footerText?: string }) {
   if (!page) return <div className="book-empty" />;
   const showAnswers = page.collection === "answers";
@@ -21,6 +26,7 @@ function PageContent({ page, headerText, footerText }: { page?: Record<string, u
         这里绝不能再根据 pinyinUnits 追加一次原文，否则翻页书会重复整段。 */}
     {showAnswers && Array.isArray(page.topics) ? <div className="book-answer-supplement">{(page.topics as Array<{ question: string; referenceAnswer: string }>).map((item, index) => <section key={index}><b>{index + 1}. {item.question}</b><p><b>参考：</b>{item.referenceAnswer}</p></section>)}</div> : null}
     {showAnswers && Array.isArray(page.practice) ? <div className="book-answer-supplement">{(page.practice as Array<{ prompt: string; answer: string }>).map((item, index) => <section key={index}><b>{index + 1}. {item.prompt}</b><p><b>参考作答：</b>{item.answer}</p></section>)}</div> : null}
+    {page.kind === "practice" ? <TeacherExpression page={page} /> : null}
     {page.footerText ?? footerText ? <footer>{String(page.footerText ?? footerText)}</footer> : null}
   </>;
   if (sharedPage) return <>
@@ -36,6 +42,7 @@ function PageContent({ page, headerText, footerText }: { page?: Record<string, u
       })}
       {sharedPage.role === "PRACTICE" && Array.isArray(page.practice) ? <>{(page.practice as Array<{ imageUrl?: string }>).map((item, index) => item.imageUrl ? <img key={index} className="book-question-image" src={item.imageUrl} alt={`第${index + 1}题题图`} /> : null)}</> : null}
     </div>
+    {sharedPage.role === "PRACTICE" ? <TeacherExpression page={page} /> : null}
     {page.footerText ?? footerText ? <footer>{String(page.footerText ?? footerText)}</footer> : null}
   </>;
   return <>

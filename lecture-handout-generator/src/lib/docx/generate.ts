@@ -1,6 +1,6 @@
 import {
-  AlignmentType, Document, Footer, Header, HorizontalPositionRelativeFrom, ImageRun, Paragraph, Packer,
-  SectionType, ShadingType, Table, TableCell, TableRow, TextRun, UnderlineType, VerticalPositionRelativeFrom, WidthType, type ISectionOptions
+  AlignmentType, BorderStyle, Document, Footer, Header, HorizontalPositionRelativeFrom, ImageRun, Paragraph, Packer,
+  SectionType, ShadingType, Table, TableCell, TableRow, TextRun, UnderlineType, VerticalAlign, VerticalPositionRelativeFrom, WidthType, type ISectionOptions
 } from "docx";
 import JSZip from "jszip";
 import type { LessonContent } from "@/lib/handout/content-schema";
@@ -135,11 +135,16 @@ function teacherParagraph(input: HandoutDocumentInput) {
 }
 
 function parentTeacherTable(input: HandoutDocumentInput) {
-  const image = input.teacherPortrait ? [new Paragraph({ alignment: AlignmentType.CENTER, children: [new ImageRun({ ...input.teacherPortrait, transformation: { width: 130, height: 130 } })] })] : [body("主讲老师")];
+  const image = input.teacherPortrait ? [new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 60, after: 60 }, children: [new ImageRun({ ...input.teacherPortrait, transformation: { width: 135, height: 150 } })] })] : [body("主讲老师")];
   const introduction = input.teacherIntroduction?.trim() || teacherIntroduction(input.teacherFormalName);
-  return new Table({ width: { size: 7600, type: WidthType.DXA }, rows: [new TableRow({ children: [
-    new TableCell({ width: { size: 1900, type: WidthType.DXA }, shading: { type: ShadingType.CLEAR, color: "F5F0EA", fill: "FFF8F2" }, children: image }),
-    new TableCell({ width: { size: 5700, type: WidthType.DXA }, shading: { type: ShadingType.CLEAR, color: "F5F0EA", fill: "FFF8F2" }, children: introduction.split("\n").map((line, i) => new Paragraph({ spacing: { after: i ? 0 : 80 }, children: [run(line, { bold: i === 0, size: i === 0 ? 24 : 21, color: i === 0 ? orange : "4D423A" })] })) })
+  const border = { style: BorderStyle.SINGLE, size: 4, color: "EFCDB8" };
+  const cellStyle = { margins: { top: 160, bottom: 160, left: 180, right: 180 }, verticalAlign: VerticalAlign.CENTER, shading: { type: ShadingType.CLEAR, color: "FFF8F2", fill: "FFF8F2" }, borders: { top: border, bottom: border, left: border, right: border } } as const;
+  return new Table({ width: { size: 7600, type: WidthType.DXA }, columnWidths: [2580, 5020], rows: [new TableRow({ children: [
+    new TableCell({ ...cellStyle, width: { size: 2580, type: WidthType.DXA }, children: image }),
+    new TableCell({ ...cellStyle, width: { size: 5020, type: WidthType.DXA }, children: [
+      new Paragraph({ spacing: { after: 100 }, children: [run(`${input.teacherFormalName ?? "主讲"}老师｜主讲老师`, { bold: true, size: 24, color: orange })] }),
+      new Paragraph({ alignment: AlignmentType.LEFT, spacing: { after: 20, line: 330 }, children: [run(introduction.replace(/^.*?老师[｜|].*?\n/u, ""), { size: 21, color: "4D423A" })] })
+    ] })
   ] })] });
 }
 
@@ -159,13 +164,14 @@ function practiceImage(input: HandoutDocumentInput, pageId?: string, fileId?: st
   return image ? [new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 120 }, children: [new ImageRun({ ...image, transformation: { width: 480, height: 320 } })] })] : [];
 }
 
-function calloutTable(lines: string[], fill = "FFF8F2") {
+function calloutTable(lines: string[], fill = "FFF8F2", firstBold = true) {
   const paragraphs = lines.map((line, index) => new Paragraph({
     spacing: { after: index === lines.length - 1 ? 30 : 70 },
-    children: [run(line, { bold: index === 0, size: index === 0 ? 24 : 21, color: index === 0 ? orange : "493D36" })]
+    children: [run(line, { bold: firstBold && index === 0, size: firstBold && index === 0 ? 24 : 21, color: firstBold && index === 0 ? orange : "493D36" })]
   }));
+  const border = { style: BorderStyle.SINGLE, size: 4, color: "EFCDB8" };
   return new Table({ width: { size: 7600, type: WidthType.DXA }, rows: [new TableRow({ children: [new TableCell({
-    width: { size: 7600, type: WidthType.DXA }, shading: { type: ShadingType.CLEAR, color: "F5E1D5", fill }, children: paragraphs
+    width: { size: 7600, type: WidthType.DXA }, margins: { top: 150, bottom: 150, left: 180, right: 180 }, borders: { top: border, bottom: border, left: border, right: border }, shading: { type: ShadingType.CLEAR, color: "F5E1D5", fill }, children: paragraphs
   })] })] });
 }
 
@@ -179,11 +185,7 @@ function studentParentChoiceTable() {
 }
 
 function doubleTeacherTable(input: HandoutDocumentInput) {
-  return calloutTable([
-    (input.teacherFormalName ?? "主讲") + "老师负责课程讲解、阅读方法和表达写作训练；",
-    "班主任老师负责直播跟课、日常答疑、阶段反馈、薄弱点跟踪和学习规划，",
-    "两位老师共同陪伴一个孩子。"
-  ], "FFFDF8");
+  return calloutTable([`${input.teacherFormalName ?? "主讲"}老师负责课程讲解、阅读方法和表达写作训练；班主任老师负责直播跟课、日常答疑、阶段反馈、薄弱点跟踪和学习规划，两位老师共同陪伴一个孩子。`], "FFFDF8", false);
 }
 
 function parentCooperationTable() {
@@ -245,8 +247,8 @@ function parentSections(input: HandoutDocumentInput) {
   const gradeName = input.grade.replace("升", "年级升").replace(/^0年级升1$/, "一年级").replace(/^(\d)年级升(\d)$/, "$2年级");
   const capability = input.lessons.map((lesson) => `第${lesson.lessonNumber}讲《${lesson.title}》：${lesson.subtitle || lesson.technique}`).join("；");
   const overview = section([
-    new Paragraph({ alignment: AlignmentType.CENTER, spacing: { before: 80, after: 60 }, children: [run("家长使用手册", { bold: true, size: 40, color: orange })] }),
-    new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 150 }, children: [run("—— 真读书 · 有深度 · 用得上 ——", { size: 22, color: gray })] }),
+    new Paragraph({ alignment: AlignmentType.LEFT, spacing: { before: 80, after: 60 }, children: [run("家长使用手册", { bold: true, size: 40, color: orange })] }),
+    new Paragraph({ alignment: AlignmentType.LEFT, spacing: { after: 150 }, children: [run("—— 真读书 · 有深度 · 用得上 ——", { size: 22, color: gray })] }),
     parentTeacherTable(input),
     heading("🤝 双师陪伴｜主讲老师＋班主任老师"),
     doubleTeacherTable(input),

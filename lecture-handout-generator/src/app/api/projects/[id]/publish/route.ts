@@ -38,7 +38,7 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
   const parsed = publishSchema.safeParse(await _request.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "请至少选择一种电子翻页书内容" }, { status: 400 });
   const { id } = await context.params;
-  const project = await db.project.findFirst({ where: { id, ownerId: session.userId }, include: { lessons: { orderBy: { lessonNumber: "asc" } }, backgroundPack: { include: { assets: true } }, teacher: true, flipbooks: { orderBy: { updatedAt: "desc" }, take: 1 } } });
+  const project = await db.project.findFirst({ where: { id, ownerId: session.userId }, include: { lessons: { orderBy: { lessonNumber: "asc" } }, backgroundPack: { include: { assets: true } }, teacher: { include: { assets: true } }, flipbooks: { orderBy: { updatedAt: "desc" }, take: 1 } } });
   if (!project) return NextResponse.json({ error: "项目不存在" }, { status: 404 });
   if (project.lessons.length === 0 || project.lessons.some((lesson) => !lesson.textApprovedAt)) return NextResponse.json({ error: "所有课程通过文字审核后才能发布" }, { status: 409 });
   const lessons = project.lessons.map((lesson) => lessonContentSchema.parse(lesson.structuredContent));
@@ -48,8 +48,14 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
     return asset ? `/api/book/${slug}/background/${asset.id}` : defaultBackgroundPath(role);
   };
   const teacherName = project.teacher?.formalName ?? "主讲";
+  const layout = project.layoutConfig as { teacherImage?: { assetId?: string; x?: number; y?: number; width?: number; height?: number } } | null;
+  const defaultTeacherKey = ({ "0升1": "0l1", "1升2": "1l2", "2升3": "2l3", "3升4": "3l4", "4升5": "4l5" } as Record<string, string>)[project.grade] ?? "1l2";
+  const selectedExpression = project.teacher?.assets.find((asset) => asset.id === layout?.teacherImage?.assetId) ?? project.teacher?.assets.find((asset) => asset.kind === "EXPRESSION");
+  const teacherExpressionSrc = selectedExpression ? `/api/book/${slug}/teacher/${selectedExpression.id}` : `/teacher-defaults/${defaultTeacherKey}-expression.png`;
+  const teacherPosition = layout?.teacherImage ?? { x: 67, y: 57, width: 25, height: 30 };
   const parentSpecs = parentPageSpec(project.grade, lessons, teacherName, project.teacher?.introduction ?? undefined);
-  const teacherPortraitSrc = `/teacher-defaults/${({ "0升1": "0l1", "1升2": "1l2", "2升3": "2l3", "3升4": "3l4", "4升5": "4l5" }[project.grade] ?? "1l2")}-portrait.png`;
+  const portraitAsset = project.teacher?.assets.find((asset) => asset.kind === "PORTRAIT");
+  const teacherPortraitSrc = portraitAsset ? `/api/book/${slug}/teacher/${portraitAsset.id}` : `/teacher-defaults/${defaultTeacherKey}-portrait.png`;
   const parent = [
     { collection: "parent", kind: "parent", title: "家长使用手册", teacherPortraitSrc, sharedPage: parentSpecs[0], ...pageType(project.layoutConfig, "parent-0-0"), richHtml: richPage(project.layoutConfig, "parent", 0, 0), backgroundSrc: background("PARENT_MANUAL") },
     { collection: "parent", kind: "parent", title: "五讲课程带来的能力提升", sharedPage: parentSpecs[1], ...pageType(project.layoutConfig, "parent-0-1"), richHtml: richPage(project.layoutConfig, "parent", 0, 1), backgroundSrc: background("PARENT_MANUAL") },
@@ -61,7 +67,7 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
     { collection: "student", kind: "home", title: `第${lesson.lessonNumber}讲 ${lesson.title}`, sharedPage: specs[0], ...pageType(project.layoutConfig, `student-${lesson.lessonNumber}-0`, defaultLessonBodySize(0, lesson)), richHtml: richPage(project.layoutConfig, "student", lesson.lessonNumber, 0), backgroundSrc: background("LESSON_HOME") },
     { collection: "student", kind: "conversation", title: "课后交流话题", sharedPage: specs[1], ...pageType(project.layoutConfig, `student-${lesson.lessonNumber}-1`, defaultLessonBodySize(1, lesson)), richHtml: richPage(project.layoutConfig, "student", lesson.lessonNumber, 1), backgroundSrc: background("CONVERSATION") },
     { collection: "student", kind: "reading", title: "阅读文段", sharedPage: specs[2], ...pageType(project.layoutConfig, `student-${lesson.lessonNumber}-2`), pinyinUnits: project.grade === "1升2" ? (() => { const row = project.lessons.find((item) => item.lessonNumber === lesson.lessonNumber); try { return row?.pinyinReview ? validatePinyinReview(lesson.readingExcerpt.text, row.pinyinReview as Array<{ char: string; pinyin: string }>) : createPinyinReview(lesson.readingExcerpt.text); } catch { return createPinyinReview(lesson.readingExcerpt.text); } })() : undefined, richHtml: richPage(project.layoutConfig, "student", lesson.lessonNumber, 2), backgroundSrc: background("READING") },
-    { collection: "student", kind: "practice", title: "课堂方法与真题带练", sharedPage: specs[3], ...pageType(project.layoutConfig, `student-${lesson.lessonNumber}-3`), practice: publicPractice(lesson.practice, slug), richHtml: richPage(project.layoutConfig, "student", lesson.lessonNumber, 3), backgroundSrc: background("PRACTICE") },
+    { collection: "student", kind: "practice", title: "课堂方法与真题带练", teacherExpressionSrc, teacherPosition, sharedPage: specs[3], ...pageType(project.layoutConfig, `student-${lesson.lessonNumber}-3`), practice: publicPractice(lesson.practice, slug), richHtml: richPage(project.layoutConfig, "student", lesson.lessonNumber, 3), backgroundSrc: background("PRACTICE") },
     { collection: "student", kind: "teacher", title: "我是小老师", sharedPage: specs[4], ...pageType(project.layoutConfig, `student-${lesson.lessonNumber}-4`), richHtml: richPage(project.layoutConfig, "student", lesson.lessonNumber, 4), backgroundSrc: background("LITTLE_TEACHER") }
   ]; });
   const answers = lessons.map((lesson) => ({ collection: "answers", kind: "answer", title: `第${lesson.lessonNumber}讲参考答案`, sharedPage: answerPageSpec(lesson), ...pageType(project.layoutConfig, `answers-${lesson.lessonNumber}-0`), richHtml: richPage(project.layoutConfig, "answers", lesson.lessonNumber, 0), backgroundSrc: background("SIMPLE") }));
