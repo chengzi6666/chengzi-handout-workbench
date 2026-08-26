@@ -1,6 +1,6 @@
 FROM node:22-bookworm-slim AS deps
 WORKDIR /app
-RUN corepack enable
+RUN corepack enable && corepack prepare pnpm@10.28.2 --activate
 COPY lecture-handout-generator/package.json lecture-handout-generator/pnpm-lock.yaml lecture-handout-generator/pnpm-workspace.yaml ./
 RUN pnpm install --frozen-lockfile
 
@@ -15,7 +15,7 @@ FROM node:22-bookworm-slim AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=3000
-RUN corepack enable && apt-get update && apt-get install -y --no-install-recommends poppler-utils && rm -rf /var/lib/apt/lists/*
+RUN corepack enable && corepack prepare pnpm@10.28.2 --activate && apt-get update && apt-get install -y --no-install-recommends poppler-utils && rm -rf /var/lib/apt/lists/*
 COPY --from=builder /app ./
 EXPOSE 3000
 CMD ["sh", "-c", "pnpm db:migrate && pnpm db:seed && pnpm start"]
