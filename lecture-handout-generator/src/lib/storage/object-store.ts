@@ -70,6 +70,11 @@ export function objectStore() {
     cached = new S3ObjectStore(bucket);
     return cached;
   }
+  const localRoot = process.env.OBJECT_STORAGE_LOCAL_ROOT;
+  if (localRoot) {
+    cached = new LocalObjectStore(localRoot);
+    return cached;
+  }
   if (process.env.NODE_ENV === "production") throw new Error("Production object storage is not configured");
   cached = new LocalObjectStore(join(process.cwd(), "storage"));
   return cached;
