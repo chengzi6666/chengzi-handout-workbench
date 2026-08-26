@@ -59,6 +59,14 @@ export class OpenAiCompatibleProvider implements AiProvider {
 
   private async request(input: GenerateTextInput, userMessage: unknown): Promise<GenerateTextResult> {
     const endpoint = `${this.options.baseUrl.replace(/\/$/, "")}/chat/completions`;
+    const endpointHost = new URL(endpoint).hostname.toLowerCase();
+    // 好未来星图网关与普通 OpenAI 接口的认证头不同。漫画系统在 Railway
+    // 上能够调用同一网关，靠的正是 api-key，而不是 Authorization: Bearer。
+    const authHeaders: Record<string, string> = endpointHost === "ai-service.tal.com" || endpointHost.endsWith(".tal.com")
+      ? { "api-key": this.options.apiKey }
+      : this.options.useTokenHeader
+        ? { token: this.options.apiKey }
+        : { authorization: `Bearer ${this.options.apiKey}` };
     // 集团模型默认 RPM 很低。五讲生成会连续请求，必须由客户端主动退避，
     // 不能把一次 429 当作整份讲义失败。
     const maxAttempts = Math.max(1, this.options.maxAttempts ?? 5);
@@ -73,7 +81,7 @@ export class OpenAiCompatibleProvider implements AiProvider {
         signal: controller.signal,
         headers: {
           "content-type": "application/json",
-          ...(this.options.useTokenHeader ? { token: this.options.apiKey } : { authorization: `Bearer ${this.options.apiKey}` }),
+          ...authHeaders,
           ...this.options.extraHeaders
         },
         body: JSON.stringify({
@@ -86,7 +94,7 @@ export class OpenAiCompatibleProvider implements AiProvider {
         })
         });
       } catch (error) {
-        if (controller.signal.aborted) throw new Error(`连接超时（${Math.ceil(requestTimeoutMs / 1000)}秒）。Railway 公网服务无法直接访问公司内网接口，请连接公司内网后使用本地版，或为 Railway 配置可访问内网的安全代理。`);
+        if (controller.signal.aborted) throw new Error(`连接超时（${Math.ceil(requestTimeoutMs / 1000)}秒），模型网关没有及时响应，请稍后重试。`);
         // 公司网络、VPN 切换和低 RPM 网关都可能主动断开 keep-alive socket。
         // 这类瞬时连接错误不能原样泄露为 "fetch failed"，也不应立刻中断五讲任务。
         if (attempt < maxAttempts - 1) {
