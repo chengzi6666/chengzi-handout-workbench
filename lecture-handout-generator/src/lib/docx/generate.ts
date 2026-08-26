@@ -31,6 +31,7 @@ export type HandoutDocumentInput = {
   teacherPosition?: { x: number; y: number; width: number; height: number };
   fontSize?: number;
   fontFamily?: "Microsoft YaHei" | "SimSun" | "KaiTi" | "FangSong";
+  pageTypography?: Record<string, { bodySize?: number; titleSize?: number }>;
   practiceImages?: Record<string, ImageAsset>;
   includeParentManual?: boolean;
   mode: "student" | "answers" | "parent";
@@ -75,17 +76,21 @@ function heading(text: string) {
   return new Paragraph({ spacing: { before: 180, after: 90 }, keepNext: true, children: [run(text, { bold: true, size: 25, color: orange })] });
 }
 
-function bodyRuns(text: string, bold = false) {
+function bodyRuns(text: string, bold = false, size = 11) {
   // 全角下划线在 WPS/不同字体中会显示成断续短横。这里改为真正的 Word 连续下划线，
   // 同时保留足够的全角空白供孩子书写。
   const parts = expandAnswerSpace(text).split(/([＿_]+)/u);
   return parts.filter(Boolean).map((part) => /[＿_]/u.test(part)
-    ? new TextRun({ text: "　".repeat(Math.max(12, part.length)), font: FONT, bold, size: 22, color: "2F2A27", underline: { type: UnderlineType.SINGLE } })
-    : run(part, { bold }));
+    ? new TextRun({ text: "　".repeat(Math.max(12, part.length)), font: FONT, bold, size: Math.round(size * 2), color: "2F2A27", underline: { type: UnderlineType.SINGLE } })
+    : run(part, { bold, size: Math.round(size * 2) }));
 }
 
-function body(text: string, bold = false) {
-  return new Paragraph({ spacing: { after: 100, line: 360 }, children: bodyRuns(text, bold) });
+function body(text: string, bold = false, size = 11) {
+  return new Paragraph({ alignment: AlignmentType.LEFT, spacing: { after: 100, line: Math.max(300, Math.round(size * 32.7)) }, children: bodyRuns(text, bold, size) });
+}
+
+function pageBodySize(input: HandoutDocumentInput, key: string) {
+  return input.pageTypography?.[key]?.bodySize ?? input.fontSize ?? 11;
 }
 
 // 题目中的空括号和占位下划线必须给孩子留下可书写的空间，而不是只留两个字符。
@@ -204,6 +209,10 @@ function lessonSections(lesson: LessonContent, input: HandoutDocumentInput) {
   const readingText = input.mode === "student" && input.pinyinReviews?.[lesson.lessonNumber]
     ? `PINYINREADINGMARKER${lesson.lessonNumber}X`
     : lesson.readingExcerpt.text;
+  const conversationSize = pageBodySize(input, `student-${lesson.lessonNumber}-1`);
+  const readingSize = pageBodySize(input, `student-${lesson.lessonNumber}-2`);
+  const practiceSize = pageBodySize(input, `student-${lesson.lessonNumber}-3`);
+  const teacherSize = pageBodySize(input, `student-${lesson.lessonNumber}-4`);
   const p1 = section([
     ...lessonTitleBlock(lesson),
     heading("🎯 一、本讲要学什么"),
@@ -212,22 +221,22 @@ function lessonSections(lesson: LessonContent, input: HandoutDocumentInput) {
   ], pickBackground(input, "LESSON_HOME"), input);
   const p2 = section([
     heading("💬 下课后，建议家长可以和孩子交流的话题"),
-    ...lesson.conversationTopics.flatMap((topic, index) => [heading(`${index + 1}. ${topic.question}`), body(`参考：${topic.referenceAnswer}`)])
+    ...lesson.conversationTopics.flatMap((topic, index) => [heading(`${index + 1}. ${topic.question}`), body(`参考：${topic.referenceAnswer}`, false, conversationSize)])
   ], pickBackground(input, "CONVERSATION"), input);
   const p3 = section([
-    ...title("阅读文段"), body(readingText),
-    heading("精读思考"), ...numbered(lesson.closeReadingQuestions), ...(input.noteOwnPage ? [] : [noteTable()])
+    ...title("阅读文段"), body(readingText, false, readingSize),
+    heading("精读思考"), ...lesson.closeReadingQuestions.map((item, index) => body(`${index + 1}. ${item}`, false, readingSize)), ...(input.noteOwnPage ? [] : [noteTable()])
   ], pickBackground(input, "READING"), input);
   const notePage = input.noteOwnPage ? section([
     ...title("📖 阅读笔记"),
     noteTable()
   ], pickBackground(input, "READING"), input) : null;
   const p4 = section([
-    ...title(`🌟 四、${input.teacherNickname ?? "主讲"}老师课堂 · 真题带练`), heading("方法小结"), body(lesson.methodSummary), heading("练一练"),
-    ...lesson.practice.flatMap((item, index) => [body(`${index + 1}. ${item.prompt}`, true), ...practiceImage(input, item.imageSourcePageId, item.imageSourceFileId)]), ...teacherParagraph(input)
+    ...title(`🌟 四、${input.teacherNickname ?? "主讲"}老师课堂 · 真题带练`), heading("方法小结"), body(lesson.methodSummary, false, practiceSize), heading("练一练"),
+    ...lesson.practice.flatMap((item, index) => [body(`${index + 1}. ${item.prompt}`, true, practiceSize), ...practiceImage(input, item.imageSourcePageId, item.imageSourceFileId)]), ...teacherParagraph(input)
   ], pickBackground(input, "PRACTICE"), input);
   const p5 = section([
-    ...title("🎤 五、我是小老师"), heading("🎯 作答步骤"), ...numbered(lesson.littleTeacherSteps), heading("🎤 口头表达示范框架"), body(lesson.oralFramework)
+    ...title("🎤 五、我是小老师"), heading("🎯 作答步骤"), ...lesson.littleTeacherSteps.map((item, index) => body(`${index + 1}. ${item}`, false, teacherSize)), heading("🎤 口头表达示范框架"), body(lesson.oralFramework, false, teacherSize)
   ], pickBackground(input, "LITTLE_TEACHER"), input);
   return [p1, p2, p3, ...(notePage ? [notePage] : []), p4, p5];
 }
@@ -309,7 +318,7 @@ export async function generateHandoutDocx(input: HandoutDocumentInput) {
   if (input.fontSize && input.fontSize !== 11) buffer = await replaceBodyFontSize(buffer, input.fontSize);
   if (input.fontFamily && input.fontFamily !== FONT) buffer = await replaceDocumentFont(buffer, input.fontFamily);
   if (input.mode === "student" && input.pinyinReviews && Object.keys(input.pinyinReviews).length > 0) {
-    buffer = await addNativeRuby(buffer, input.lessons, input.pinyinReviews);
+    buffer = await addNativeRuby(buffer, input.lessons, input.pinyinReviews, input);
   }
   buffer = await applyChineseLineBreaking(buffer);
   return Buffer.from(buffer);
@@ -352,14 +361,18 @@ function escapeXml(value: string) {
   return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&apos;");
 }
 
-function rubyXml(units: PinyinUnit[]) {
+function rubyXml(units: PinyinUnit[], basePointSize = 11) {
+  const baseHalfPoints = Math.round(basePointSize * 2);
+  const rubyHalfPoints = Math.max(10, Math.round(basePointSize * 1.25));
   return units.map((unit) => {
-    if (!/[\u3400-\u9fff]/u.test(unit.char) || !unit.pinyin) return `<w:r><w:rPr><w:rFonts w:ascii="Microsoft YaHei" w:hAnsi="Microsoft YaHei" w:eastAsia="Microsoft YaHei"/><w:sz w:val="22"/></w:rPr><w:t xml:space="preserve">${escapeXml(unit.char)}</w:t></w:r>`;
-    return `<w:ruby><w:rubyPr><w:rubyAlign w:val="center"/><w:hps w:val="14"/><w:hpsRaise w:val="22"/><w:hpsBaseText w:val="22"/><w:lid w:val="zh-CN"/></w:rubyPr><w:rt><w:r><w:rPr><w:rFonts w:ascii="Microsoft YaHei" w:hAnsi="Microsoft YaHei"/><w:sz w:val="14"/></w:rPr><w:t>${escapeXml(unit.pinyin)}</w:t></w:r></w:rt><w:rubyBase><w:r><w:rPr><w:rFonts w:eastAsia="Microsoft YaHei"/><w:sz w:val="22"/></w:rPr><w:t>${escapeXml(unit.char)}</w:t></w:r></w:rubyBase></w:ruby>`;
+    if (!/[\u3400-\u9fff]/u.test(unit.char) || !unit.pinyin) return `<w:r><w:rPr><w:rFonts w:ascii="Microsoft YaHei" w:hAnsi="Microsoft YaHei" w:eastAsia="Microsoft YaHei"/><w:sz w:val="${baseHalfPoints}"/></w:rPr><w:t xml:space="preserve">${escapeXml(unit.char)}</w:t></w:r>`;
+    // OOXML 要求 w:ruby 位于外层 w:r 内。之前把 w:ruby 直接写成段落子节点，
+    // 浏览器预览不受影响，但 Word/WPS 会丢弃整个非法 ruby，只留下普通标点 run。
+    return `<w:r><w:ruby><w:rubyPr><w:rubyAlign w:val="center"/><w:hps w:val="${rubyHalfPoints}"/><w:hpsRaise w:val="${baseHalfPoints}"/><w:hpsBaseText w:val="${baseHalfPoints}"/><w:lid w:val="zh-CN"/></w:rubyPr><w:rt><w:r><w:rPr><w:rFonts w:ascii="Microsoft YaHei" w:hAnsi="Microsoft YaHei" w:eastAsia="Microsoft YaHei"/><w:sz w:val="${rubyHalfPoints}"/></w:rPr><w:t>${escapeXml(unit.pinyin)}</w:t></w:r></w:rt><w:rubyBase><w:r><w:rPr><w:rFonts w:ascii="Microsoft YaHei" w:hAnsi="Microsoft YaHei" w:eastAsia="Microsoft YaHei"/><w:sz w:val="${baseHalfPoints}"/></w:rPr><w:t>${escapeXml(unit.char)}</w:t></w:r></w:rubyBase></w:ruby></w:r>`;
   }).join("");
 }
 
-async function addNativeRuby(buffer: Buffer, lessons: LessonContent[], reviews: Record<number, PinyinUnit[]>) {
+async function addNativeRuby(buffer: Buffer, lessons: LessonContent[], reviews: Record<number, PinyinUnit[]>, input: HandoutDocumentInput) {
   const zip = await JSZip.loadAsync(buffer);
   const entry = zip.file("word/document.xml");
   if (!entry) throw new Error("DOCX缺少document.xml");
@@ -368,14 +381,14 @@ async function addNativeRuby(buffer: Buffer, lessons: LessonContent[], reviews: 
     const units = reviews[lesson.lessonNumber];
     if (!units) continue;
     const marker = escapeXml(`PINYINREADINGMARKER${lesson.lessonNumber}X`);
-    // 只匹配由本生成器写入的唯一 TextRun。w:ruby 必须是段落的直接子节点；
+    // 只匹配由本生成器写入的唯一 TextRun。w:ruby 必须包在外层 w:r 中；
     // 不能用全文正则从任意 w:r 跨到阅读原文，否则会产生嵌套的 w:rt 并损坏 XML。
     const markerIndex = xml.indexOf(marker);
     const precedingRuns = markerIndex < 0 ? [] : [...xml.slice(0, markerIndex).matchAll(/<w:r(?:\s[^>]*)?>/g)];
     const runStart = precedingRuns.at(-1)?.index ?? -1;
     const runEnd = markerIndex < 0 ? -1 : xml.indexOf("</w:r>", markerIndex);
     if (runStart < 0 || runEnd < 0) throw new Error(`第${lesson.lessonNumber}讲阅读文段占位符无法定位（marker=${markerIndex}, runStart=${runStart}, runEnd=${runEnd}），未添加拼音`);
-    xml = `${xml.slice(0, runStart)}${rubyXml(units)}${xml.slice(runEnd + "</w:r>".length)}`;
+    xml = `${xml.slice(0, runStart)}${rubyXml(units, pageBodySize(input, `student-${lesson.lessonNumber}-2`))}${xml.slice(runEnd + "</w:r>".length)}`;
   }
   if (/PINYINREADINGMARKER\d+X/u.test(xml)) throw new Error("DOCX拼音占位符未全部替换，已停止导出");
   zip.file("word/document.xml", xml);

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { ChevronLeft, ChevronRight, Share2, Upload } from "lucide-react";
 import type { SharedPage } from "@/lib/handout/page-spec";
+import { shouldAppendGeneratedPinyin } from "@/lib/handout/flipbook-content";
 
 function PinyinText({ units }: { units: Array<{ char: string; pinyin: string }> }) {
   return <p className="book-reading pinyin-reading">{units.map((unit, index) => unit.pinyin ? <ruby key={index}>{unit.char}<rt>{unit.pinyin}</rt></ruby> : <span key={index}>{unit.char}</span>)}</p>;
@@ -16,7 +17,8 @@ function PageContent({ page, headerText, footerText }: { page?: Record<string, u
   if (typeof page.richHtml === "string" && page.richHtml) return <>
     {(page.headerText ?? headerText) ? <span className="book-kicker">{String(page.headerText ?? headerText)}</span> : null}
     <div className="book-rich-content" style={{ fontFamily: String(page.fontFamily ?? "Microsoft YaHei"), fontSize: `${Number(page.bodySize ?? 11)}pt` }} dangerouslySetInnerHTML={{ __html: page.richHtml }} />
-    {Array.isArray(page.pinyinUnits) ? <PinyinText units={page.pinyinUnits as Array<{ char: string; pinyin: string }>} /> : null}
+    {/* richHtml 已经是版式预览保存下来的整页正文，阅读页的 ruby 也包含在其中。
+        这里绝不能再根据 pinyinUnits 追加一次原文，否则翻页书会重复整段。 */}
     {showAnswers && Array.isArray(page.topics) ? <div className="book-answer-supplement">{(page.topics as Array<{ question: string; referenceAnswer: string }>).map((item, index) => <section key={index}><b>{index + 1}. {item.question}</b><p><b>参考：</b>{item.referenceAnswer}</p></section>)}</div> : null}
     {showAnswers && Array.isArray(page.practice) ? <div className="book-answer-supplement">{(page.practice as Array<{ prompt: string; answer: string }>).map((item, index) => <section key={index}><b>{index + 1}. {item.prompt}</b><p><b>参考作答：</b>{item.answer}</p></section>)}</div> : null}
     {page.footerText ?? footerText ? <footer>{String(page.footerText ?? footerText)}</footer> : null}
@@ -42,7 +44,7 @@ function PageContent({ page, headerText, footerText }: { page?: Record<string, u
     {typeof page.teacherPortraitSrc === "string" ? <img className="book-parent-teacher" src={page.teacherPortraitSrc} alt="主讲老师" /> : null}
     {page.technique ? <div className="book-callout">核心方法：{String(page.technique)}</div> : null}
     {Array.isArray(page.body) ? <ol>{page.body.map((item, index) => <li key={index}>{String(item)}</li>)}</ol> : null}
-    {Array.isArray(page.pinyinUnits) ? <PinyinText units={page.pinyinUnits as Array<{ char: string; pinyin: string }>} /> : typeof page.text === "string" ? <p className="book-reading">{page.text}</p> : null}
+    {shouldAppendGeneratedPinyin(page) ? <PinyinText units={page.pinyinUnits as Array<{ char: string; pinyin: string }>} /> : typeof page.text === "string" ? <p className="book-reading">{page.text}</p> : null}
     {Array.isArray(page.topics) ? <div>{(page.topics as Array<{ question: string; referenceAnswer: string }>).map((item, index) => <section key={index}><b>{index + 1}. {item.question}</b>{showAnswers ? <p><b>参考：</b>{item.referenceAnswer}</p> : null}</section>)}</div> : null}
     {Array.isArray(page.questions) ? <ol>{(page.questions as unknown[]).map((item, index) => <li key={index}>{String(item)}</li>)}</ol> : null}
     {page.method ? <p>{String(page.method)}</p> : null}

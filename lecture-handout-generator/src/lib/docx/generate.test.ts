@@ -47,9 +47,15 @@ test("answer document uses the same conversation and practice sections as previe
 });
 
 test("grade two reviewed pinyin is emitted as native Word ruby", async () => {
-  const output = await generateHandoutDocx({ projectName: "测试", grade: "1升2", teachingYear: 2026, lessons: [lesson], pinyinReviews: { 1: [{ char: "重", pinyin: "chóng" }, { char: "阳", pinyin: "yáng" }, { char: "节", pinyin: "jié" }, { char: "。", pinyin: "" }] }, mode: "student" });
+  const output = await generateHandoutDocx({ projectName: "测试", grade: "1升2", teachingYear: 2026, lessons: [lesson], pinyinReviews: { 1: [{ char: "重", pinyin: "chóng" }, { char: "阳", pinyin: "yáng" }, { char: "节", pinyin: "jié" }, { char: "。", pinyin: "" }] }, pageTypography: { "student-1-2": { bodySize: 13 } }, mode: "student" });
   const zip = await JSZip.loadAsync(output); const xml = await zip.file("word/document.xml")!.async("string");
-  assert.match(xml, /<w:ruby>/); assert.match(xml, /chóng/); assert.match(xml, /<w:rubyBase>/);
+  assert.match(xml, /<w:r><w:ruby>/, "Word ruby 必须包在外层文本 run 中");
+  assert.doesNotMatch(xml, /<w:pPr>[^]*?<\/w:pPr><w:ruby>/u, "ruby 不能作为段落的直接子节点");
+  assert.match(xml, /chóng/); assert.match(xml, /<w:rubyBase>/);
+  assert.match(xml, /<w:rubyBase><w:r><w:rPr>[^]*?<w:sz w:val="26"\/>[^]*?<w:t>重<\/w:t>/u, "汉字基文必须存在且遵守阅读页字号");
+  const baseText = [...xml.matchAll(/<w:rubyBase>[^]*?<w:t(?:\s[^>]*)?>([^<]*)<\/w:t>[^]*?<\/w:rubyBase>/gu)].map((match) => match[1]).join("");
+  assert.equal(baseText, "重阳节", "启用拼音后仍必须保留全部汉字基文");
+  assert.match(xml, /<w:t xml:space="preserve">。<\/w:t>/u, "启用拼音后仍必须保留普通标点");
   assertWellFormedXml(xml);
 });
 
