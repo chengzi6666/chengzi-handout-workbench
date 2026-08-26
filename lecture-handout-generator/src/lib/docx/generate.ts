@@ -6,6 +6,7 @@ import JSZip from "jszip";
 import type { LessonContent } from "@/lib/handout/content-schema";
 import type { PinyinUnit } from "@/lib/handout/pinyin";
 import { formatStudentBlank, studentOralFramework } from "@/lib/handout/student-format";
+import { parentScheduleContent } from "@/lib/handout/parent-schedule";
 
 const FONT = "Microsoft YaHei";
 const orange = "F07A42";
@@ -278,11 +279,11 @@ function parentSections(input: HandoutDocumentInput) {
     new TableRow({ tableHeader: true, children: ["讲次", "讲次名称", "讲次技法", "具体学习内容"].map((value, index) => scheduleCell(value, index, true)) }),
     ...input.lessons.map((lesson) => new TableRow({ children: [
       `第${lesson.lessonNumber}讲`, lessonBookTitle(lesson.title), lesson.technique,
-      lesson.learningGoals.map((goal, index) => `${index + 1}. ${printableLearningGoal(goal)}`).join("\n")
+      parentScheduleContent(lesson)
     ].map((value, index) => scheduleCell(value, index)) }))
   ];
   const scheduleTable = new Table({ width: { size: CONTENT_WIDTH_DXA, type: WidthType.DXA }, layout: TableLayoutType.FIXED, columnWidths: scheduleWidths, rows: scheduleRows });
-  const scheduleIsLong = input.lessons.length >= 4 || input.lessons.reduce((sum, lesson) => sum + lesson.learningGoals.join("").length, 0) > 360;
+  const scheduleIsLong = input.lessons.length >= 4 || input.lessons.reduce((sum, lesson) => sum + parentScheduleContent(lesson).length, 0) > 360;
   if (!scheduleIsLong) overviewChildren.push(heading("五讲学习安排"), scheduleTable);
   const overview = section(overviewChildren, pickBackground(input, "PARENT_MANUAL"), input);
   const ability = scheduleIsLong ? section([

@@ -5,6 +5,7 @@ import { useMemo, useRef, useState } from "react";
 import { ArrowLeft, Bold, Download, Highlighter, ImagePlus, Italic, Save, Underline } from "lucide-react";
 import { createPinyinReview } from "@/lib/handout/pinyin";
 import { formatStudentBlank } from "@/lib/handout/student-format";
+import { parentScheduleContent } from "@/lib/handout/parent-schedule";
 import { defaultBackgroundPath } from "@/lib/handout/backgrounds";
 import { isCurrentParentRichPage } from "@/lib/handout/page-spec";
 
@@ -570,7 +571,7 @@ export function LayoutWorkspace({
                     <h3>🤝 双师陪伴｜主讲老师＋班主任老师</h3><section className="lesson-callout"><p>{teacher?.formalName ?? "主讲"}老师负责课程讲解、阅读方法和表达写作训练；班主任老师负责直播跟课、日常答疑、阶段反馈、薄弱点跟踪和学习规划，两位老师共同陪伴一个孩子。</p></section>
                     <h2 style={{ fontSize: `${currentTitleSize}pt` }}>五讲课程带来的能力提升</h2><p>五讲合起来，孩子练习的是：读懂故事 → 找到证据 → 学会方法 → 说清楚 → 写完整。</p>
                   </>}
-                  {parentPage === 1 && <><h3>五讲学习安排</h3><table className="parent-schedule"><thead><tr><th>讲次</th><th>讲次名称</th><th>讲次技法</th><th>具体学习内容</th></tr></thead><tbody>{lessons.map((lesson) => <tr key={lesson.lessonNumber}><td>第{lesson.lessonNumber}讲</td><td>{bookTitle(lesson.title)}</td><td>{lesson.technique}</td><td>{lesson.learningGoals.map((goal, index) => <div key={index}>{index + 1}. {printableLearningGoal(goal)}</div>)}</td></tr>)}</tbody></table></>}
+                  {parentPage === 1 && <><h3>五讲学习安排</h3><table className="parent-schedule"><thead><tr><th>讲次</th><th>讲次名称</th><th>讲次技法</th><th>具体学习内容</th></tr></thead><tbody>{lessons.map((lesson) => <tr key={lesson.lessonNumber}><td>第{lesson.lessonNumber}讲</td><td>{bookTitle(lesson.title)}</td><td>{lesson.technique}</td><td>{parentScheduleContent(lesson)}</td></tr>)}</tbody></table></>}
                   {parentPage === 2 && <><h2 style={{ fontSize: `${currentTitleSize}pt` }}>🎯 {project.grade}阶段，最需要关注什么？</h2><h3>☁️ 基础：从“会认字”走向“会用字词”</h3><p>在故事语境中认识并积累字词，不只会读，还能联系人物、动作和情节理解词义；通过圈画、复述与句式练习，把常用表达用到自己的口头和书面表达中。</p><h3>📚 阅读：从“听故事”走向“读懂故事”</h3><p>不止复述热闹情节，还要能说清“谁做了什么、为什么这样做、结果怎样”，并从原文中找到具体词句作证据，逐步形成整本书阅读习惯。</p><h3>✍️ 表达：从“说一句话”走向“完整表达”</h3><p>借助课堂方法，把人物、事情、动作、语言、心情和结果说完整、写清楚；每周完成一次口头表达或简短书面练习，形成可迁移的表达框架。</p><h3>💡 家长怎么配合？</h3><section className="lesson-callout"><p>正课时间：19:00-19:40。课前10分钟＋课后10分钟由班主任老师统一带领预习、复习，无需家长提前筹备。</p><p>课业紧张时，按第五部分口头框架录1分钟复习视频；学有余力时，完成第四部分书面练习并提交老师批改。</p></section></>}
                 </>
               ) : previewKind === "answers" ? (

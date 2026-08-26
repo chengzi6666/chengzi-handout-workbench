@@ -1,4 +1,5 @@
 import type { LessonContent } from "./content-schema";
+import { parentScheduleContent } from "./parent-schedule";
 
 export type SharedPageRole = "LESSON_HOME" | "CONVERSATION" | "READING" | "PRACTICE" | "LITTLE_TEACHER" | "PARENT_MANUAL" | "ANSWERS";
 export type SharedBlock = { kind: "title" | "heading" | "text" | "numbered" | "callout"; text: string; items?: string[] };
@@ -37,7 +38,7 @@ export function defaultLessonBodySize(pageIndex: number, lesson: LessonContent) 
 export function parentPageSpec(grade: string, lessons: LessonContent[], teacherName = "主讲", teacherIntroduction = "负责阅读方法、表达写作和课堂互动引导。"): SharedPage[] {
   return [
     { role: "PARENT_MANUAL", blocks: [{ kind: "title", text: "家长使用手册" }, { kind: "text", text: "—— 真读书 · 有深度 · 用得上 ——" }, { kind: "heading", text: `${teacherName}老师｜主讲老师` }, { kind: "text", text: teacherIntroduction }, { kind: "heading", text: "🤝 双师陪伴｜主讲老师＋班主任老师" }, { kind: "callout", text: "", items: [`${teacherName}老师负责课程讲解、阅读方法和表达写作训练；班主任老师负责直播跟课、日常答疑、阶段反馈、薄弱点跟踪和学习规划，两位老师共同陪伴一个孩子。`] }, { kind: "title", text: "五讲课程带来的能力提升" }, { kind: "text", text: "五讲合起来，孩子练习的是：读懂故事 → 找到证据 → 学会方法 → 说清楚 → 写完整。" }] },
-    { role: "PARENT_MANUAL", blocks: [{ kind: "heading", text: "五讲学习安排" }, ...lessons.map((lesson) => ({ kind: "callout" as const, text: `第${lesson.lessonNumber}讲｜${lesson.title}｜${lesson.technique}`, items: lesson.learningGoals.map((goal, index) => `${index + 1}. ${goal}`) }))] },
+    { role: "PARENT_MANUAL", blocks: [{ kind: "heading", text: "五讲学习安排" }, ...lessons.map((lesson) => ({ kind: "callout" as const, text: `第${lesson.lessonNumber}讲｜${lesson.title}｜${lesson.technique}`, items: [parentScheduleContent(lesson)] }))] },
     { role: "PARENT_MANUAL", blocks: [{ kind: "title", text: `🎯 ${grade}阶段，最需要关注什么？` }, { kind: "heading", text: "☁️ 基础：从“会认字”走向“会用字词”" }, { kind: "text", text: "在故事语境中认识并积累字词，不只会读，还能联系人物、动作和情节理解词义；通过圈画、复述与句式练习，把常用表达用到自己的口头和书面表达中。" }, { kind: "heading", text: "📚 阅读：从“听故事”走向“读懂故事”" }, { kind: "text", text: "不止复述热闹情节，还要能说清“谁做了什么、为什么这样做、结果怎样”，并从原文中找到具体词句作证据，逐步形成整本书阅读习惯。" }, { kind: "heading", text: "✍️ 表达：从“说一句话”走向“完整表达”" }, { kind: "text", text: "借助课堂方法，把人物、事情、动作、语言、心情和结果说完整、写清楚；每周完成一次口头表达或简短书面练习，形成可迁移的表达框架。" }, { kind: "heading", text: "💡 家长怎么配合？" }, { kind: "callout", text: "", items: ["正课时间：19:00-19:40。课前10分钟＋课后10分钟由班主任老师统一带领预习、复习，无需家长提前筹备。", "课业紧张时，按第五部分口头框架录1分钟复习视频；学有余力时，完成第四部分书面练习并提交老师批改。"] }] }
   ];
 }
