@@ -27,10 +27,10 @@ function assertWellFormedXml(xml: string) {
   assert.equal(stack.length, 0, "DOCX XML 存在未闭合标签");
 }
 
-test("student docx contains five next-page sections and inline conversation answers", async () => {
+test("student docx starts with its cover and contains five lesson sections", async () => {
   const output = await generateHandoutDocx({ projectName: "测试", grade: "0升1", teachingYear: 2026, lessons: [lesson], mode: "student" });
   const zip = await JSZip.loadAsync(output); const xml = await zip.file("word/document.xml")!.async("string");
-  assert.equal((xml.match(/w:type w:val="nextPage"/g) ?? []).length, 5);
+  assert.equal((xml.match(/w:type w:val="nextPage"/g) ?? []).length, 6);
   assert.match(xml, /参考：答案1/);
   assert.doesNotMatch(xml, /参考答案：/);
   assert.equal((xml.match(/<w:p(?:\s[^>]*)?>/g) ?? []).length, (xml.match(/<w:kinsoku\/>/g) ?? []).length, "每个Word段落都应启用中文避头尾规则");

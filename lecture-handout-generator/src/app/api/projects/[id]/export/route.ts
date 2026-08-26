@@ -45,13 +45,27 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
   for (const [role, fileName] of Object.entries(DEFAULT_BACKGROUND_FILE)) {
     backgrounds[role] ??= await bundledBackground(fileName);
   }
-  const layout = project.layoutConfig as { teacherImage?: { assetId?: string; x: number; y: number; width: number; height: number }; fontSize?: number; fontFamily?: "Microsoft YaHei" | "SimSun" | "KaiTi" | "FangSong"; pageTypography?: Record<string, { bodySize?: number; titleSize?: number }>; headerText?: string; headerSize?: number; footerText?: string; footerSize?: number; noteOwnPage?: boolean } | null;
+  type TeacherPosition = { assetId?: string; x: number; y: number; width: number; height: number };
+  const layout = project.layoutConfig as { teacherImage?: TeacherPosition; teacherImages?: Record<string, TeacherPosition>; fontSize?: number; fontFamily?: "Microsoft YaHei" | "SimSun" | "KaiTi" | "FangSong"; pageTypography?: Record<string, { bodySize?: number; titleSize?: number }>; headerText?: string; headerSize?: number; footerText?: string; footerSize?: number; noteOwnPage?: boolean } | null;
   const gradeKey = ({ "0升1": "0l1", "1升2": "1l2", "2升3": "2l3", "3升4": "3l4", "4升5": "4l5" } as Record<string, string>)[project.grade] ?? "1l2";
   const defaultTeacher = async (kind: "expression" | "portrait") => ({ data: await readFile(join(process.cwd(), "public", "teacher-defaults", `${gradeKey}-${kind}.png`)), type: "png" as const });
   const expressionAsset = project.teacher?.assets.find((asset) => asset.id === layout?.teacherImage?.assetId) ?? project.teacher?.assets.find((asset) => asset.kind === "EXPRESSION");
   const portraitAsset = project.teacher?.assets.find((asset) => asset.kind === "PORTRAIT");
   const teacherImage = expressionAsset ? { data: Buffer.from(await objectStore().get(expressionAsset.objectKey)), type: typeOf(expressionAsset.objectKey) } : await defaultTeacher("expression");
   const teacherPortrait = portraitAsset ? { data: Buffer.from(await objectStore().get(portraitAsset.objectKey)), type: typeOf(portraitAsset.objectKey) } : await defaultTeacher("portrait");
+  const teacherArtwork: NonNullable<Parameters<typeof generateHandoutDocx>[0]["teacherArtwork"]> = {};
+  const expressionCache = new Map<string, typeof teacherImage>();
+  for (const { content } of lessons) {
+    const position = layout?.teacherImages?.[String(content.lessonNumber)] ?? layout?.teacherImage ?? { x: 67, y: 57, width: 25, height: 30 };
+    const asset = project.teacher?.assets.find((item) => item.id === position.assetId) ?? expressionAsset;
+    let image = teacherImage;
+    if (asset) {
+      const cached = expressionCache.get(asset.id);
+      image = cached ?? { data: Buffer.from(await objectStore().get(asset.objectKey)), type: typeOf(asset.objectKey) };
+      expressionCache.set(asset.id, image);
+    }
+    teacherArtwork[content.lessonNumber] = { image, position };
+  }
   const pageIds = lessons.flatMap(({ content }) => content.practice.map((item) => item.imageSourcePageId).filter((value): value is string => Boolean(value)));
   const sourcePages = pageIds.length ? await db.sourcePage.findMany({ where: { id: { in: pageIds }, sourceFile: { projectId: project.id } } }) : [];
   const practiceImages: Record<string, { data: Buffer; type: "png" | "jpg" | "gif" | "bmp" }> = {};
@@ -62,7 +76,7 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
   const manualImageIds = lessons.flatMap(({ content }) => content.practice.map((item) => item.imageSourceFileId).filter((value): value is string => Boolean(value)));
   const manualImages = manualImageIds.length ? await db.sourceFile.findMany({ where: { id: { in: manualImageIds }, projectId: project.id, kind: "QUESTION_IMAGE" } }) : [];
   for (const image of manualImages) practiceImages[image.id] = { data: Buffer.from(await objectStore().get(image.objectKey)), type: typeOf(image.objectKey) };
-  const buffer = await generateHandoutDocx({ projectName: project.name, grade: project.grade, teachingYear: project.teachingYear, teacherFormalName: project.teacher?.formalName, teacherNickname: project.teacher?.nickname, teacherIntroduction: project.teacher?.introduction ?? undefined, headerText: layout?.headerText, headerSize: layout?.headerSize, footerText: layout?.footerText, footerSize: layout?.footerSize, noteOwnPage: layout?.noteOwnPage, lessons: lessons.map((item) => item.content), pinyinReviews, backgrounds, teacherImage, teacherPortrait, teacherPosition: layout?.teacherImage, fontSize: layout?.fontSize, fontFamily: layout?.fontFamily, pageTypography: layout?.pageTypography, practiceImages, includeParentManual: kind === "combined_parent_student", mode });
+  const buffer = await generateHandoutDocx({ projectName: project.name, grade: project.grade, teachingYear: project.teachingYear, teacherFormalName: project.teacher?.formalName, teacherNickname: project.teacher?.nickname, teacherIntroduction: project.teacher?.introduction ?? undefined, headerText: layout?.headerText, headerSize: layout?.headerSize, footerText: layout?.footerText, footerSize: layout?.footerSize, noteOwnPage: layout?.noteOwnPage, lessons: lessons.map((item) => item.content), pinyinReviews, backgrounds, teacherImage, teacherPortrait, teacherPosition: layout?.teacherImage, teacherArtwork, fontSize: layout?.fontSize, fontFamily: layout?.fontFamily, pageTypography: layout?.pageTypography, practiceImages, includeParentManual: kind === "combined_parent_student", mode });
   const outputName: Record<string, string> = {
     combined_student: "学员的电子版合集",
     combined_answers: "参考答案",

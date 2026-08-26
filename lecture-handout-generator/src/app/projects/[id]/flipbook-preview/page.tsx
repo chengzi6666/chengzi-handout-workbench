@@ -52,15 +52,15 @@ export default async function FlipbookPreviewPage({
   });
   if (!project) redirect("/");
 
-  const layout = project.layoutConfig as { teacherImage?: { assetId?: string; x?: number; y?: number; width?: number; height?: number } } | null;
+  type TeacherPosition = { assetId?: string; x?: number; y?: number; width?: number; height?: number };
+  const layout = project.layoutConfig as { teacherImage?: TeacherPosition; teacherImages?: Record<string, TeacherPosition> } | null;
   const defaultTeacherKey = ({ "0升1": "0l1", "1升2": "1l2", "2升3": "2l3", "3升4": "3l4", "4升5": "4l5" } as Record<string, string>)[project.grade] ?? "1l2";
-  const selectedExpression = project.teacher?.assets.find((asset) => asset.id === layout?.teacherImage?.assetId) ?? project.teacher?.assets.find((asset) => asset.kind === "EXPRESSION");
-  const teacherExpressionSrc = selectedExpression ? `/api/assets/teacher/${selectedExpression.id}` : `/teacher-defaults/${defaultTeacherKey}-expression.png`;
-  const teacherPosition = layout?.teacherImage ?? { x: 67, y: 57, width: 25, height: 30 };
-
   const studentPages = project.lessons.flatMap((savedLesson) => {
     const lesson = lessonContentSchema.parse(savedLesson.structuredContent);
     const specs = lessonPageSpec(lesson, project.teacher?.nickname ?? "主讲");
+    const teacherPosition = layout?.teacherImages?.[String(savedLesson.lessonNumber)] ?? layout?.teacherImage ?? { x: 67, y: 57, width: 25, height: 30 };
+    const selectedExpression = project.teacher?.assets.find((asset) => asset.id === teacherPosition.assetId) ?? project.teacher?.assets.find((asset) => asset.kind === "EXPRESSION");
+    const teacherExpressionSrc = selectedExpression ? `/api/assets/teacher/${selectedExpression.id}` : `/teacher-defaults/${defaultTeacherKey}-expression.png`;
     return [
       {
         collection: "student",

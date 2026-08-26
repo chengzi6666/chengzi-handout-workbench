@@ -33,6 +33,7 @@ export type HandoutDocumentInput = {
   teacherImage?: ImageAsset;
   teacherPortrait?: ImageAsset;
   teacherPosition?: { x: number; y: number; width: number; height: number };
+  teacherArtwork?: Record<number, { image: ImageAsset; position: { x: number; y: number; width: number; height: number } }>;
   fontSize?: number;
   fontFamily?: "Microsoft YaHei" | "SimSun" | "KaiTi" | "FangSong";
   pageTypography?: Record<string, { bodySize?: number; titleSize?: number }>;
@@ -132,10 +133,12 @@ function section(children: Array<Paragraph | Table>, background?: ImageAsset, in
 
 function pickBackground(input: HandoutDocumentInput, role: keyof NonNullable<HandoutDocumentInput["backgrounds"]>) { return input.backgrounds?.[role] ?? input.backgrounds?.SIMPLE; }
 
-function teacherParagraph(input: HandoutDocumentInput) {
-  if (!input.teacherImage) return [];
-  const pos = input.teacherPosition ?? { x: 67, y: 57, width: 25, height: 30 };
-  return [new Paragraph({ children: [new ImageRun({ ...input.teacherImage, transformation: { width: Math.round(794 * pos.width / 100), height: Math.round(1123 * pos.height / 100) }, floating: { horizontalPosition: { relative: HorizontalPositionRelativeFrom.PAGE, offset: Math.round(794 * pos.x / 100 * 9525) }, verticalPosition: { relative: VerticalPositionRelativeFrom.PAGE, offset: Math.round(1123 * pos.y / 100 * 9525) }, behindDocument: false, allowOverlap: true } })] })];
+function teacherParagraph(input: HandoutDocumentInput, lessonNumber: number) {
+  const artwork = input.teacherArtwork?.[lessonNumber];
+  const image = artwork?.image ?? input.teacherImage;
+  if (!image) return [];
+  const pos = artwork?.position ?? input.teacherPosition ?? { x: 67, y: 57, width: 25, height: 30 };
+  return [new Paragraph({ children: [new ImageRun({ ...image, transformation: { width: Math.round(794 * pos.width / 100), height: Math.round(1123 * pos.height / 100) }, floating: { horizontalPosition: { relative: HorizontalPositionRelativeFrom.PAGE, offset: Math.round(794 * pos.x / 100 * 9525) }, verticalPosition: { relative: VerticalPositionRelativeFrom.PAGE, offset: Math.round(1123 * pos.y / 100 * 9525) }, behindDocument: false, allowOverlap: true } })] })];
 }
 
 function parentTeacherTable(input: HandoutDocumentInput) {
@@ -240,7 +243,7 @@ function lessonSections(lesson: LessonContent, input: HandoutDocumentInput) {
   ], pickBackground(input, "READING"), input) : null;
   const p4 = section([
     ...title(`🌟 四、${input.teacherNickname ?? "主讲"}老师课堂 · 真题带练`), heading("方法小结"), body(lesson.methodSummary, false, practiceSize), heading("练一练"),
-    ...lesson.practice.flatMap((item, index) => [body(`${index + 1}. ${item.prompt}`, true, practiceSize), ...practiceImage(input, item.imageSourcePageId, item.imageSourceFileId)]), ...teacherParagraph(input)
+    ...lesson.practice.flatMap((item, index) => [body(`${index + 1}. ${item.prompt}`, true, practiceSize), ...practiceImage(input, item.imageSourcePageId, item.imageSourceFileId)]), ...teacherParagraph(input, lesson.lessonNumber)
   ], pickBackground(input, "PRACTICE"), input);
   const p5 = section([
     ...title("🎤 五、我是小老师"), heading("🎯 作答步骤"), ...lesson.littleTeacherSteps.map((item, index) => body(`${index + 1}. ${item}`, false, teacherSize)), heading("🎤 口头表达示范框架"), body(lesson.oralFramework, false, teacherSize)
@@ -313,10 +316,12 @@ function answerSections(input: HandoutDocumentInput) {
 }
 
 export async function generateHandoutDocx(input: HandoutDocumentInput) {
-  const sections = input.mode === "parent" ? parentSections(input) : input.mode === "answers" ? answerSections(input) : [
+  const contentSections = input.mode === "parent" ? parentSections(input) : input.mode === "answers" ? answerSections(input) : [
     ...(input.includeParentManual ? parentSections(input) : []),
     ...input.lessons.flatMap((lesson) => lessonSections(lesson, input))
   ];
+  // Word 与电子翻页书使用同一张用户封面；封面始终是下载文件的第一页。
+  const sections = [...coverSections(input), ...contentSections];
   const document = new Document({
     creator: "橙子讲义工坊",
     title: input.projectName,

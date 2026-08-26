@@ -70,13 +70,12 @@ function safeTeacherPosition(value?: Position): Position {
   const source = value ?? { x: 67, y: 57, width: 25, height: 30 };
   const width = Math.max(10, Math.min(55, source.width));
   const height = Math.max(12, Math.min(66, source.height));
-  // 真题页顶部属于标题安全区，卡通人物不能再被拖到标题上方或压住标题。
   return {
     ...source,
     width,
     height,
     x: Math.max(0, Math.min(100 - width, source.x)),
-    y: Math.max(28, Math.min(100 - height, source.y)),
+    y: Math.max(0, Math.min(100 - height, source.y)),
   };
 }
 
@@ -141,10 +140,23 @@ export function LayoutWorkspace({
   teachers: Teacher[];
   lessons: LessonPreview[];
 }) {
+  const [pageIndex, setPageIndex] = useState(0);
+  const [lessonIndex, setLessonIndex] = useState(0);
+  const [previewKind, setPreviewKind] = useState<"student" | "answers" | "parent">("student");
   const initial = safeTeacherPosition(
     (project.layoutConfig as { teacherImage?: Position } | null)?.teacherImage,
   );
-  const [position, setPosition] = useState<Position>(initial);
+  const [teacherImages, setTeacherImages] = useState<Record<string, Position>>(
+    (project.layoutConfig as { teacherImages?: Record<string, Position> } | null)?.teacherImages ?? {},
+  );
+  const teacherImageKey = String(lessons[lessonIndex]?.lessonNumber ?? 1);
+  const position = safeTeacherPosition(teacherImages[teacherImageKey] ?? initial);
+  function setPosition(update: Position | ((value: Position) => Position)) {
+    setTeacherImages((values) => {
+      const current = safeTeacherPosition(values[teacherImageKey] ?? initial);
+      return { ...values, [teacherImageKey]: typeof update === "function" ? update(current) : update };
+    });
+  }
   const [fontSize, setFontSize] = useState((project.layoutConfig as { fontSize?: number } | null)?.fontSize ?? 11);
   const [pageTypography, setPageTypography] = useState((project.layoutConfig as { pageTypography?: PageTypography } | null)?.pageTypography ?? {});
   const [noteOwnPage, setNoteOwnPage] = useState((project.layoutConfig as { noteOwnPage?: boolean } | null)?.noteOwnPage ?? false);
@@ -170,9 +182,6 @@ export function LayoutWorkspace({
   const [message, setMessage] = useState("");
   const [downloading, setDownloading] = useState<string | null>(null);
   const [exportProgress, setExportProgress] = useState<number | null>(null);
-  const [pageIndex, setPageIndex] = useState(0);
-  const [lessonIndex, setLessonIndex] = useState(0);
-  const [previewKind, setPreviewKind] = useState<"student" | "answers" | "parent">("student");
   const canvas = useRef<HTMLDivElement>(null);
   const canvasCopy = useRef<HTMLDivElement>(null);
   const dragging = useRef(false);
@@ -271,7 +280,7 @@ export function LayoutWorkspace({
         ),
       ),
       y: Math.max(
-        28,
+        0,
         Math.min(
           100 - value.height,
           ((event.clientY - rect.top) / rect.height) * 100 - value.height / 2,
@@ -295,6 +304,7 @@ export function LayoutWorkspace({
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           teacherImage: { ...position, assetId: activeAsset?.id },
+          teacherImages: { ...teacherImages, [teacherImageKey]: { ...position, assetId: activeAsset?.id } },
           fontFamily, fontSize, pageTypography, noteOwnPage, noteHeight, headerText, footerText, headerSize, footerSize, richPreviewHtml: nextRichPreviewHtml, backgroundCrop,
         }),
       }),
@@ -488,7 +498,7 @@ export function LayoutWorkspace({
             {previewKind === "student" && pageIndex === 3 && (
               <>
                 <label>
-                  真题页主讲卡通
+                  第{currentLesson?.lessonNumber ?? 1}讲真题页主讲卡通（每讲独立）
                   <select
                     value={activeAsset?.id ?? ""}
                     onChange={(event) =>
