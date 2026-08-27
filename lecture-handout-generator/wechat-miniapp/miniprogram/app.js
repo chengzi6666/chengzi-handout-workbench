@@ -1,6 +1,6 @@
 App({
   onLaunch() {
-    if (wx.cloud) wx.cloud.init({ traceUser: true });
+    if (wx.cloud) wx.cloud.init({ env: "cloudbase-d2gsqgec34c3a6ab4", traceUser: true });
   },
   globalData: {
     grades: [
