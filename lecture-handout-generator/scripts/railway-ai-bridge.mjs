@@ -12,7 +12,11 @@ const project = "9c56ab23-258a-4918-a71d-229c9a1db596";
 const environment = "e7f9d4a5-0d28-4778-9cc9-e96dbdc6e110";
 const appService = "212ab9c5-bf0b-477d-a3b5-6bae394a518b";
 const databaseService = "9a40c03e-ae0e-4901-bcfb-d63aff812964";
-const localProxy = process.env.RAILWAY_DB_SOCKS_PROXY || (process.platform === "win32" ? "127.0.0.1:7890" : "");
+// Railway's public Postgres TCP proxy is normally reachable directly. Routing
+// database traffic through the desktop HTTP proxy can establish CONNECT but
+// still break PostgreSQL negotiation after a reboot. Only use that extra hop
+// when it has been explicitly requested.
+const localProxy = process.env.RAILWAY_DB_SOCKS_PROXY || "";
 
 async function startHttpConnectTunnel(proxyHost, proxyPort, targetHost, targetPort) {
   const server = createServer((client) => {
