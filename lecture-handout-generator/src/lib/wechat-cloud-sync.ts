@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import sharp from "sharp";
 
 type PublicBook = {
   slug: string;
@@ -44,14 +45,26 @@ function assetExtension(url: string, contentType: string) {
 async function uploadAsset(url: string, slug: string, version: string) {
   const response = await fetch(url, { signal: AbortSignal.timeout(45_000) });
   if (!response.ok) throw new Error(`电子书素材读取失败：${response.status}`);
-  const bytes = Buffer.from(await response.arrayBuffer());
-  if (bytes.length > 7 * 1024 * 1024) throw new Error("单个电子书素材超过 7MB，请压缩后再发布");
-  const contentType = response.headers.get("content-type") || "application/octet-stream";
+  let bytes: Buffer<ArrayBufferLike> = Buffer.from(await response.arrayBuffer());
+  let contentType = response.headers.get("content-type") || "application/octet-stream";
+  let extension = assetExtension(url, contentType);
+  if (contentType.startsWith("image/") && !contentType.includes("svg") && bytes.length > 3_500_000) {
+    let width = 2200;
+    let quality = 84;
+    do {
+      bytes = await sharp(bytes).rotate().resize({ width, height: Math.round(width * 1.42), fit: "inside", withoutEnlargement: true }).webp({ quality }).toBuffer();
+      width = Math.round(width * 0.85);
+      quality -= 8;
+    } while (bytes.length > 4_500_000 && quality >= 52);
+    contentType = "image/webp";
+    extension = ".webp";
+  }
+  if (bytes.length > 5_500_000) throw new Error("单个电子书素材压缩后仍超过微信云限制");
   const digest = createHash("sha256").update(url).digest("hex").slice(0, 24);
   const reply = await postSync({
     mode: "asset",
     slug,
-    cloudPath: `published-books/${slug}/${version}/${digest}${assetExtension(url, contentType)}`,
+    cloudPath: `published-books/${slug}/${version}/${digest}${extension}`,
     contentType,
     data: bytes.toString("base64"),
   });
