@@ -82,7 +82,34 @@ async function seedBook(slug, book) {
   await db.collection(CACHE_COLLECTION).doc(slug).set({ data: { sourceVersion: String(new Date(book.updatedAt || 0).getTime() || Date.now()), syncedAt: db.serverDate(), book } });
   return book;
 }
-async function uploadAsset(event) {
+function chunkDocumentId(slug, uploadId, index) {
+  return `_chunk_${slug}_${String(uploadId).replace(/[^A-Za-z0-9_-]/g, "")}_${index}`;
+}
+async function storeAssetChunk(event) {
+  const index = Number(event.index);
+  const total = Number(event.total);
+  if (!Number.isInteger(index) || !Number.isInteger(total) || index < 0 || total < 1 || index >= total || total > 200) throw new Error("素材分块参数无效");
+  const data = String(event.data || "");
+  if (!data || data.length > 90 * 1024) throw new Error("素材分块大小无效");
+  await db.collection(CACHE_COLLECTION).doc(chunkDocumentId(event.slug, event.uploadId, index)).set({ data: { kind: "assetChunk", uploadId: event.uploadId, index, total, data } });
+  return true;
+}
+async function commitAssetChunks(event) {
+  const total = Number(event.total);
+  if (!Number.isInteger(total) || total < 1 || total > 200) throw new Error("素材分块总数无效");
+  const ids = Array.from({ length: total }, (_, index) => chunkDocumentId(event.slug, event.uploadId, index));
+  const rows = await Promise.all(ids.map((id) => db.collection(CACHE_COLLECTION).doc(id).get()));
+  const fileContent = Buffer.concat(rows.map((row, index) => {
+    if (!row.data || row.data.index !== index) throw new Error("素材分块不完整");
+    return Buffer.from(row.data.data, "base64");
+  }));
+  if (fileContent.length > 8 * 1024 * 1024) throw new Error("云端素材大小无效");
+  const cloudPath = String(event.cloudPath || "");
+  if (!cloudPath.startsWith(`published-books/${event.slug}/`) || !/^[A-Za-z0-9_./-]+$/.test(cloudPath)) throw new Error("云端素材路径无效");
+  const uploaded = await cloud.uploadFile({ cloudPath, fileContent });
+  await Promise.all(ids.map((id) => db.collection(CACHE_COLLECTION).doc(id).remove().catch(() => null)));
+  return uploaded.fileID;
+}async function uploadAsset(event) {
   const cloudPath = String(event.cloudPath || "");
   if (!cloudPath.startsWith(`published-books/${event.slug}/`) || !/^[A-Za-z0-9_./-]+$/.test(cloudPath)) throw new Error("云端素材路径无效");
   const data = Buffer.from(String(event.data || ""), "base64");
@@ -102,7 +129,9 @@ function httpReply(statusCode, payload) { return { statusCode, headers: { "conte
 async function handle(event, trusted = false) {
   const slug = String(event.slug || "").replace(/[^A-Za-z0-9_-]/g, "");
   if (!slug) return { ok: false, error: "缺少书籍编号" };
-  if ((event.mode === "seed" || event.mode === "asset") && !trusted) throw new Error("无权写入电子书缓存");
+  if ((["seed", "asset", "assetChunk", "assetCommit"].includes(event.mode)) && !trusted) throw new Error("无权写入电子书缓存");
+  if (event.mode === "assetChunk") return { ok: true, stored: await storeAssetChunk({ ...event, slug }) };
+  if (event.mode === "assetCommit") return { ok: true, fileID: await commitAssetChunks({ ...event, slug }) };
   if (event.mode === "asset") return { ok: true, fileID: await uploadAsset({ ...event, slug }) };
   if (event.mode === "seed") return { ok: true, book: await seedBook(slug, event.book) };
   const stored = await storedBook(slug);

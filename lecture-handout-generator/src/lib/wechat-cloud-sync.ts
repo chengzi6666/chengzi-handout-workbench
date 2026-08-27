@@ -61,13 +61,20 @@ async function uploadAsset(url: string, slug: string, version: string) {
   }
   if (bytes.length > 1_100_000) throw new Error("单个电子书素材压缩后仍超过微信云限制");
   const digest = createHash("sha256").update(url).digest("hex").slice(0, 24);
-  const reply = await postSync({
-    mode: "asset",
-    slug,
-    cloudPath: `published-books/${slug}/${version}/${digest}${extension}`,
-    contentType,
-    data: bytes.toString("base64"),
-  });
+  const cloudPath = `published-books/${slug}/${version}/${digest}${extension}`;
+  const chunkSize = 48 * 1024;
+  const total = Math.ceil(bytes.length / chunkSize);
+  for (let index = 0; index < total; index += 1) {
+    await postSync({
+      mode: "assetChunk",
+      slug,
+      uploadId: digest,
+      index,
+      total,
+      data: bytes.subarray(index * chunkSize, Math.min(bytes.length, (index + 1) * chunkSize)).toString("base64"),
+    });
+  }
+  const reply = await postSync({ mode: "assetCommit", slug, uploadId: digest, total, cloudPath, contentType });
   if (!reply.fileID) throw new Error("微信云素材上传未返回文件地址");
   return reply.fileID;
 }
