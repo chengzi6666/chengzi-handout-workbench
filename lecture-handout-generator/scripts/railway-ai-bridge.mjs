@@ -4,6 +4,9 @@ import { request as httpRequest } from "node:http";
 import { createRequire } from "node:module";
 import { createServer } from "node:net";
 import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+
+const appRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
 
 const project = "9c56ab23-258a-4918-a71d-229c9a1db596";
 const environment = "e7f9d4a5-0d28-4778-9cc9-e96dbdc6e110";
@@ -70,7 +73,7 @@ function railwayJson(args) {
     }
   }
   return JSON.parse(execFileSync(executable, commandArgs, {
-    cwd: process.cwd(),
+    cwd: appRoot,
     encoding: "utf8",
     stdio: ["ignore", "pipe", "inherit"],
     env: localProxy ? {
@@ -122,6 +125,6 @@ const env = {
 
 console.log("橙子讲义公司模型桥已启动：Railway 负责保存与分享，本机负责调用公司 GPT-5.4。");
 console.log("保持本窗口运行；网络暂不可用时任务会停在 80%，恢复公司网络后自动继续。");
-const child = spawn(process.execPath, [tsxBin, "src/worker/index.ts"], { cwd: process.cwd(), env, stdio: "inherit" });
+const child = spawn(process.execPath, [tsxBin, "src/worker/index.ts"], { cwd: appRoot, env, stdio: "inherit" });
 child.on("exit", (code) => { process.exitCode = code ?? 0; });
 for (const signal of ["SIGINT", "SIGTERM"]) process.on(signal, () => { child.kill(signal); databaseTunnel?.close(); });
