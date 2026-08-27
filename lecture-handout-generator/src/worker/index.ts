@@ -179,6 +179,17 @@ async function runJob(job: ProcessingJob) {
   switch (job.kind) {
     case "PDF_PARSE": return parseSourceDocument(job);
     case "CONTENT_GENERATE": {
+      const payload = job.payload as { connectivityTest?: boolean; providerId?: string };
+      if (payload.connectivityTest) {
+        const provider = await getConfiguredProvider(payload.providerId);
+        const startedAt = Date.now();
+        const response = await provider.generateText({
+          systemPrompt: "你是接口连通性测试助手。",
+          userPrompt: "只回复：连接成功",
+          temperature: 0,
+        });
+        return { connectivityTest: true, latencyMs: Date.now() - startedAt, model: response.model, preview: response.text.slice(0, 80) };
+      }
       const lessonIds = await generateProjectContent(job.projectId, async (completed, total) => {
         const percent = 82 + Math.round((completed / Math.max(total, 1)) * 16);
         await db.processingJob.update({
