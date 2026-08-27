@@ -187,8 +187,9 @@ export function LayoutWorkspace({
   const canvasCopy = useRef<HTMLDivElement>(null);
   const dragging = useRef(false);
   const teacher = teachers.find((item) => item.id === teacherId);
-  const expressions =
-    teacher?.assets.filter((asset) => asset.kind === "EXPRESSION") ?? [];
+  const expressions = (teacher?.assets.filter((asset) => asset.kind === "EXPRESSION") ?? [])
+    .slice()
+    .sort((left, right) => (left.label ?? "").localeCompare(right.label ?? "", "zh-CN", { numeric: true }));
   const activeAsset = useMemo(
     () =>
       expressions.find((asset) => asset.id === position.assetId) ??

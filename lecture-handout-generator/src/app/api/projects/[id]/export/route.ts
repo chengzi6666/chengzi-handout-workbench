@@ -49,7 +49,9 @@ export async function GET(request: Request, context: { params: Promise<{ id: str
   const layout = project.layoutConfig as { teacherImage?: TeacherPosition; teacherImages?: Record<string, TeacherPosition>; fontSize?: number; fontFamily?: "Microsoft YaHei" | "SimSun" | "KaiTi" | "FangSong"; pageTypography?: Record<string, { bodySize?: number; titleSize?: number }>; headerText?: string; headerSize?: number; footerText?: string; footerSize?: number; noteOwnPage?: boolean } | null;
   const gradeKey = ({ "0升1": "0l1", "1升2": "1l2", "2升3": "2l3", "3升4": "3l4", "4升5": "4l5" } as Record<string, string>)[project.grade] ?? "1l2";
   const defaultTeacher = async (kind: "expression" | "portrait") => ({ data: await readFile(join(process.cwd(), "public", "teacher-defaults", `${gradeKey}-${kind}.png`)), type: "png" as const });
-  const expressionAssets = project.teacher?.assets.filter((asset) => asset.kind === "EXPRESSION") ?? [];
+  const expressionAssets = (project.teacher?.assets.filter((asset) => asset.kind === "EXPRESSION") ?? [])
+    .slice()
+    .sort((left, right) => (left.label ?? "").localeCompare(right.label ?? "", "zh-CN", { numeric: true }));
   const expressionAsset = project.teacher?.assets.find((asset) => asset.id === layout?.teacherImage?.assetId) ?? expressionAssets[0];
   const portraitAsset = project.teacher?.assets.find((asset) => asset.kind === "PORTRAIT");
   const teacherImage = expressionAsset ? { data: Buffer.from(await objectStore().get(expressionAsset.objectKey)), type: typeOf(expressionAsset.objectKey) } : await defaultTeacher("expression");

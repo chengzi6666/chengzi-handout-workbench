@@ -14,6 +14,9 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
   if (!(file instanceof File) || !kind.success || !file.type.startsWith("image/")) return NextResponse.json({ error: "请选择老师图片" }, { status: 400 });
   const key = `teachers/${id}/${kind.data.toLowerCase()}-${Date.now()}-${safeFileName(file.name)}`;
   await objectStore().put({ key, body: Buffer.from(await file.arrayBuffer()), contentType: file.type });
-  const asset = await db.teacherAsset.create({ data: { teacherId: id, kind: kind.data, label: String(form.get("label") ?? file.name), objectKey: key } });
+  const sortOrder = kind.data === "EXPRESSION"
+    ? (await db.teacherAsset.count({ where: { teacherId: id, kind: "EXPRESSION" } })) + 1
+    : 0;
+  const asset = await db.teacherAsset.create({ data: { teacherId: id, kind: kind.data, label: String(form.get("label") ?? file.name), objectKey: key, sortOrder } });
   return NextResponse.json({ asset });
 }

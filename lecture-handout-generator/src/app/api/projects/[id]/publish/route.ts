@@ -51,7 +51,9 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
   type TeacherPosition = { assetId?: string; x?: number; y?: number; width?: number; height?: number };
   const layout = project.layoutConfig as { teacherImage?: TeacherPosition; teacherImages?: Record<string, TeacherPosition> } | null;
   const defaultTeacherKey = ({ "0升1": "0l1", "1升2": "1l2", "2升3": "2l3", "3升4": "3l4", "4升5": "4l5" } as Record<string, string>)[project.grade] ?? "1l2";
-  const expressionAssets = project.teacher?.assets.filter((asset) => asset.kind === "EXPRESSION") ?? [];
+  const expressionAssets = (project.teacher?.assets.filter((asset) => asset.kind === "EXPRESSION") ?? [])
+    .slice()
+    .sort((left, right) => (left.label ?? "").localeCompare(right.label ?? "", "zh-CN", { numeric: true }));
   const parentSpecs = parentPageSpec(project.grade, lessons, teacherName, project.teacher?.introduction ?? undefined);
   const portraitAsset = project.teacher?.assets.find((asset) => asset.kind === "PORTRAIT");
   const teacherPortraitSrc = portraitAsset ? `/api/book/${slug}/teacher/${portraitAsset.id}` : `/teacher-defaults/${defaultTeacherKey}-portrait.png`;
