@@ -94,11 +94,22 @@ async function storeAssetChunk(event) {
   await db.collection(CACHE_COLLECTION).doc(chunkDocumentId(event.slug, event.uploadId, index)).set({ data: { kind: "assetChunk", uploadId: event.uploadId, index, total, data } });
   return true;
 }
-async function commitAssetChunks(event) {
+async function readChunkWithRetry(id, expectedIndex) {
+  let lastError;
+  for (let attempt = 0; attempt < 8; attempt += 1) {
+    try {
+      const row = await db.collection(CACHE_COLLECTION).doc(id).get();
+      if (row.data && row.data.index === expectedIndex) return row;
+      lastError = new Error("素材分块序号不匹配");
+    } catch (error) { lastError = error; }
+    await new Promise((resolve) => setTimeout(resolve, 250 * (attempt + 1)));
+  }
+  throw lastError || new Error("素材分块读取失败");
+}async function commitAssetChunks(event) {
   const total = Number(event.total);
   if (!Number.isInteger(total) || total < 1 || total > 200) throw new Error("素材分块总数无效");
   const ids = Array.from({ length: total }, (_, index) => chunkDocumentId(event.slug, event.uploadId, index));
-  const rows = await Promise.all(ids.map((id) => db.collection(CACHE_COLLECTION).doc(id).get()));
+  const rows = await Promise.all(ids.map((id, index) => readChunkWithRetry(id, index)));
   const fileContent = Buffer.concat(rows.map((row, index) => {
     if (!row.data || row.data.index !== index) throw new Error("素材分块不完整");
     return Buffer.from(row.data.data, "base64");
@@ -113,7 +124,7 @@ async function commitAssetChunks(event) {
   const total = Number(event.total);
   if (!Number.isInteger(total) || total < 1 || total > 200) throw new Error("书籍分块总数无效");
   const ids = Array.from({ length: total }, (_, index) => chunkDocumentId(event.slug, event.uploadId, index));
-  const rows = await Promise.all(ids.map((id) => db.collection(CACHE_COLLECTION).doc(id).get()));
+  const rows = await Promise.all(ids.map((id, index) => readChunkWithRetry(id, index)));
   const bytes = Buffer.concat(rows.map((row, index) => {
     if (!row.data || row.data.index !== index) throw new Error("书籍分块不完整");
     return Buffer.from(row.data.data, "base64");
