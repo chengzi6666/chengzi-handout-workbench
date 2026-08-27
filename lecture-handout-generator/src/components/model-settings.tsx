@@ -58,16 +58,33 @@ export function ModelSettings() {
     setTestingId(id);
     setMessage("正在测试接口…");
     const controller = new AbortController();
-    // Railway 的测试请求会排队交给公司网络中的本机桥处理；给桥接轮询留出时间。
+    // 用短请求轮询 Railway，避免移动网络或代理中断长连接后界面一直显示“正在测试”。
     const timeout = window.setTimeout(() => controller.abort(), 45_000);
     try {
-      const response = await fetch(`/api/ai-providers/${id}/test`, { method: "POST", signal: controller.signal });
-      const result = await response.json().catch(() => ({})) as { latencyMs?: number; error?: string };
-      setMessage(response.ok ? `连接成功，耗时 ${result.latencyMs} ms` : result.error ?? "连接失败");
+      const queuedResponse = await fetch(`/api/ai-providers/${id}/test`, {
+        method: "POST",
+        headers: { "x-model-test-async": "1" },
+        signal: controller.signal,
+      });
+      const queued = await queuedResponse.json().catch(() => ({})) as { jobId?: string; error?: string };
+      if (!queuedResponse.ok || !queued.jobId) throw new Error(queued.error ?? "无法创建接口测试任务");
+
+      while (!controller.signal.aborted) {
+        await new Promise((resolve) => window.setTimeout(resolve, 1_000));
+        const response = await fetch(`/api/ai-providers/${id}/test?jobId=${encodeURIComponent(queued.jobId)}`, {
+          cache: "no-store",
+          signal: controller.signal,
+        });
+        const result = await response.json().catch(() => ({})) as { pending?: boolean; latencyMs?: number; error?: string };
+        if (response.status === 202 && result.pending) continue;
+        if (!response.ok) throw new Error(result.error ?? "连接失败");
+        setMessage(`连接成功，已确认公司团队 GPT-5.4，耗时 ${result.latencyMs ?? 0} ms`);
+        return;
+      }
     } catch (error) {
       setMessage(error instanceof DOMException && error.name === "AbortError"
         ? "测试已在45秒后停止：本机公司模型桥尚未返回，请确认桥接程序和公司网络。"
-        : "接口测试请求失败，请检查网络后重试。");
+        : error instanceof Error ? error.message : "接口测试请求失败，请检查网络后重试。");
     } finally {
       window.clearTimeout(timeout);
       setTestingId(null);
