@@ -19,7 +19,14 @@ export async function GET(request: Request, context: { params: Promise<{ slug: s
     include: { project: { include: { backgroundPack: { include: { assets: true } } } } },
   });
   if (!book) return NextResponse.json({ error: "电子书不存在" }, { status: 404 });
-  const origin = new URL(request.url).origin;
+  const configuredOrigin = process.env.PUBLIC_APP_URL?.replace(/\/$/, "");
+  const forwardedHost = request.headers.get("x-forwarded-host");
+  const forwardedProto = request.headers.get("x-forwarded-proto")?.split(",")[0]?.trim() || "https";
+  const origin = configuredOrigin && !/^https?:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?$/iu.test(configuredOrigin)
+    ? configuredOrigin
+    : forwardedHost
+      ? `${forwardedProto}://${forwardedHost}`
+      : new URL(request.url).origin;
   const version = book.updatedAt.getTime();
   const cover = book.project.backgroundPack?.assets.find((item) => item.role === "COVER");
   const shareCover = book.project.backgroundPack?.assets.find((item) => item.role === "WECHAT_SHARE");
