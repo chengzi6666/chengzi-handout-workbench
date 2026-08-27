@@ -1,0 +1,4 @@
+const cloud=require("wx-server-sdk"),https=require("https");cloud.init({env:cloud.DYNAMIC_CURRENT_ENV});
+const DEFAULT_API_BASE="https://chengzi-handout-workbench-production.up.railway.app";
+function getJson(url){return new Promise((resolve,reject)=>{https.get(url,{timeout:20000},(response)=>{let body="";response.setEncoding("utf8");response.on("data",(chunk)=>{body+=chunk});response.on("end",()=>{if(response.statusCode<200||response.statusCode>=300)return reject(new Error("书籍接口返回 "+response.statusCode));try{resolve(JSON.parse(body))}catch{reject(new Error("书籍数据格式错误"))}})}).on("error",reject)})}
+exports.main=async(event)=>{const slug=String(event.slug||"").replace(/[^A-Za-z0-9_-]/g,"");if(!slug)return{ok:false,error:"缺少书籍编号"};try{const base=process.env.BOOK_API_BASE||DEFAULT_API_BASE,book=await getJson(base+"/api/public/books/"+slug);return{ok:true,book:book}}catch(error){return{ok:false,error:error.message||"电子书同步失败"}}};

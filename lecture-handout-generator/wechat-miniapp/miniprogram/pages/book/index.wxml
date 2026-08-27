@@ -1,0 +1,10 @@
+<view wx:if="{{loading}}" class="state">正在打开电子书…</view>
+<view wx:elif="{{error}}" class="state error">{{error}}</view>
+<view wx:else class="reader {{landscape?'landscape':'portrait'}}">
+  <view class="reader-head"><view><text class="book-title">{{book.title}}</text><text class="book-desc">{{book.description}}</text></view><button open-type="share" class="share">分享</button></view>
+  <view class="spread">
+    <view class="page" style="background-image:url({{current.backgroundSrc}})"><text class="page-title">{{current.title}}</text><rich-text wx:if="{{current.richHtml}}" nodes="{{current.richHtml}}"></rich-text><view wx:else><view wx:for="{{blocks}}" wx:key="index" class="block">{{item.text}}</view></view><image wx:if="{{current.teacherExpressionSrc}}" class="teacher" mode="aspectFit" src="{{current.teacherExpressionSrc}}"/></view>
+    <view wx:if="{{landscape&&pages[index+1]}}" class="page" style="background-image:url({{pages[index+1].backgroundSrc}})"><text class="page-title">{{pages[index+1].title}}</text><rich-text nodes="{{pages[index+1].richHtml}}"></rich-text></view>
+  </view>
+  <view class="controls"><button disabled="{{index===0}}" bindtap="previous">上一页</button><text>{{index+1}} / {{pages.length}}</text><button disabled="{{index>=pages.length-1}}" bindtap="next">下一页</button></view>
+</view>

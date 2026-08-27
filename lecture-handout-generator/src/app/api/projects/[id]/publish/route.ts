@@ -80,5 +80,10 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
   const origin = process.env.PUBLIC_APP_URL?.replace(/\/$/, "") ?? new URL(_request.url).origin;
   // 微信会长期缓存同一 URL 的标题与缩略图。每次重新发布附带内容版本，
   // 让手机端立即抓取刚上传的分享封面，而不是继续显示旧图。
-  return NextResponse.json({ url: `${origin}/book/${flipbook.slug}?v=${flipbook.updatedAt.getTime()}` });
+  const gradeCode = ({ "0升1": "0l1", "1升2": "1l2", "2升3": "2l3", "3升4": "3l4", "4升5": "4l5" } as Record<string, string>)[project.grade] ?? "0l1";
+  return NextResponse.json({
+    url: `${origin}/book/${flipbook.slug}?v=${flipbook.updatedAt.getTime()}`,
+    slug: flipbook.slug,
+    miniProgramPath: `/pages/book/index?grade=${gradeCode}&slug=${flipbook.slug}`,
+  });
 }

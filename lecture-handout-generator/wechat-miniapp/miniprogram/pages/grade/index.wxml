@@ -1,0 +1,9 @@
+<view class="safe-page">
+  <view class="hero"><text class="eyebrow">真读书 · 有深度 · 用得上</text><text class="title">橙子读写电子书</text><text class="subtitle">请选择孩子所在年级</text></view>
+  <view class="grade-grid">
+    <button wx:for="{{grades}}" wx:key="code" class="grade-card {{selectedGrade === item.code ? 'active' : ''}}" style="--grade-color:{{item.color}}" data-grade="{{item.code}}" bindtap="openGrade">
+      <text class="grade-name">{{item.label}}</text><text class="grade-desc">{{item.sourceGrade}}阶段 · 五讲读写提升</text>
+    </button>
+  </view>
+  <button class="share-tip" open-type="share">分享当前年级卡片</button>
+</view>
