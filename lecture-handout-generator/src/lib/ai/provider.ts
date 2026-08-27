@@ -29,6 +29,8 @@ export interface OpenAiCompatibleProviderOptions {
   model: string;
   extraHeaders?: Record<string, string>;
   useTokenHeader?: boolean;
+  /** 公司星图网关走 api-key 认证（经内网桥接时域名不再是 *.tal.com，需显式标记）。 */
+  companyGateway?: boolean;
   /** Connectivity checks should fail fast; content generation keeps the longer defaults. */
   requestTimeoutMs?: number;
   maxAttempts?: number;
@@ -59,12 +61,17 @@ export class OpenAiCompatibleProvider implements AiProvider {
 
   private async request(input: GenerateTextInput, userMessage: unknown): Promise<GenerateTextResult> {
     const endpoint = `${this.options.baseUrl.replace(/\/$/, "")}/chat/completions`;
-    // 文本模型的 OpenAI-compatible 与 /claw 网关都使用 Bearer。
-    // 漫画项目中 `api-key` 是 images/generations 生图接口的专用规则，
-    // 不能套用到 chat/completions，否则团队 APPID Key 会被错误认证。
-    const authHeaders: Record<string, string> = this.options.useTokenHeader
-      ? { token: this.options.apiKey }
-      : { authorization: `Bearer ${this.options.apiKey}` };
+    const endpointHost = new URL(endpoint).hostname.toLowerCase();
+    // 公司星图网关用 api-key 认证；桥接（127.0.0.1:9000）或 *.tal.com 域名都按公司网关处理，
+    // 同时附带 Bearer 头，兼容网关两种鉴权方式。
+    const isCompanyGateway = this.options.companyGateway === true
+      || endpointHost === "ai-service.tal.com"
+      || endpointHost.endsWith(".tal.com");
+    const authHeaders: Record<string, string> = isCompanyGateway
+      ? { "api-key": this.options.apiKey, authorization: `Bearer ${this.options.apiKey}` }
+      : this.options.useTokenHeader
+        ? { token: this.options.apiKey }
+        : { authorization: `Bearer ${this.options.apiKey}` };
     // 集团模型默认 RPM 很低。五讲生成会连续请求，必须由客户端主动退避，
     // 不能把一次 429 当作整份讲义失败。
     const maxAttempts = Math.max(1, this.options.maxAttempts ?? 5);
@@ -92,7 +99,7 @@ export class OpenAiCompatibleProvider implements AiProvider {
         })
         });
       } catch (error) {
-        if (controller.signal.aborted) throw new Error(`连接超时（${Math.ceil(requestTimeoutMs / 1000)}秒），模型网关没有及时响应，请稍后重试。`);
+        if (controller.signal.aborted) throw new Error(`连接超时（${Math.ceil(requestTimeoutMs / 1000)}秒），模型网关没有及时响应。若使用 Railway 版，请确认本机「公司模型桥」(frpc) 正在运行且已连接公司内网。`);
         // 公司网络、VPN 切换和低 RPM 网关都可能主动断开 keep-alive socket。
         // 这类瞬时连接错误不能原样泄露为 "fetch failed"，也不应立刻中断五讲任务。
         if (attempt < maxAttempts - 1) {
