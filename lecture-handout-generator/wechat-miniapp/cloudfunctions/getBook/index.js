@@ -101,10 +101,43 @@ async function cachedBook(slug, sourceBook) {
   return book;
 }
 
+async function storedBook(slug) {
+  const document = db.collection(CACHE_COLLECTION).doc(slug);
+  try {
+    const cached = await document.get();
+    return cached.data && cached.data.book ? cached.data.book : null;
+  } catch (error) {
+    if (!String((error && error.errMsg) || error).includes("does not exist")) {
+      console.warn("读取电子书缓存失败", error);
+    }
+    return null;
+  }
+}
+
+async function seedBook(slug, book) {
+  const wxContext = cloud.getWXContext();
+  // Mini-program calls always include an OPENID. Seeding is reserved for an
+  // administrator invocation through CloudBase CLI, so readers cannot replace
+  // a published book from the client.
+  if (wxContext && wxContext.OPENID) throw new Error("无权写入电子书缓存");
+  if (!book || !Array.isArray(book.pages)) throw new Error("电子书数据格式错误");
+  await db.collection(CACHE_COLLECTION).doc(slug).set({
+    data: {
+      sourceVersion: String(new Date(book.updatedAt || 0).getTime() || Date.now()),
+      syncedAt: db.serverDate(),
+      book,
+    },
+  });
+  return book;
+}
+
 exports.main = async (event) => {
   const slug = String(event.slug || "").replace(/[^A-Za-z0-9_-]/g, "");
   if (!slug) return { ok: false, error: "缺少书籍编号" };
   try {
+    if (event.mode === "seed") return { ok: true, book: await seedBook(slug, event.book) };
+    const stored = await storedBook(slug);
+    if (stored) return { ok: true, book: stored };
     const base = process.env.BOOK_API_BASE || DEFAULT_API_BASE;
     const sourceBook = await request(base + "/api/public/books/" + slug);
     return { ok: true, book: await cachedBook(slug, sourceBook) };
