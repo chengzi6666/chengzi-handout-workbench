@@ -83,7 +83,10 @@ if (socksProxy) {
     console.warn(`本机代理不可用，Railway 数据库改用直连：${error instanceof Error ? error.message : error}`);
   }
 }
-const databaseUrl = `postgresql://${encodeURIComponent(dbVars.PGUSER)}:${encodeURIComponent(dbVars.PGPASSWORD)}@${databaseHost}:${databasePort}/${encodeURIComponent(dbVars.PGDATABASE)}`;
+// The SOCKS hop is deliberately kept to one database connection. Prisma's
+// default pool can otherwise open dozens of simultaneous tunnels, which makes
+// Clash or Railway's TCP proxy intermittently reset the bridge after a while.
+const databaseUrl = `postgresql://${encodeURIComponent(dbVars.PGUSER)}:${encodeURIComponent(dbVars.PGPASSWORD)}@${databaseHost}:${databasePort}/${encodeURIComponent(dbVars.PGDATABASE)}?connection_limit=1&pool_timeout=30`;
 const require = createRequire(import.meta.url);
 const tsxBin = join(dirname(require.resolve("tsx/package.json")), "dist", "cli.mjs");
 const env = {
