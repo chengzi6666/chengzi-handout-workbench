@@ -58,14 +58,15 @@ export function ModelSettings() {
     setTestingId(id);
     setMessage("正在测试接口…");
     const controller = new AbortController();
-    const timeout = window.setTimeout(() => controller.abort(), 15_000);
+    // Railway 的测试请求会排队交给公司网络中的本机桥处理；给桥接轮询留出时间。
+    const timeout = window.setTimeout(() => controller.abort(), 45_000);
     try {
       const response = await fetch(`/api/ai-providers/${id}/test`, { method: "POST", signal: controller.signal });
       const result = await response.json().catch(() => ({})) as { latencyMs?: number; error?: string };
       setMessage(response.ok ? `连接成功，耗时 ${result.latencyMs} ms` : result.error ?? "连接失败");
     } catch (error) {
       setMessage(error instanceof DOMException && error.name === "AbortError"
-        ? "测试已在15秒后停止：模型网关没有及时响应，请稍后重试。"
+        ? "测试已在45秒后停止：本机公司模型桥尚未返回，请确认桥接程序和公司网络。"
         : "接口测试请求失败，请检查网络后重试。");
     } finally {
       window.clearTimeout(timeout);
