@@ -109,6 +109,20 @@ async function commitAssetChunks(event) {
   const uploaded = await cloud.uploadFile({ cloudPath, fileContent });
   await Promise.all(ids.map((id) => db.collection(CACHE_COLLECTION).doc(id).remove().catch(() => null)));
   return uploaded.fileID;
+}async function commitBookChunks(event) {
+  const total = Number(event.total);
+  if (!Number.isInteger(total) || total < 1 || total > 200) throw new Error("书籍分块总数无效");
+  const ids = Array.from({ length: total }, (_, index) => chunkDocumentId(event.slug, event.uploadId, index));
+  const rows = await Promise.all(ids.map((id) => db.collection(CACHE_COLLECTION).doc(id).get()));
+  const bytes = Buffer.concat(rows.map((row, index) => {
+    if (!row.data || row.data.index !== index) throw new Error("书籍分块不完整");
+    return Buffer.from(row.data.data, "base64");
+  }));
+  let book;
+  try { book = JSON.parse(bytes.toString("utf8")); } catch { throw new Error("书籍分块内容无效"); }
+  await seedBook(event.slug, book);
+  await Promise.all(ids.map((id) => db.collection(CACHE_COLLECTION).doc(id).remove().catch(() => null)));
+  return book;
 }async function uploadAsset(event) {
   const cloudPath = String(event.cloudPath || "");
   if (!cloudPath.startsWith(`published-books/${event.slug}/`) || !/^[A-Za-z0-9_./-]+$/.test(cloudPath)) throw new Error("云端素材路径无效");
@@ -129,7 +143,9 @@ function httpReply(statusCode, payload) { return { statusCode, headers: { "conte
 async function handle(event, trusted = false) {
   const slug = String(event.slug || "").replace(/[^A-Za-z0-9_-]/g, "");
   if (!slug) return { ok: false, error: "缺少书籍编号" };
-  if ((["seed", "asset", "assetChunk", "assetCommit"].includes(event.mode)) && !trusted) throw new Error("无权写入电子书缓存");
+  if ((["seed", "asset", "assetChunk", "assetCommit", "bookChunk", "bookCommit"].includes(event.mode)) && !trusted) throw new Error("无权写入电子书缓存");
+  if (event.mode === "bookChunk") return { ok: true, stored: await storeAssetChunk({ ...event, slug }) };
+  if (event.mode === "bookCommit") return { ok: true, book: await commitBookChunks({ ...event, slug }) };
   if (event.mode === "assetChunk") return { ok: true, stored: await storeAssetChunk({ ...event, slug }) };
   if (event.mode === "assetCommit") return { ok: true, fileID: await commitAssetChunks({ ...event, slug }) };
   if (event.mode === "asset") return { ok: true, fileID: await uploadAsset({ ...event, slug }) };

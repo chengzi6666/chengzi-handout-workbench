@@ -102,6 +102,20 @@ export async function syncPublishedBookToWechat(book: PublicBook) {
     return next;
   };
   const mirrored = (await transform(book)) as PublicBook;
-  await postSync({ mode: "seed", slug: book.slug, book: mirrored });
+  const bookBytes = Buffer.from(JSON.stringify(mirrored), "utf8");
+  const bookChunkSize = 48 * 1024;
+  const bookTotal = Math.ceil(bookBytes.length / bookChunkSize);
+  const bookUploadId = `book-${version}`;
+  for (let index = 0; index < bookTotal; index += 1) {
+    await postSync({
+      mode: "bookChunk",
+      slug: book.slug,
+      uploadId: bookUploadId,
+      index,
+      total: bookTotal,
+      data: bookBytes.subarray(index * bookChunkSize, Math.min(bookBytes.length, (index + 1) * bookChunkSize)).toString("base64"),
+    });
+  }
+  await postSync({ mode: "bookCommit", slug: book.slug, uploadId: bookUploadId, total: bookTotal });
   return { assetCount: memo.size };
 }
