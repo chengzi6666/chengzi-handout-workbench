@@ -6,8 +6,13 @@ import { writeFileSync } from "node:fs";
 const require = createRequire(import.meta.url);
 const nextBin = require.resolve("next/dist/bin/next");
 const tsxBin = join(dirname(require.resolve("tsx/package.json")), "dist", "cli.mjs");
+// Railway also exposes an optional TCP proxy for the legacy FRP bridge. That
+// proxy can overwrite PORT with 7000, but the public HTTP domain is routed to
+// the application's normal web port. Keep those two listeners independent so
+// enabling the TCP proxy cannot silently take the website offline.
+const webPort = process.env.WEB_PORT || "3000";
 const children = [
-  spawn(process.execPath, [nextBin, "start"], { cwd: process.cwd(), env: process.env, stdio: "inherit" }),
+  spawn(process.execPath, [nextBin, "start", "-p", webPort], { cwd: process.cwd(), env: process.env, stdio: "inherit" }),
 ];
 // The company gateway is reachable only from the user's corporate network.
 // In local-bridge mode Railway owns the web/database layer while the local

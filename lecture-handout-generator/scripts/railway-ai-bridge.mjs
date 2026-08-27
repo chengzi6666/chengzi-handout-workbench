@@ -1,32 +1,48 @@
 import { execFileSync, spawn } from "node:child_process";
 import { existsSync, readdirSync } from "node:fs";
+import { request as httpRequest } from "node:http";
 import { createRequire } from "node:module";
 import { createServer } from "node:net";
 import { dirname, join } from "node:path";
-import { SocksClient } from "socks";
 
 const project = "9c56ab23-258a-4918-a71d-229c9a1db596";
 const environment = "e7f9d4a5-0d28-4778-9cc9-e96dbdc6e110";
 const appService = "212ab9c5-bf0b-477d-a3b5-6bae394a518b";
 const databaseService = "9a40c03e-ae0e-4901-bcfb-d63aff812964";
+const localProxy = process.env.RAILWAY_DB_SOCKS_PROXY || (process.platform === "win32" ? "127.0.0.1:7890" : "");
 
-async function startSocksTunnel(proxyHost, proxyPort, targetHost, targetPort) {
+async function startHttpConnectTunnel(proxyHost, proxyPort, targetHost, targetPort) {
   const server = createServer((client) => {
     client.pause();
-    SocksClient.createConnection({
-      proxy: { host: proxyHost, port: proxyPort, type: 5 },
-      command: "connect",
-      destination: { host: targetHost, port: targetPort },
+    const request = httpRequest({
+      host: proxyHost,
+      port: proxyPort,
+      method: "CONNECT",
+      path: `${targetHost}:${targetPort}`,
       timeout: 15_000,
-    }).then(({ socket: upstream }) => {
+    });
+    request.once("connect", (response, upstream, head) => {
+      // CONNECT has completed; the request timeout must not remain attached to
+      // the upgraded PostgreSQL socket or it will tear down a healthy bridge
+      // exactly 15 seconds later.
+      request.setTimeout(0);
+      if (response.statusCode !== 200) {
+        upstream.destroy();
+        client.destroy();
+        return;
+      }
       client.on("error", () => upstream.destroy());
       upstream.on("error", () => client.destroy());
+      if (head.length) client.write(head);
       client.pipe(upstream).pipe(client);
       client.resume();
-    }).catch((error) => {
-      console.warn(`Railway DB SOCKS tunnel: ${error.message}`);
+    });
+    request.once("timeout", () => request.destroy(new Error("proxy CONNECT timeout")));
+    request.once("error", (error) => {
+      console.warn(`Railway DB HTTP CONNECT tunnel: ${error.message}`);
       client.destroy();
     });
+    request.end();
   });
   await new Promise((resolve, reject) => {
     server.once("error", reject);
@@ -54,7 +70,14 @@ function railwayJson(args) {
     }
   }
   return JSON.parse(execFileSync(executable, commandArgs, {
-    cwd: process.cwd(), encoding: "utf8", stdio: ["ignore", "pipe", "inherit"],
+    cwd: process.cwd(),
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "inherit"],
+    env: localProxy ? {
+      ...process.env,
+      HTTP_PROXY: process.env.HTTP_PROXY || `http://${localProxy}`,
+      HTTPS_PROXY: process.env.HTTPS_PROXY || `http://${localProxy}`,
+    } : process.env,
   }));
 }
 
@@ -68,13 +91,12 @@ if (!proxy) throw new Error("Railway Postgres 尚未配置 TCP 代理");
 let databaseHost = proxy.domain;
 let databasePort = proxy.proxyPort;
 let databaseTunnel;
-const socksProxy = process.env.RAILWAY_DB_SOCKS_PROXY || (process.platform === "win32" ? "127.0.0.1:7890" : "");
-if (socksProxy) {
-  const separator = socksProxy.lastIndexOf(":");
-  const socksHost = socksProxy.slice(0, separator);
-  const socksPort = Number(socksProxy.slice(separator + 1));
+if (localProxy) {
+  const separator = localProxy.lastIndexOf(":");
+  const socksHost = localProxy.slice(0, separator);
+  const socksPort = Number(localProxy.slice(separator + 1));
   try {
-    databaseTunnel = await startSocksTunnel(socksHost, socksPort, proxy.domain, proxy.proxyPort);
+    databaseTunnel = await startHttpConnectTunnel(socksHost, socksPort, proxy.domain, proxy.proxyPort);
     const address = databaseTunnel.address();
     databaseHost = "127.0.0.1";
     databasePort = typeof address === "object" && address ? address.port : proxy.proxyPort;
@@ -83,7 +105,7 @@ if (socksProxy) {
     console.warn(`本机代理不可用，Railway 数据库改用直连：${error instanceof Error ? error.message : error}`);
   }
 }
-// The SOCKS hop is deliberately kept to one database connection. Prisma's
+// The proxy hop is deliberately kept to one database connection. Prisma's
 // default pool can otherwise open dozens of simultaneous tunnels, which makes
 // Clash or Railway's TCP proxy intermittently reset the bridge after a while.
 const databaseUrl = `postgresql://${encodeURIComponent(dbVars.PGUSER)}:${encodeURIComponent(dbVars.PGPASSWORD)}@${databaseHost}:${databasePort}/${encodeURIComponent(dbVars.PGDATABASE)}?connection_limit=1&pool_timeout=30`;
