@@ -91,9 +91,15 @@ export async function syncPublishedBookToWechat(book: PublicBook) {
     return pending;
   };
   const transform = async (value: unknown): Promise<unknown> => {
-    if (Array.isArray(value)) return Promise.all(value.map(transform));
+    if (Array.isArray(value)) {
+      const next = [];
+      for (const item of value) next.push(await transform(item));
+      return next;
+    }
     if (value && typeof value === "object") {
-      return Object.fromEntries(await Promise.all(Object.entries(value).map(async ([key, item]) => [key, await transform(item)])));
+      const entries: Array<[string, unknown]> = [];
+      for (const [key, item] of Object.entries(value)) entries.push([key, await transform(item)]);
+      return Object.fromEntries(entries);
     }
     if (typeof value !== "string") return value;
     const matches = [...new Set(value.match(URL_PATTERN) || [])];
