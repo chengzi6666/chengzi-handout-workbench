@@ -80,7 +80,14 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
   const chrome = pageChrome(project.layoutConfig);
   const content = [...(parsed.data.includes.includes("parent") ? parent : []), ...(parsed.data.includes.includes("student") ? student : []), ...(parsed.data.includes.includes("answers") ? answers : [])].map((page) => ({ ...page, ...chrome }));
   const flipbook = latest ? await db.publishedFlipbook.update({ where: { id: latest.id }, data: { title: project.name, description: `${project.grade}五讲读写课程电子讲义`, content } }) : await db.publishedFlipbook.create({ data: { projectId: project.id, slug, title: project.name, description: `${project.grade}五讲读写课程电子讲义`, content } });
-  const origin = process.env.PUBLIC_APP_URL?.replace(/\/$/, "") ?? new URL(_request.url).origin;
+  const requestOrigin = new URL(_request.url).origin;
+  const configuredOrigin = process.env.PUBLIC_APP_URL?.replace(/\/$/, "");
+  // A stale local development value must never be persisted into a public
+  // flipbook. Those absolute URLs are consumed by mobile browsers and the
+  // WeChat cloud mirror, where localhost points at the reader's own device.
+  const origin = configuredOrigin && !/^https?:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?$/iu.test(configuredOrigin)
+    ? configuredOrigin
+    : requestOrigin;
   // 微信会长期缓存同一 URL 的标题与缩略图。每次重新发布附带内容版本，
   // 让手机端立即抓取刚上传的分享封面，而不是继续显示旧图。
   const gradeCode = ({ "0升1": "0l1", "1升2": "1l2", "2升3": "2l3", "3升4": "3l4", "4升5": "4l5" } as Record<string, string>)[project.grade] ?? "0l1";
@@ -114,3 +121,4 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
     miniProgramPath: `/pages/book/index?grade=${gradeCode}&slug=${flipbook.slug}`,
   });
 }
+
