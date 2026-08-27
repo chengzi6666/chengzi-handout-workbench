@@ -241,10 +241,13 @@ async function complete(job: ProcessingJob) {
 
 async function main() {
   console.log("handout worker started");
-  try { await recoverInterruptedJobs(); }
-  catch (error) { console.warn("worker startup database unavailable; will retry", error instanceof Error ? error.message : error); }
+  let recoveryComplete = false;
   while (!stopping) {
     try {
+      if (!recoveryComplete) {
+        await recoverInterruptedJobs();
+        recoveryComplete = true;
+      }
       // The company gateway resolves to a private address. Do not claim a Railway
       // generation job while this PC is off the corporate network: otherwise the
       // UI sits at 82% for a full model timeout and every retry increments attempts.
