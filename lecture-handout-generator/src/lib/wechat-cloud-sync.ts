@@ -48,18 +48,18 @@ async function uploadAsset(url: string, slug: string, version: string) {
   let bytes: Buffer<ArrayBufferLike> = Buffer.from(await response.arrayBuffer());
   let contentType = response.headers.get("content-type") || "application/octet-stream";
   let extension = assetExtension(url, contentType);
-  if (contentType.startsWith("image/") && !contentType.includes("svg") && bytes.length > 3_500_000) {
-    let width = 2200;
-    let quality = 84;
+  if (contentType.startsWith("image/") && !contentType.includes("svg") && bytes.length > 700_000) {
+    let width = 1800;
+    let quality = 80;
     do {
       bytes = await sharp(bytes).rotate().resize({ width, height: Math.round(width * 1.42), fit: "inside", withoutEnlargement: true }).webp({ quality }).toBuffer();
       width = Math.round(width * 0.85);
       quality -= 8;
-    } while (bytes.length > 4_500_000 && quality >= 52);
+    } while (bytes.length > 900_000 && quality >= 52);
     contentType = "image/webp";
     extension = ".webp";
   }
-  if (bytes.length > 5_500_000) throw new Error("单个电子书素材压缩后仍超过微信云限制");
+  if (bytes.length > 1_100_000) throw new Error("单个电子书素材压缩后仍超过微信云限制");
   const digest = createHash("sha256").update(url).digest("hex").slice(0, 24);
   const reply = await postSync({
     mode: "asset",
