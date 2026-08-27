@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { readSession } from "@/lib/auth/session";
 import { decryptSecret } from "@/lib/security/encryption";
 import { OpenAiCompatibleProvider } from "@/lib/ai/provider";
+import { isCompanyGateway, resolveCompanyGatewayBaseUrl } from "@/lib/ai/company-bridge";
 
 export async function POST(_: Request, context: { params: Promise<{ id: string }> }) {
   if (!(await readSession())) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
@@ -13,11 +14,12 @@ export async function POST(_: Request, context: { params: Promise<{ id: string }
     const provider = new OpenAiCompatibleProvider({
       id: config.id,
       displayName: config.displayName,
-      baseUrl: config.baseUrl,
+      baseUrl: resolveCompanyGatewayBaseUrl(config.kind, config.baseUrl),
       model: config.model,
       apiKey: decryptSecret(config.encryptedApiKey),
+      companyGateway: isCompanyGateway(config.kind, config.baseUrl),
       extraHeaders: (config.extraHeaders as Record<string, string> | null) ?? undefined,
-      requestTimeoutMs: 10_000,
+      requestTimeoutMs: 15_000,
       maxAttempts: 1
     });
     const startedAt = Date.now();
