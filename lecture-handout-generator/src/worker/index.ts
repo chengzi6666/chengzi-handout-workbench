@@ -6,6 +6,7 @@ import { extractWordText } from "@/lib/word/extract";
 import { generateProjectContent } from "@/lib/handout/generate-project-content";
 import { getConfiguredProvider } from "@/lib/ai/configured-provider";
 import { EnvHttpProxyAgent, setGlobalDispatcher } from "undici";
+import { createConnection } from "node:net";
 
 if (process.env.OUTBOUND_PROXY_URL) {
   process.env.HTTP_PROXY = process.env.OUTBOUND_PROXY_URL;
@@ -24,6 +25,27 @@ const allowedJobKinds = new Set<JobKind>(
 let stopping = false;
 process.on("SIGINT", () => { stopping = true; });
 process.on("SIGTERM", () => { stopping = true; });
+
+async function companyGatewayReachable() {
+  if (process.env.BRIDGE_REQUEUE_NETWORK_ERRORS !== "true" || process.env.OUTBOUND_PROXY_URL) return true;
+  const config = await db.aiProviderConfig.findFirst({
+    where: { enabled: true },
+    orderBy: [{ isDefault: "desc" }, { updatedAt: "desc" }],
+    select: { baseUrl: true },
+  });
+  if (!config) return true;
+  let url: URL;
+  try { url = new URL(config.baseUrl); }
+  catch { return true; }
+  const port = Number(url.port || (url.protocol === "https:" ? 443 : 80));
+  return new Promise<boolean>((resolve) => {
+    const socket = createConnection({ host: url.hostname, port });
+    const done = (value: boolean) => { socket.destroy(); resolve(value); };
+    socket.setTimeout(4_000, () => done(false));
+    socket.once("connect", () => done(true));
+    socket.once("error", () => done(false));
+  });
+}
 
 async function recoverInterruptedJobs() {
   const staleBefore = new Date(Date.now() - 10 * 60 * 1000);
@@ -212,6 +234,13 @@ async function main() {
   catch (error) { console.warn("worker startup database unavailable; will retry", error instanceof Error ? error.message : error); }
   while (!stopping) {
     try {
+      // The company gateway resolves to a private address. Do not claim a Railway
+      // generation job while this PC is off the corporate network: otherwise the
+      // UI sits at 82% for a full model timeout and every retry increments attempts.
+      if (!(await companyGatewayReachable())) {
+        await new Promise((resolve) => setTimeout(resolve, 15_000));
+        continue;
+      }
       const job = await claimJob();
       if (job) await complete(job);
       else await new Promise((resolve) => setTimeout(resolve, 1500));

@@ -1,4 +1,5 @@
 import { execFileSync, spawn } from "node:child_process";
+import { existsSync, readdirSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 
@@ -7,10 +8,24 @@ const environment = "e7f9d4a5-0d28-4778-9cc9-e96dbdc6e110";
 const appService = "212ab9c5-bf0b-477d-a3b5-6bae394a518b";
 const databaseService = "9a40c03e-ae0e-4901-bcfb-d63aff812964";
 function railwayJson(args) {
-  const executable = process.platform === "win32" ? (process.env.ComSpec || "cmd.exe") : "npx";
-  const commandArgs = process.platform === "win32"
-    ? ["/d", "/s", "/c", `npx -y @railway/cli@latest ${args.join(" ")}`]
-    : ["-y", "@railway/cli@latest", ...args];
+  let executable = "npx";
+  let commandArgs = ["-y", "@railway/cli@latest", ...args];
+  if (process.platform === "win32") {
+    // Reusing the already downloaded native CLI avoids npx trying to replace its
+    // own locked cache while a previous Railway command is still shutting down.
+    const npxRoot = join(process.env.LOCALAPPDATA || "", "npm-cache", "_npx");
+    const cached = existsSync(npxRoot)
+      ? readdirSync(npxRoot)
+          .map((entry) => join(npxRoot, entry, "node_modules", "@railway", "cli", "bin", "railway.exe"))
+          .find(existsSync)
+      : undefined;
+    if (cached) {
+      executable = cached;
+      commandArgs = args;
+    } else {
+      executable = "npx.cmd";
+    }
+  }
   return JSON.parse(execFileSync(executable, commandArgs, {
     cwd: process.cwd(), encoding: "utf8", stdio: ["ignore", "pipe", "inherit"],
   }));
