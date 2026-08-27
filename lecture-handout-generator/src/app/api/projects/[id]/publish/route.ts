@@ -7,6 +7,7 @@ import { z } from "zod";
 import { createPinyinReview, validatePinyinReview } from "@/lib/handout/pinyin";
 import { defaultBackgroundPath } from "@/lib/handout/backgrounds";
 import { answerPageSpec, defaultLessonBodySize, isCurrentParentRichPage, lessonPageSpec, parentPageSpec } from "@/lib/handout/page-spec";
+import { syncPublishedBookToWechat } from "@/lib/wechat-cloud-sync";
 
 const publishSchema = z.object({ includes: z.array(z.enum(["parent", "student", "answers"])).min(1) });
 
@@ -83,6 +84,30 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
   // 微信会长期缓存同一 URL 的标题与缩略图。每次重新发布附带内容版本，
   // 让手机端立即抓取刚上传的分享封面，而不是继续显示旧图。
   const gradeCode = ({ "0升1": "0l1", "1升2": "1l2", "2升3": "2l3", "3升4": "3l4", "4升5": "4l5" } as Record<string, string>)[project.grade] ?? "0l1";
+  const version = flipbook.updatedAt.getTime();
+  const cover = project.backgroundPack?.assets.find((item) => item.role === "COVER");
+  const shareCover = project.backgroundPack?.assets.find((item) => item.role === "WECHAT_SHARE");
+  const absoluteAssets = (value: unknown): unknown => {
+    if (typeof value === "string" && value.startsWith("/")) return origin + value;
+    if (Array.isArray(value)) return value.map(absoluteAssets);
+    if (value && typeof value === "object") return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, absoluteAssets(item)]));
+    return value;
+  };
+  try {
+    await syncPublishedBookToWechat({
+      slug: flipbook.slug,
+      grade: project.grade,
+      title: flipbook.title,
+      description: flipbook.description,
+      updatedAt: flipbook.updatedAt,
+      coverUrl: cover ? `${origin}/api/book/${flipbook.slug}/background/${cover.id}?v=${version}` : null,
+      shareCoverUrl: shareCover ? `${origin}/api/book/${flipbook.slug}/background/${shareCover.id}?v=${version}` : null,
+      pages: absoluteAssets(content) as unknown[],
+    });
+  } catch (error) {
+    console.error("微信云同步失败", error);
+    return NextResponse.json({ error: `电子书已保存，但微信云同步失败：${error instanceof Error ? error.message : "未知错误"}` }, { status: 502 });
+  }
   return NextResponse.json({
     url: `${origin}/book/${flipbook.slug}?v=${flipbook.updatedAt.getTime()}`,
     slug: flipbook.slug,
