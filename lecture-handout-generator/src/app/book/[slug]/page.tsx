@@ -27,12 +27,15 @@ export default async function BookPage({ params }: { params: Promise<{ slug: str
   const { slug } = await params;
   const book = await db.publishedFlipbook.findUnique({ where: { slug }, include: { project: { include: { backgroundPack: { include: { assets: true } } } } } });
   if (!book) notFound();
-  const coverAsset = book.project.backgroundPack?.assets.find((asset) => asset.role === "COVER");
   const shareCoverAsset = book.project.backgroundPack?.assets.find((asset) => asset.role === "WECHAT_SHARE");
   const version = book.updatedAt.getTime();
-  const firstPageImage = (book.content as Array<{ pageImageUrl?: string }>)[0]?.pageImageUrl;
-  const coverSrc = coverAsset ? `/api/book/${slug}/background/${coverAsset.id}?v=${version}` : undefined;
+  const pages = book.content as Array<Record<string, unknown> & { pageImageUrl?: string }>;
+  const firstPageImage = pages[0]?.pageImageUrl;
+  // Imported Word books use the rendered first Word page as the real cover.
+  // Once the cover is opened, start from page 2 so page 1 is not shown twice.
+  const readerPages = firstPageImage ? pages.slice(1) : pages;
+  const coverSrc = firstPageImage;
   const shareCoverSrc = shareCoverAsset ? `/api/book/${slug}/background/${shareCoverAsset.id}?v=${version}` : firstPageImage;
   const crop = (book.project.layoutConfig as { backgroundCrop?: Record<string, { x?: number; y?: number }> } | null)?.backgroundCrop ?? {};
-  return <Flipbook title={book.title} description={book.description} pages={book.content as Array<Record<string, unknown>>} coverSrc={coverSrc} shareCoverSrc={shareCoverSrc} coverPosition={crop.COVER} shareCoverPosition={crop.WECHAT_SHARE} />;
+  return <Flipbook title={book.title} description={book.description} pages={readerPages} coverSrc={coverSrc} shareCoverSrc={shareCoverSrc} coverPosition={{ x: 50, y: 50 }} shareCoverPosition={crop.WECHAT_SHARE} />;
 }
