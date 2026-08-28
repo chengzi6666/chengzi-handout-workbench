@@ -15,6 +15,9 @@ function TeacherExpression({ page }: { page: Record<string, unknown> }) {
 }
 function PageContent({ page, headerText, footerText }: { page?: Record<string, unknown>; headerText?: string; footerText?: string }) {
   if (!page) return <div className="book-empty" />;
+  if (typeof page.pageImageUrl === "string" && page.pageImageUrl) {
+    return <img className="book-page-image" src={page.pageImageUrl} alt={String(page.title ?? "讲义页面")} />;
+  }
   const showAnswers = page.collection === "answers";
   const sharedPage = page.sharedPage as SharedPage | undefined;
   // 版式审核保存的逐页富文本（高光、加粗、斜体、下划线）优先展示；

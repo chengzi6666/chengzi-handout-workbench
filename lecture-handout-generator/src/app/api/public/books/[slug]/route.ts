@@ -30,14 +30,15 @@ export async function GET(request: Request, context: { params: Promise<{ slug: s
   const version = book.updatedAt.getTime();
   const cover = book.project.backgroundPack?.assets.find((item) => item.role === "COVER");
   const shareCover = book.project.backgroundPack?.assets.find((item) => item.role === "WECHAT_SHARE");
+  const firstPageImage = (book.content as Array<{ pageImageUrl?: string }>)[0]?.pageImageUrl;
   return NextResponse.json({
     slug: book.slug,
     grade: book.project.grade,
     title: book.title,
     description: book.description,
     updatedAt: book.updatedAt,
-    coverUrl: cover ? origin + "/api/book/" + slug + "/background/" + cover.id + "?v=" + version : null,
-    shareCoverUrl: shareCover ? origin + "/api/book/" + slug + "/background/" + shareCover.id + "?v=" + version : null,
+    coverUrl: cover ? origin + "/api/book/" + slug + "/background/" + cover.id + "?v=" + version : firstPageImage ? absoluteAssets(firstPageImage, origin) : null,
+    shareCoverUrl: shareCover ? origin + "/api/book/" + slug + "/background/" + shareCover.id + "?v=" + version : firstPageImage ? absoluteAssets(firstPageImage, origin) : null,
     pages: absoluteAssets(book.content, origin),
   });
 }

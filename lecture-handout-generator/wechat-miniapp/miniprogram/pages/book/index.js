@@ -10,6 +10,7 @@ Page({
     if(!this.slug){this.setData({loading:false,error:"缺少书籍编号"});return}
     this.loadBook();
   },
+  onResize(size) { this.setData({ landscape: size.size.windowWidth > size.size.windowHeight }); },
   async loadBook() {
     try {
       const response=await wx.cloud.callFunction({name:"getBook",data:{slug:this.slug}});

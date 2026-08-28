@@ -30,8 +30,9 @@ export default async function BookPage({ params }: { params: Promise<{ slug: str
   const coverAsset = book.project.backgroundPack?.assets.find((asset) => asset.role === "COVER");
   const shareCoverAsset = book.project.backgroundPack?.assets.find((asset) => asset.role === "WECHAT_SHARE");
   const version = book.updatedAt.getTime();
+  const firstPageImage = (book.content as Array<{ pageImageUrl?: string }>)[0]?.pageImageUrl;
   const coverSrc = coverAsset ? `/api/book/${slug}/background/${coverAsset.id}?v=${version}` : undefined;
-  const shareCoverSrc = shareCoverAsset ? `/api/book/${slug}/background/${shareCoverAsset.id}?v=${version}` : undefined;
+  const shareCoverSrc = shareCoverAsset ? `/api/book/${slug}/background/${shareCoverAsset.id}?v=${version}` : firstPageImage;
   const crop = (book.project.layoutConfig as { backgroundCrop?: Record<string, { x?: number; y?: number }> } | null)?.backgroundCrop ?? {};
   return <Flipbook title={book.title} description={book.description} pages={book.content as Array<Record<string, unknown>>} coverSrc={coverSrc} shareCoverSrc={shareCoverSrc} coverPosition={crop.COVER} shareCoverPosition={crop.WECHAT_SHARE} />;
 }
