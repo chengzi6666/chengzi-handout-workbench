@@ -28,16 +28,44 @@ async function pages(folder) {
 }
 
 for (const book of books) {
-  const form = new FormData();
-  form.set("title", book.title);
-  form.set("grade", book.grade);
-  form.set("description", `${book.grade}秋季五讲读写课：学生讲义与参考答案`);
-  form.set("teachingYear", "2026");
-  for (const page of await pages(`${book.code}-student`)) form.append("studentPages", new File([page.bytes], page.fileName, { type: "image/webp" }));
-  for (const page of await pages(`${book.code}-answer`)) form.append("answerPages", new File([page.bytes], page.fileName, { type: "image/webp" }));
   console.log(`正在发布 ${book.title}…`);
-  const response = await fetch(`${baseUrl}/api/import-existing-book`, { method: "POST", headers: { cookie }, body: form });
-  const reply = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(`${book.title}失败：${reply.error || response.status}`);
+  const start = await fetch(`${baseUrl}/api/import-existing-book/start`, { method: "POST", headers: { cookie, "content-type": "application/json" }, body: JSON.stringify({ title: book.title, grade: book.grade, description: `${book.grade}秋季五讲读写课：学生讲义与参考答案`, teachingYear: 2026 }) });
+  const started = await start.json().catch(() => ({}));
+  if (!start.ok) throw new Error(`${book.title}初始化失败：${started.error || start.status}`);
+  for (const [collection, folder] of [["student", `${book.code}-student`], ["answers", `${book.code}-answer`]]) {
+    const bookPages = await pages(folder);
+    for (let index = 0; index < bookPages.length; index += 1) {
+      const page = bookPages[index];
+      let uploaded = false;
+      for (let attempt = 1; attempt <= 5 && !uploaded; attempt += 1) {
+        const form = new FormData();
+        form.set("projectId", started.projectId);
+        form.set("collection", collection);
+        form.set("pageNumber", String(index + 1));
+        form.set("page", new File([page.bytes], page.fileName, { type: "image/webp" }));
+        try {
+          const response = await fetch(`${baseUrl}/api/import-existing-book/page`, { method: "POST", headers: { cookie }, body: form });
+          const reply = await response.json().catch(() => ({}));
+          if (!response.ok) throw new Error(reply.error || String(response.status));
+          uploaded = true;
+        } catch (error) {
+          if (attempt === 5) throw error;
+          await new Promise((resolve) => setTimeout(resolve, attempt * 1000));
+        }
+      }
+    }
+  }
+  let reply;
+  for (let attempt = 1; attempt <= 5; attempt += 1) {
+    try {
+      const response = await fetch(`${baseUrl}/api/import-existing-book/finalize`, { method: "POST", headers: { cookie, "content-type": "application/json" }, body: JSON.stringify({ projectId: started.projectId }) });
+      reply = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(reply.error || String(response.status));
+      break;
+    } catch (error) {
+      if (attempt === 5) throw error;
+      await new Promise((resolve) => setTimeout(resolve, attempt * 2000));
+    }
+  }
   console.log(JSON.stringify(reply));
 }
