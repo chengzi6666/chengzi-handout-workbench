@@ -79,6 +79,28 @@ async function uploadAsset(url: string, slug: string, version: string) {
   return reply.fileID;
 }
 
+export async function mirrorPublishedAsset(url: string, slug: string, version: string) {
+  return uploadAsset(url, slug, version);
+}
+
+export async function syncPublishedBookManifest(book: PublicBook) {
+  const bookBytes = Buffer.from(JSON.stringify(book), "utf8");
+  const bookChunkSize = 48 * 1024;
+  const bookTotal = Math.ceil(bookBytes.length / bookChunkSize);
+  const bookUploadId = `book-${String(new Date(book.updatedAt).getTime() || Date.now())}`;
+  for (let index = 0; index < bookTotal; index += 1) {
+    await postSync({
+      mode: "bookChunk",
+      slug: book.slug,
+      uploadId: bookUploadId,
+      index,
+      total: bookTotal,
+      data: bookBytes.subarray(index * bookChunkSize, Math.min(bookBytes.length, (index + 1) * bookChunkSize)).toString("base64"),
+    });
+  }
+  await postSync({ mode: "bookCommit", slug: book.slug, uploadId: bookUploadId, total: bookTotal });
+}
+
 export async function syncPublishedBookToWechat(book: PublicBook) {
   const version = String(new Date(book.updatedAt).getTime() || Date.now());
   const memo = new Map<string, Promise<string>>();
@@ -108,20 +130,6 @@ export async function syncPublishedBookToWechat(book: PublicBook) {
     return next;
   };
   const mirrored = (await transform(book)) as PublicBook;
-  const bookBytes = Buffer.from(JSON.stringify(mirrored), "utf8");
-  const bookChunkSize = 48 * 1024;
-  const bookTotal = Math.ceil(bookBytes.length / bookChunkSize);
-  const bookUploadId = `book-${version}`;
-  for (let index = 0; index < bookTotal; index += 1) {
-    await postSync({
-      mode: "bookChunk",
-      slug: book.slug,
-      uploadId: bookUploadId,
-      index,
-      total: bookTotal,
-      data: bookBytes.subarray(index * bookChunkSize, Math.min(bookBytes.length, (index + 1) * bookChunkSize)).toString("base64"),
-    });
-  }
-  await postSync({ mode: "bookCommit", slug: book.slug, uploadId: bookUploadId, total: bookTotal });
+  await syncPublishedBookManifest(mirrored);
   return { assetCount: memo.size };
 }

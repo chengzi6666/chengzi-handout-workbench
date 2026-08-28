@@ -29,9 +29,12 @@ async function pages(folder) {
 
 for (const book of books) {
   console.log(`正在发布 ${book.title}…`);
-  const start = await fetch(`${baseUrl}/api/import-existing-book/start`, { method: "POST", headers: { cookie, "content-type": "application/json" }, body: JSON.stringify({ title: book.title, grade: book.grade, description: `${book.grade}秋季五讲读写课：学生讲义与参考答案`, teachingYear: 2026 }) });
-  const started = await start.json().catch(() => ({}));
-  if (!start.ok) throw new Error(`${book.title}初始化失败：${started.error || start.status}`);
+  let started = args[`--resume-${book.code}`] ? { projectId: args[`--resume-${book.code}`] } : null;
+  if (!started) {
+    const start = await fetch(`${baseUrl}/api/import-existing-book/start`, { method: "POST", headers: { cookie, "content-type": "application/json" }, body: JSON.stringify({ title: book.title, grade: book.grade, description: `${book.grade}秋季五讲读写课：学生讲义与参考答案`, teachingYear: 2026 }) });
+    started = await start.json().catch(() => ({}));
+    if (!start.ok) throw new Error(`${book.title}初始化失败：${started.error || start.status}`);
+  }
   for (const [collection, folder] of [["student", `${book.code}-student`], ["answers", `${book.code}-answer`]]) {
     const bookPages = await pages(folder);
     for (let index = 0; index < bookPages.length; index += 1) {
@@ -67,5 +70,26 @@ for (const book of books) {
       await new Promise((resolve) => setTimeout(resolve, attempt * 2000));
     }
   }
+  const assets = {};
+  for (const page of reply.pages || []) {
+    const sourceFileId = String(page.pageImageUrl).split("/").pop();
+    let mirrored;
+    for (let attempt = 1; attempt <= 5; attempt += 1) {
+      try {
+        const response = await fetch(`${baseUrl}/api/import-existing-book/sync-asset`, { method: "POST", headers: { cookie, "content-type": "application/json" }, body: JSON.stringify({ projectId: started.projectId, sourceFileId }) });
+        mirrored = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(mirrored.error || String(response.status));
+        break;
+      } catch (error) {
+        if (attempt === 5) throw error;
+        await new Promise((resolve) => setTimeout(resolve, attempt * 2000));
+      }
+    }
+    assets[mirrored.pageImageUrl] = mirrored.fileID;
+  }
+  const manifest = await fetch(`${baseUrl}/api/import-existing-book/sync-manifest`, { method: "POST", headers: { cookie, "content-type": "application/json" }, body: JSON.stringify({ projectId: started.projectId, assets }) });
+  const manifestReply = await manifest.json().catch(() => ({}));
+  if (!manifest.ok) throw new Error(`${book.title}微信云目录提交失败：${manifestReply.error || manifest.status}`);
+  reply.wechatCloud = manifestReply;
   console.log(JSON.stringify(reply));
 }

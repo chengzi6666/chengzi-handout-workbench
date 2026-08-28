@@ -2,7 +2,6 @@ import { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { readSession } from "@/lib/auth/session";
 import { db } from "@/lib/db";
-import { syncPublishedBookToWechat } from "@/lib/wechat-cloud-sync";
 
 const gradeCodes: Record<string, string> = { "0升1": "0l1", "1升2": "1l2", "2升3": "2l3", "3升4": "3l4", "4升5": "4l5" };
 
@@ -30,6 +29,5 @@ export async function POST(request: Request) {
   const configuredOrigin = process.env.PUBLIC_APP_URL?.replace(/\/$/u, "");
   const origin = configuredOrigin && !/^https?:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?$/iu.test(configuredOrigin) ? configuredOrigin : new URL(request.url).origin;
   const absolutePages = content.map((page) => ({ ...page, pageImageUrl: origin + page.pageImageUrl }));
-  await syncPublishedBookToWechat({ slug: flipbook.slug, grade: project.grade, title: project.name, description: flipbook.description, updatedAt: flipbook.updatedAt, coverUrl: absolutePages[0].pageImageUrl, shareCoverUrl: absolutePages[0].pageImageUrl, pages: absolutePages });
-  return NextResponse.json({ projectId, slug: flipbook.slug, pageCount: content.length, url: `${origin}/book/${flipbook.slug}`, miniProgramPath: `/pages/book/index?grade=${gradeCodes[project.grade]}&slug=${flipbook.slug}` });
+  return NextResponse.json({ projectId, slug: flipbook.slug, pageCount: content.length, pages: absolutePages, url: `${origin}/book/${flipbook.slug}`, miniProgramPath: `/pages/book/index?grade=${gradeCodes[project.grade]}&slug=${flipbook.slug}` });
 }
