@@ -483,19 +483,14 @@ button { cursor: pointer; }
   .book-leaf { padding: 7% 8% 5%; overscroll-behavior: contain; }
   .book-hint { position: fixed; z-index: 13; right: 14px; bottom: max(8px, env(safe-area-inset-bottom)); left: 14px; margin: 0; padding: 5px 10px; border-radius: 999px; color: #6d5547; background: #fffaf0d9; backdrop-filter: blur(5px); }
 }
-/* 手机横屏显示双页；轻点任意页后聚焦为单页，兼顾翻书感与可读性。 */
+/* 手机横屏双页按屏幕宽度铺开，超出屏幕高度的部分由用户上下滑动查看。 */
 @media (orientation: landscape) and (max-width: 950px), (orientation: landscape) and (max-height: 650px) {
-  .book-stage { height: 100dvh; min-height: 0; padding: 7px 10px; overflow: hidden; }
+  .book-stage, .book-stage.touch-handout { height: 100dvh; min-height: 0; padding: 7px 10px; overflow-x: hidden; overflow-y: auto; }
   .book-stage > header { min-height: 46px; margin: 0 auto 4px; }
-  .spread-book, .spread-book.has-cover:not(.opened), .book-stage.touch-handout .spread-book, .book-stage.touch-handout .spread-book.has-cover:not(.opened) { width: min(calc(100vw - 86px), calc((100dvh - 62px) * 420 / 297)); height: auto; aspect-ratio: 420 / 297; }
-  .spread-book.double-page .book-left, .spread-book.double-page .book-right { width: 50%; height: 100%; display: flex; cursor: zoom-in; }
+  .spread-book, .spread-book.has-cover:not(.opened), .book-stage.touch-handout .spread-book, .book-stage.touch-handout .spread-book.has-cover:not(.opened) { width: calc(100vw - 86px); max-width: 1120px; height: auto; aspect-ratio: 420 / 297; }
+  .spread-book.double-page .book-left, .spread-book.double-page .book-right { width: 50%; height: 100%; display: flex; }
   .spread-book.double-page .book-spine { display: block; }
-  .spread-book.focused-left, .spread-book.focused-right, .book-stage.touch-handout .spread-book.focused-left, .book-stage.touch-handout .spread-book.focused-right { width: min(calc(100vw - 86px), 720px); aspect-ratio: 210 / 297; }
-  .spread-book.focused-left .book-left, .spread-book.focused-right .book-right { width: 100%; display: flex; border-radius: 8px; cursor: zoom-out; }
-  .spread-book.focused-left .book-right, .spread-book.focused-right .book-left, .spread-book.focused-left .book-spine, .spread-book.focused-right .book-spine { display: none; }
-  .book-stage.touch-handout:has(.spread-book.focused-left), .book-stage.touch-handout:has(.spread-book.focused-right) { overflow-y: auto; }
-  .book-stage.touch-handout .book-shell:has(.spread-book.focused-left), .book-stage.touch-handout .book-shell:has(.spread-book.focused-right) { height: auto; min-height: calc(100dvh - 58px); align-items: flex-start; padding-top: 4px; }
-  .book-shell { height: calc(100dvh - 58px); }
+  .book-shell, .book-stage.touch-handout .book-shell { height: auto; min-height: calc(100dvh - 58px); align-items: flex-start; padding-top: 4px; }
   .book-hint { display: none; }
   .book { width: 94vw; }
 }
