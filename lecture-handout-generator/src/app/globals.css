@@ -400,7 +400,7 @@ button { cursor: pointer; }
 .publish-button { width: 100%; margin-top: 14px; padding: 10px; border: 1px solid var(--orange); border-radius: 8px; color: var(--orange-dark); background: #fff5ef; font-size: 10px; font-weight: 700; text-align: center; text-decoration: none; }
 .flipbook-preview-bar { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 10px max(20px, calc((100% - 1100px) / 2)); color: #7a522f; background: #fff3dc; border-bottom: 1px solid #e7c590; font-size: 13px; }
 .flipbook-preview-bar a { color: #8c4c24; font-weight: 700; }
-.spread-book { position: relative; width: min(84vw, 1120px, calc((100dvh - 118px) * 420 / 297)); height: auto; aspect-ratio: 420 / 297; flex: 0 0 auto; display: flex; transform-style: preserve-3d; filter: drop-shadow(0 20px 28px #5a3c2730); }
+.spread-book { position: relative; width: min(84vw, 1120px); aspect-ratio: 420 / 297; display: flex; transform-style: preserve-3d; filter: drop-shadow(0 20px 28px #5a3c2730); }
 .spread-book.has-cover:not(.opened) { width: min(42vw, 560px); aspect-ratio: 210 / 297; }
 .spread-book::after { content: ""; position: absolute; inset: 1% -10px; z-index: -2; border-radius: 10px; background: repeating-linear-gradient(0deg, #e8ddcf 0 1px, #fffaf2 1px 3px); }
 .book-cover-spread { width: 100%; border: 0; border-radius: 9px; color: #fff7ed; background: linear-gradient(125deg, #df7544, #9d4e35) center/cover no-repeat; box-shadow: inset 0 0 0 7px #f7a17755; cursor: pointer; }
@@ -430,6 +430,21 @@ button { cursor: pointer; }
 .book-shell { height: calc(100vh - 100px); display: flex; align-items: center; justify-content: center; gap: 15px; perspective: 1800px; }
 .book-shell > button { width: 42px; height: 42px; display: grid; place-items: center; border: 0; border-radius: 50%; color: #6e5141; background: #ffffffc7; box-shadow: 0 4px 14px #6b4b3520; }
 .book-shell > button:disabled { opacity: .3; }
+.book-stage.touch-handout { height: 100dvh; min-height: 0; padding: 8px; overflow: hidden; }
+.book-stage.touch-handout > header { min-height: 54px; margin: 0; gap: 8px; }
+.book-stage.touch-handout > header h1 { max-width: 54vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.book-stage.touch-handout > header button { padding: 8px; font-size: 12px; }
+.book-stage.touch-handout .book-shell { position: relative; width: 100%; height: calc(100dvh - 70px); gap: 0; }
+.book-stage.touch-handout .spread-book, .book-stage.touch-handout .spread-book.has-cover:not(.opened) { width: min(calc(100vw - 16px), calc((100dvh - 70px) * 210 / 297)); height: auto; aspect-ratio: 210 / 297; }
+.book-stage.touch-handout .spread-book.single-page .book-left { width: 100%; height: 100%; border-radius: 8px; }
+.book-stage.touch-handout .spread-book.single-page .book-spine { display: none; }
+.book-stage.touch-handout .spread-book.single-page .book-turn-sheet { width: 100%; }
+.book-stage.touch-handout .book-shell > button { position: absolute; z-index: 12; top: 50%; width: 36px; height: 48px; transform: translateY(-50%); background: #fffdf0de; }
+.book-stage.touch-handout .book-shell > button:first-child { left: 5px; }
+.book-stage.touch-handout .book-shell > button:last-child { right: 5px; }
+.book-stage.touch-handout .book-leaf { padding: 7% 8% 5%; overscroll-behavior: contain; }
+.book-stage.touch-handout .book-leaf:has(> .book-page-image) { padding: 0; }
+.book-stage.touch-handout .book-hint { position: fixed; z-index: 13; right: 14px; bottom: max(8px, env(safe-area-inset-bottom)); left: 14px; margin: 0; padding: 5px 10px; border-radius: 999px; color: #6d5547; background: #fffaf0d9; backdrop-filter: blur(5px); }
 .book { position: relative; width: min(72vw, 620px); aspect-ratio: 210 / 297; transform-style: preserve-3d; filter: drop-shadow(0 20px 28px #5a3c2730); }
 .book::after { content: ""; position: absolute; inset: 1% -9px 1% 50%; z-index: -1; border-radius: 0 7px 7px 0; background: repeating-linear-gradient(90deg, #eee2d3 0 1px, #fffaf2 1px 3px); }
 .book-cover, .book-page { position: absolute; inset: 0; padding: 9% 10%; overflow: auto; border-radius: 6px 12px 12px 6px; backface-visibility: hidden; background: #fffdf7; transform-origin: left center; }
