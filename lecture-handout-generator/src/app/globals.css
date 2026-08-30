@@ -456,7 +456,8 @@ button { cursor: pointer; }
   .book-stage > header h1 { max-width: 54vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .book-stage > header button { padding: 8px; font-size: 12px; }
   .book-shell { position: relative; width: 100%; height: calc(100dvh - 70px); gap: 0; }
-  .spread-book, .spread-book.has-cover:not(.opened) { width: calc(100vw - 16px); height: 100%; max-height: none; aspect-ratio: auto; filter: drop-shadow(0 8px 16px #5a3c2728); }
+  /* 按 A4 比例适配页面：不要把竖版讲义硬塞进整块手机屏幕，否则会出现上下白边。 */
+  .spread-book, .spread-book.has-cover:not(.opened) { width: min(calc(100vw - 16px), calc((100dvh - 70px) * 210 / 297)); height: auto; max-height: none; aspect-ratio: 210 / 297; filter: drop-shadow(0 8px 16px #5a3c2728); }
   .spread-book.single-page .book-left { width: 100%; height: 100%; border-radius: 8px; }
   .spread-book.single-page .book-spine { display: none; }
   .spread-book.single-page .book-turn-sheet { width: 100%; }
@@ -467,15 +468,14 @@ button { cursor: pointer; }
   .book-leaf { padding: 7% 8% 5%; overscroll-behavior: contain; }
   .book-hint { position: fixed; z-index: 13; right: 14px; bottom: max(8px, env(safe-area-inset-bottom)); left: 14px; margin: 0; padding: 5px 10px; border-radius: 999px; color: #6d5547; background: #fffaf0d9; backdrop-filter: blur(5px); }
 }
-/* 手机横屏：恢复双页阅读，封面与正文铺满屏幕，像电脑一样 */
+/* 手机横屏仍保持单页，避免 A4 正文被压到半屏而难以阅读。 */
 @media (orientation: landscape) and (max-width: 950px) {
   .book-stage { height: 100dvh; min-height: 0; padding: 7px 10px; overflow: hidden; }
   .book-stage > header { min-height: 46px; margin: 0 auto 4px; }
-  .spread-book { width: calc(100vw - 86px); height: calc(100dvh - 62px); aspect-ratio: auto; }
-  .spread-book.has-cover:not(.opened) { width: min(48vw, 520px); height: calc(100dvh - 62px); aspect-ratio: 210 / 297; }
-  .spread-book.double-page .book-right { display: flex; }
-  .spread-book.double-page .book-left { width: 50%; }
-  .spread-book.double-page .book-spine { display: block; }
+  .spread-book, .spread-book.has-cover:not(.opened) { width: min(calc(100vw - 86px), calc((100dvh - 62px) * 210 / 297)); height: auto; aspect-ratio: 210 / 297; }
+  .spread-book.single-page .book-left { width: 100%; height: 100%; border-radius: 8px; }
+  .spread-book.single-page .book-spine { display: none; }
+  .spread-book.single-page .book-turn-sheet { width: 100%; }
   .book-shell { height: calc(100dvh - 58px); }
   .book-hint { display: none; }
   .book { width: 94vw; }
