@@ -73,11 +73,13 @@ export function Flipbook({ title, description, pages, coverSrc, shareCoverSrc, c
   useEffect(() => {
     // 手机上的横屏空间看似更宽，但两页 A4 会把每页压到半屏，正文反而难以阅读。
     // 手机一律单页，桌面与平板宽屏才保留双页翻阅体验。
-    const query = window.matchMedia("(max-width: 950px)");
+    const query = window.matchMedia("(max-width: 950px), (orientation: landscape) and (max-height: 650px)");
     // 有些安卓浏览器会以“桌面网页”宽度汇报视口；触控设备仍应使用单页，
     // 否则 A4 页面会在横屏时被并排压缩并露出白边。
     const isTouchDevice = window.matchMedia("(pointer: coarse)").matches || navigator.maxTouchPoints > 0;
-    const sync = () => { setTouchHandout(isTouchDevice); setPagesPerView(query.matches || isTouchDevice ? 1 : 2); };
+    const isMobileBrowser = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+    const forceSinglePage = isTouchDevice || isMobileBrowser;
+    const sync = () => { setTouchHandout(forceSinglePage || query.matches); setPagesPerView(query.matches || forceSinglePage ? 1 : 2); };
     sync(); query.addEventListener("change", sync);
     return () => query.removeEventListener("change", sync);
   }, []);
