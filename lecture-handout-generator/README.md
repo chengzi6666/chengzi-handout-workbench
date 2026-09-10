@@ -34,6 +34,16 @@ powershell -ExecutionPolicy Bypass -File .\scripts\start-local.ps1
 powershell -ExecutionPolicy Bypass -File .\scripts\stop-local.ps1
 ```
 
+首次使用“发布小程序并调试”前，在 Windows 本机安装一次唤起器：
+
+```powershell
+pnpm wechat:install-launcher
+```
+
+以后平台会先把最新讲义、页面和分享封面同步到微信云端，再直接打开
+`wechat-miniapp` 项目进行编译调试。线上 Railway 页面也可调用本机唤起器；
+浏览器第一次询问是否打开时请选择允许。
+
 也可以手动启动：
 
 ```bash

@@ -9,6 +9,8 @@
     "start": "next start",
     "worker": "tsx --env-file=.env src/worker/index.ts",
     "bridge:railway": "node scripts/railway-ai-bridge.mjs",
+    "wechat:install-launcher": "powershell -ExecutionPolicy Bypass -File scripts/install-wechat-devtools-launcher.ps1",
+    "wechat:open": "powershell -ExecutionPolicy Bypass -File scripts/open-wechat-devtools.ps1",
     "typecheck": "tsc --noEmit",
     "test": "tsx --test src/**/*.test.ts",
     "db:generate": "prisma generate",
