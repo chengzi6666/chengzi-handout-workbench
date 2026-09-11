@@ -66,10 +66,19 @@ function PageContent({ page, headerText, footerText }: { page?: Record<string, u
 }
 
 type CropPosition = { x?: number; y?: number };
+const MINI_PROGRAM_GRADES = [
+  { code: "0l1", label: "一年级", sourceGrade: "0升1" },
+  { code: "1l2", label: "二年级", sourceGrade: "1升2" },
+  { code: "2l3", label: "三年级", sourceGrade: "2升3" },
+  { code: "3l4", label: "四年级", sourceGrade: "3升4" },
+  { code: "4l5", label: "五年级", sourceGrade: "4升5" },
+] as const;
 
-export function Flipbook({ title, description, pages, coverSrc, shareCoverSrc, coverPosition, shareCoverPosition, projectId, headerText, footerText }: { title: string; description: string; pages: Array<Record<string, unknown>>; coverSrc?: string; shareCoverSrc?: string; coverPosition?: CropPosition; shareCoverPosition?: CropPosition; projectId?: string; headerText?: string; footerText?: string }) {
+export function Flipbook({ title, description, pages, coverSrc, shareCoverSrc, coverPosition, shareCoverPosition, projectId, projectGrade, headerText, footerText }: { title: string; description: string; pages: Array<Record<string, unknown>>; coverSrc?: string; shareCoverSrc?: string; coverPosition?: CropPosition; shareCoverPosition?: CropPosition; projectId?: string; projectGrade?: string; headerText?: string; footerText?: string }) {
   const [opened, setOpened] = useState(false); const [spread, setSpread] = useState(0); const [turning, setTurning] = useState<{ direction: "next" | "previous"; page?: Record<string, unknown> } | null>(null); const [included, setIncluded] = useState<string[]>(["parent", "student", "answers"]); const [publishMessage, setPublishMessage] = useState(""); const [publishedUrl, setPublishedUrl] = useState(""); const [publishing, setPublishing] = useState(false);
   const [pagesPerView, setPagesPerView] = useState(2); const [touchHandout, setTouchHandout] = useState(false);
+  const suggestedGrade = MINI_PROGRAM_GRADES.find((item) => item.sourceGrade === projectGrade)?.code ?? "0l1";
+  const [targetGrade, setTargetGrade] = useState<string>(suggestedGrade);
   const gradeMatch = title.match(/([一二三四五])年级/u);
   const headerTitle = gradeMatch ? `${gradeMatch[1]}年级电子讲义` : title;
   useEffect(() => {
@@ -93,12 +102,12 @@ export function Flipbook({ title, description, pages, coverSrc, shareCoverSrc, c
   const visiblePages = pages.filter((page) => included.includes(String(page.collection ?? "student")));
   const total = visiblePages.length; const left = visiblePages[spread]; const right = pagesPerView === 2 ? visiblePages[spread + 1] : undefined; const canPrevious = opened && spread > 0; const canNext = !opened || spread + pagesPerView < total;
   async function share() { const url = publishedUrl || location.href; if (navigator.share) { try { await navigator.share({ title, text: description, url }); return; } catch (error) { if ((error as Error).name === "AbortError") return; } } await navigator.clipboard.writeText(url); alert("分享链接已复制，可以粘贴发送到微信。"); }
-  async function publish() {
+  async function publish(options?: { mode?: "test" | "replace"; targetGradeCode?: string; confirmTarget?: string }) {
     if (!projectId || included.length === 0 || publishing) return null;
     setPublishing(true);
     setPublishMessage("正在生成讲义并同步到微信云端…");
     try {
-      const response = await fetch(`/api/projects/${projectId}/publish`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ includes: included }) });
+      const response = await fetch(`/api/projects/${projectId}/publish`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ includes: included, ...options }) });
       const payload = await response.json().catch(() => ({})) as { url?: string; miniProgramPath?: string; error?: string };
       if (!response.ok) { setPublishMessage(payload.error ?? "发布失败"); return null; }
       if (payload.url) setPublishedUrl(payload.url);
@@ -108,16 +117,27 @@ export function Flipbook({ title, description, pages, coverSrc, shareCoverSrc, c
       setPublishing(false);
     }
   }
-  async function publishToMiniProgram() {
-    const payload = await publish();
+  function openDevTools(path = "/pages/grade/index", preserveMessage = false) {
+    if (!preserveMessage) setPublishMessage("正在打开微信开发者工具；此操作不会修改云端讲义。");
+    window.location.href = `chengzi-wechat://debug?path=${encodeURIComponent(path)}`;
+  }
+  async function publishTestToMiniProgram() {
+    const payload = await publish({ mode: "test" });
     if (!payload) return;
-    const path = encodeURIComponent(payload.miniProgramPath ?? "/pages/grade/index");
-    setPublishMessage("同步成功，正在打开微信开发者工具；首次使用请先安装本机唤起器。");
-    window.location.href = `chengzi-wechat://debug?path=${path}`;
+    setPublishMessage("独立测试讲义已上传，不会影响五个正式年级；正在打开开发者工具。");
+    openDevTools(payload.miniProgramPath, true);
+  }
+  async function replaceMiniProgramGrade() {
+    const target = MINI_PROGRAM_GRADES.find((item) => item.code === targetGrade);
+    if (!target || !window.confirm(`确定用当前讲义替换小程序中的“${target.label}”吗？\n\n只会替换${target.label}，其他四个年级不变。替换成功后用户打开小程序即可看到新内容。`)) return;
+    const payload = await publish({ mode: "replace", targetGradeCode: target.code, confirmTarget: target.code });
+    if (!payload) return;
+    setPublishMessage(`${target.label}正式讲义已替换，其他年级未修改；正在打开开发者工具检查。`);
+    openDevTools(payload.miniProgramPath, true);
   }
   function previous() { if (!canPrevious || turning) return; const page = visiblePages[Math.max(0, spread - pagesPerView)]; setSpread((value) => Math.max(0, value - pagesPerView)); setTurning({ direction: "previous", page }); window.setTimeout(() => setTurning(null), 520); }
   function next() { if (turning) return; if (!opened) { setOpened(true); return; } if (canNext) { const page = visiblePages[Math.min(total - 1, spread + pagesPerView - 1)]; setSpread((value) => Math.min(total - 1, value + pagesPerView)); setTurning({ direction: "next", page }); window.setTimeout(() => setTurning(null), 520); } }
   function toggle(kind: string) { setIncluded((value) => value.includes(kind) ? value.filter((item) => item !== kind) : ["parent", "student", "answers"].filter((item) => item === kind || value.includes(item))); setSpread(0); setOpened(false); }
   const pageStyle = (page?: Record<string, unknown>) => typeof page?.backgroundSrc === "string" ? { backgroundImage: `url(${page.backgroundSrc})`, backgroundSize: "cover", backgroundPosition: "center" } : undefined;
-  return <main className={`book-stage ${touchHandout ? "touch-handout" : ""}`}><header><div><div className="book-brand"><img src="/xueersi-logo.png" alt="学而思网校" /><span>学而思网校</span></div><h1>{headerTitle}</h1></div><button onClick={() => void share()}><Share2 size={17} /> 复制分享链接</button></header>{projectId ? <><section className="flipbook-options"><b>电子翻页书包含：</b>{[["parent", "家长使用手册"], ["student", "学员电子版合集"], ["answers", "参考答案"]].map(([kind, label]) => <label key={kind}><input type="checkbox" checked={included.includes(kind)} onChange={() => toggle(kind)} /> {label}</label>)}<button disabled={!included.length || publishing} onClick={() => void publish()}><Upload size={15} /> {publishing ? "正在同步…" : "生成分享页"}</button><button className="mini-program-publish" disabled={!included.length || publishing} onClick={() => void publishToMiniProgram()}><ExternalLink size={15} /> {publishing ? "正在准备…" : "发布小程序并调试"}</button>{publishMessage ? <span className="publish-status">{publishMessage}</span> : null}</section><section className="wechat-card-preview"><div className="wechat-card-image" style={shareCoverSrc ? { backgroundImage: `url(${shareCoverSrc})`, backgroundPosition: `${shareCoverPosition?.x ?? 50}% ${shareCoverPosition?.y ?? 50}%` } : undefined}>{!shareCoverSrc ? <span>未上传微信分享封面</span> : null}</div><div><b>微信分享卡片预览</b><strong>{title}</strong><p>{description}</p><small>{shareCoverSrc ? "将使用微信分享封面；发布到公网后，微信会抓取此卡片信息。" : "请回到版式工作台上传横版微信分享封面。"}</small></div></section></> : null}<div className="book-shell"><button aria-label="上一页" disabled={!canPrevious || Boolean(turning)} onClick={previous}><ChevronLeft /></button><div className={`spread-book ${opened ? "opened" : ""} ${coverSrc ? "has-cover" : ""} ${pagesPerView === 1 ? "single-page" : "double-page"}`}>{!opened ? <button className="book-cover-spread" onClick={next} style={coverSrc ? { backgroundImage: `url(${coverSrc})`, backgroundPosition: `${coverPosition?.x ?? 50}% ${coverPosition?.y ?? 50}%` } : undefined}>{!coverSrc && <><small>{description}</small><h2>{title}</h2><p>点击封面，像翻开一本书一样开始阅读</p></>}</button> : <><article style={pageStyle(left)} className={`book-leaf book-left kind-${String(left?.kind ?? "home")}`} key={`left-${spread}`}><PageContent page={left} headerText={headerText} footerText={footerText} /></article>{pagesPerView === 2 ? <article style={pageStyle(right)} className={`book-leaf book-right kind-${String(right?.kind ?? "home")}`} key={`right-${spread}`}><PageContent page={right} headerText={headerText} footerText={footerText} /></article> : null}{turning && <article className={`book-turn-sheet turn-${turning.direction}`}><PageContent page={turning.page} headerText={headerText} footerText={footerText} /></article>}<div className="book-spine" /></>}</div><button aria-label="下一页" disabled={!canNext || Boolean(turning)} onClick={next}><ChevronRight /></button></div>{opened && <p className="book-hint">{pagesPerView === 1 ? "竖屏单页阅读；旋转横屏后显示双页" : "横屏双页阅读；上下滑动查看完整页面"}</p>}</main>;
+  return <main className={`book-stage ${touchHandout ? "touch-handout" : ""}`}><header><div><div className="book-brand"><img src="/xueersi-logo.png" alt="学而思网校" /><span>学而思网校</span></div><h1>{headerTitle}</h1></div><button onClick={() => void share()}><Share2 size={17} /> 复制分享链接</button></header>{projectId ? <><section className="flipbook-options"><b>电子翻页书包含：</b>{[["parent", "家长使用手册"], ["student", "学员电子版合集"], ["answers", "参考答案"]].map(([kind, label]) => <label key={kind}><input type="checkbox" checked={included.includes(kind)} onChange={() => toggle(kind)} /> {label}</label>)}<button disabled={!included.length || publishing} onClick={() => void publish()}><Upload size={15} /> {publishing ? "正在同步…" : "生成分享页"}</button><div className="mini-program-actions"><button type="button" className="devtools-only" disabled={publishing} onClick={() => openDevTools()}><ExternalLink size={15} /> 仅打开开发者工具</button><button type="button" className="mini-program-test" disabled={!included.length || publishing} onClick={() => void publishTestToMiniProgram()}><Upload size={15} /> 上传为测试讲义</button><label className="grade-target">替换目标<select value={targetGrade} disabled={publishing} onChange={(event) => setTargetGrade(event.target.value)}>{MINI_PROGRAM_GRADES.map((item) => <option key={item.code} value={item.code}>{item.label}</option>)}</select></label><button type="button" className="mini-program-replace" disabled={!included.length || publishing} onClick={() => void replaceMiniProgramGrade()}><Upload size={15} /> 替换指定年级</button></div>{publishMessage ? <span className="publish-status">{publishMessage}</span> : null}</section><section className="wechat-card-preview"><div className="wechat-card-image" style={shareCoverSrc ? { backgroundImage: `url(${shareCoverSrc})`, backgroundPosition: `${shareCoverPosition?.x ?? 50}% ${shareCoverPosition?.y ?? 50}%` } : undefined}>{!shareCoverSrc ? <span>未上传微信分享封面</span> : null}</div><div><b>微信分享卡片预览</b><strong>{title}</strong><p>{description}</p><small>{shareCoverSrc ? "将使用微信分享封面；发布到公网后，微信会抓取此卡片信息。" : "请回到版式工作台上传横版微信分享封面。"}</small></div></section></> : null}<div className="book-shell"><button aria-label="上一页" disabled={!canPrevious || Boolean(turning)} onClick={previous}><ChevronLeft /></button><div className={`spread-book ${opened ? "opened" : ""} ${coverSrc ? "has-cover" : ""} ${pagesPerView === 1 ? "single-page" : "double-page"}`}>{!opened ? <button className="book-cover-spread" onClick={next} style={coverSrc ? { backgroundImage: `url(${coverSrc})`, backgroundPosition: `${coverPosition?.x ?? 50}% ${coverPosition?.y ?? 50}%` } : undefined}>{!coverSrc && <><small>{description}</small><h2>{title}</h2><p>点击封面，像翻开一本书一样开始阅读</p></>}</button> : <><article style={pageStyle(left)} className={`book-leaf book-left kind-${String(left?.kind ?? "home")}`} key={`left-${spread}`}><PageContent page={left} headerText={headerText} footerText={footerText} /></article>{pagesPerView === 2 ? <article style={pageStyle(right)} className={`book-leaf book-right kind-${String(right?.kind ?? "home")}`} key={`right-${spread}`}><PageContent page={right} headerText={headerText} footerText={footerText} /></article> : null}{turning && <article className={`book-turn-sheet turn-${turning.direction}`}><PageContent page={turning.page} headerText={headerText} footerText={footerText} /></article>}<div className="book-spine" /></>}</div><button aria-label="下一页" disabled={!canNext || Boolean(turning)} onClick={next}><ChevronRight /></button></div>{opened && <p className="book-hint">{pagesPerView === 1 ? "竖屏单页阅读；旋转横屏后显示双页" : "横屏双页阅读；上下滑动查看完整页面"}</p>}</main>;
 }

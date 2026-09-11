@@ -9,7 +9,24 @@ import { defaultBackgroundPath } from "@/lib/handout/backgrounds";
 import { answerPageSpec, defaultLessonBodySize, isCurrentParentRichPage, lessonPageSpec, parentPageSpec } from "@/lib/handout/page-spec";
 import { syncPublishedBookToWechat } from "@/lib/wechat-cloud-sync";
 
-const publishSchema = z.object({ includes: z.array(z.enum(["parent", "student", "answers"])).min(1) });
+const publishSchema = z.object({
+  includes: z.array(z.enum(["parent", "student", "answers"])).min(1),
+  mode: z.enum(["test", "replace"]).optional().default("test"),
+  targetGradeCode: z.enum(["0l1", "1l2", "2l3", "3l4", "4l5"]).optional(),
+  confirmTarget: z.string().optional(),
+}).superRefine((value, context) => {
+  if (value.mode === "replace" && (!value.targetGradeCode || value.confirmTarget !== value.targetGradeCode)) {
+    context.addIssue({ code: "custom", message: "替换正式年级前必须确认目标年级" });
+  }
+});
+
+const MINI_PROGRAM_TARGETS = {
+  "0l1": { label: "一年级", sourceGrade: "0升1", slug: "TLfZ6HYc" },
+  "1l2": { label: "二年级", sourceGrade: "1升2", slug: "C6xhkXIc" },
+  "2l3": { label: "三年级", sourceGrade: "2升3", slug: "T1c0FhGL" },
+  "3l4": { label: "四年级", sourceGrade: "3升4", slug: "xBldMFzl" },
+  "4l5": { label: "五年级", sourceGrade: "4升5", slug: "7VUPC9U0" },
+} as const;
 
 function publicPractice<T extends { imageSourceFileId?: string }>(items: T[], slug: string) {
   return items.map((item) => ({
@@ -100,10 +117,12 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
     if (value && typeof value === "object") return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, absoluteAssets(item)]));
     return value;
   };
+  const target = parsed.data.mode === "replace" && parsed.data.targetGradeCode ? MINI_PROGRAM_TARGETS[parsed.data.targetGradeCode] : null;
+  const cloudSlug = target?.slug ?? flipbook.slug;
   try {
     await syncPublishedBookToWechat({
-      slug: flipbook.slug,
-      grade: project.grade,
+      slug: cloudSlug,
+      grade: target?.sourceGrade ?? project.grade,
       title: flipbook.title,
       description: flipbook.description,
       updatedAt: flipbook.updatedAt,
@@ -118,7 +137,9 @@ export async function POST(_request: Request, context: { params: Promise<{ id: s
   return NextResponse.json({
     url: `${origin}/book/${flipbook.slug}?v=${flipbook.updatedAt.getTime()}`,
     slug: flipbook.slug,
-    miniProgramPath: `/pages/book/index?grade=${gradeCode}&slug=${flipbook.slug}`,
+    miniProgramPath: `/pages/book/index?grade=${parsed.data.targetGradeCode ?? gradeCode}&slug=${cloudSlug}`,
+    mode: parsed.data.mode,
+    replacedGrade: target?.label ?? null,
   });
 }
 

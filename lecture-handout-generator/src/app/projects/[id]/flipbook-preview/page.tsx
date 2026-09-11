@@ -126,6 +126,7 @@ export default async function FlipbookPreviewPage({
         description={`${project.grade} · ${project.season ?? "课程"} · 微信翻页书预览`}
         pages={pages}
         projectId={project.id}
+        projectGrade={project.grade}
         coverSrc={project.backgroundPack?.assets.find((asset) => asset.role === "COVER") ? `/api/assets/background/${project.backgroundPack?.assets.find((asset) => asset.role === "COVER")?.id}` : undefined}
         shareCoverSrc={project.backgroundPack?.assets.find((asset) => asset.role === "WECHAT_SHARE") ? `/api/assets/background/${project.backgroundPack?.assets.find((asset) => asset.role === "WECHAT_SHARE")?.id}` : undefined}
         coverPosition={(project.layoutConfig as { backgroundCrop?: Record<string, { x?: number; y?: number }> } | null)?.backgroundCrop?.COVER}
